@@ -41,6 +41,45 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         // 1. Initialize Socket
         socket = io();
 
+        // Helper: Initialize PeerJS and setup event listeners once we have a stream (real or dummy)
+        const initPeerAndJoin = (mediaStream: MediaStream) => {
+            peerRef.current = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+
+            peerRef.current.on('open', (id) => {
+                setMyPeerId(id);
+                console.log('My peer ID is: ' + id);
+                socket.emit("join-room", roomId, id);
+            });
+
+            // Answer incoming calls
+            peerRef.current.on('call', call => {
+                call.answer(mediaStream);
+                call.on('stream', remoteStream => {
+                    console.log("Received remote stream (answering)", remoteStream.id);
+                    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.onloadedmetadata = () => {
+                            remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
+                        };
+                    }
+                });
+            });
+
+            // Listen for new users connecting
+            socket.on("user-connected", (userId: string) => {
+                console.log("User connected:", userId);
+                setRemotePeerId(userId);
+                connectToNewUser(userId, mediaStream);
+            });
+        };
+
         // 2. Setup User Media (Camera/Mic) FIRST
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -51,58 +90,41 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 if (myVideoRef.current) {
                     myVideoRef.current.srcObject = stream;
                 }
-
-                // 3. Initialize WebRTC peer via PeerJS ONCE STREAM IS READY
-                peerRef.current = new Peer({
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:global.stun.twilio.com:3478' }
-                        ]
-                    }
-                });
-
-                peerRef.current.on('open', (id) => {
-                    setMyPeerId(id);
-                    console.log('My peer ID is: ' + id);
-
-                    // Join Room ONLY when we have a media stream and a peer ID
-                    socket.emit("join-room", roomId, id);
-                });
-
-                // Answer incoming calls
-                peerRef.current.on('call', call => {
-                    call.answer(stream);
-                    call.on('stream', remoteStream => {
-                        console.log("Received remote stream (answering)", remoteStream.id);
-                        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
-                            remoteVideoRef.current.srcObject = remoteStream;
-                            remoteVideoRef.current.onloadedmetadata = () => {
-                                remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
-                            };
-                        }
-                    });
-                });
-
-                // Listen for new users connecting
-                socket.on("user-connected", (userId: string) => {
-                    console.log("User connected:", userId);
-                    setRemotePeerId(userId);
-                    // Call the new user
-                    connectToNewUser(userId, stream);
-                });
+                initPeerAndJoin(stream);
             })
             .catch(err => {
                 console.error("Failed to get local stream", err);
-                // Fallback: still join room but no camera
-                peerRef.current = new Peer({
-                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                });
-                peerRef.current.on('open', (id) => {
-                    setMyPeerId(id);
-                    socket.emit("join-room", roomId, id);
-                });
-                socket.on("user-connected", (userId: string) => setRemotePeerId(userId));
+
+                // Fallback: Create a dummy stream with a black canvas and silent audio.
+                // This forces PeerJS to negotiate WebRTC video/audio tracks in the SDP so it can still RECEIVE video from others!
+                try {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) {
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    const videoStream = (canvas as any).captureStream(1); // 1 FPS
+
+                    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const destNode = audioCtx.createMediaStreamDestination();
+
+                    const dummyStream = new MediaStream([
+                        ...videoStream.getVideoTracks(),
+                        ...destNode.stream.getAudioTracks()
+                    ]);
+
+                    // Disable tracks so they send black/silent frames instead of nonsense
+                    dummyStream.getTracks().forEach(t => t.enabled = false);
+                    streamRef.current = dummyStream;
+
+                    initPeerAndJoin(dummyStream);
+                } catch (fallbackErr) {
+                    console.error("Fallback dummy stream creation failed", fallbackErr);
+                    initPeerAndJoin(new MediaStream());
+                }
             });
 
         // Handle user disconnect
@@ -149,14 +171,11 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         };
     }, [roomId]);
 
-    function connectToNewUser(userId: string, stream: MediaStream | null) {
-        if (!peerRef.current) return;
+    function connectToNewUser(userId: string, stream: MediaStream) {
+        if (!peerRef.current || !stream) return;
         console.log("Calling user", userId);
 
-        // PeerJS requires a MediaStream when calling, if we don't have one, we can call without it
-        // and just wait to receive their stream. However, in PeerJS, to receive a stream, you often
-        // need to initiate the call object properly. We can pass an empty stream or use modern APIs:
-        const call = stream ? peerRef.current.call(userId, stream) : peerRef.current.call(userId, new MediaStream());
+        const call = peerRef.current.call(userId, stream);
 
         call.on('stream', remoteStream => {
             console.log("Received remote stream (calling)", remoteStream.id);
