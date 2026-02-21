@@ -124,7 +124,7 @@ app.prepare().then(() => {
         if (!room.messages) room.messages = [];
         room.messages.push(messageData);
         if (room.messages.length > 100) room.messages.shift(); // Keep last 100
-        io.to(roomId).emit("chat-message", messageData);
+        socket.to(roomId).emit("chat-message", messageData);
       }
     });
 

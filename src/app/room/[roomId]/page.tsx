@@ -413,30 +413,39 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             </div>
 
             {/* Floating Action Bar (Mobile Only) */}
-            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                 <button
                     onClick={handleDrawCard}
-                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-white/5 active:bg-white/10 rounded-xl transition-all"
+                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-white/5 active:bg-white/10 rounded-xl transition-all"
                 >
-                    <PlusSquare className="w-6 h-6 text-mystic mb-1" />
-                    <span className="text-[9px] font-bold text-neutral-300 uppercase">Draw</span>
+                    <PlusSquare className="w-5 h-5 text-mystic mb-0.5" />
+                    <span className="text-[8px] font-bold text-neutral-300 uppercase">Draw</span>
                 </button>
                 <button
                     onClick={handleThreeCardSpread}
-                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30 shadow-[0_0_15px_rgba(252,211,77,0.1)]"
+                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30"
                 >
-                    <Sparkles className="w-6 h-6 text-mystic mb-1" />
-                    <span className="text-[9px] font-bold text-mystic uppercase text-center leading-tight">3-Card</span>
+                    <Sparkles className="w-5 h-5 text-mystic mb-0.5" />
+                    <span className="text-[8px] font-bold text-mystic uppercase">Spread</span>
                 </button>
                 <button
                     onClick={() => setIsChatOpen(!isChatOpen)}
-                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
+                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
                 >
-                    <MessageCircle className="w-6 h-6 text-ethereal mb-1" />
-                    <span className="text-[9px] font-bold text-neutral-300 uppercase">Chat</span>
+                    <MessageCircle className="w-5 h-5 text-ethereal mb-0.5" />
+                    <span className="text-[8px] font-bold text-neutral-300 uppercase">Chat</span>
                     {messages.length > 0 && (
-                        <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-ethereal rounded-full" />
+                        <div className="absolute top-1 right-1 w-2 h-2 bg-ethereal rounded-full" />
                     )}
+                </button>
+                <div className="w-px h-8 bg-white/10" />
+                <button onClick={toggleMute} className={cn("flex flex-col items-center justify-center p-2 w-14 h-14 rounded-xl transition-all", isMuted ? "bg-red-500/10 text-red-400" : "bg-white/5 text-mystic")}>
+                    {isMuted ? <MicOff className="w-5 h-5 mb-0.5" /> : <Mic className="w-5 h-5 mb-0.5" />}
+                    <span className="text-[8px] font-bold uppercase">{isMuted ? 'Muted' : 'Mic'}</span>
+                </button>
+                <button onClick={toggleVideo} className={cn("flex flex-col items-center justify-center p-2 w-14 h-14 rounded-xl transition-all", isVideoOff ? "bg-red-500/10 text-red-400" : "bg-white/5 text-ethereal")}>
+                    {isVideoOff ? <VideoOff className="w-5 h-5 mb-0.5" /> : <Video className="w-5 h-5 mb-0.5" />}
+                    <span className="text-[8px] font-bold uppercase">{isVideoOff ? 'Off' : 'Cam'}</span>
                 </button>
             </div>
 
@@ -571,8 +580,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             <main
                 className="flex-1 relative bg-transparent overflow-hidden"
                 onPointerMove={(e) => {
+                    // Only emit cursors for mouse/trackpad (pointer: fine), NOT touch screens
+                    if (e.pointerType === 'touch') return;
                     const now = Date.now();
-                    if (now - lastCursorEmit.current > 40) {
+                    if (now - lastCursorEmit.current > 50) {
                         lastCursorEmit.current = now;
                         socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
                     }
@@ -582,26 +593,28 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none mix-blend-overlay" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
 
-                {/* WebRTC Video Overlay (Top Right Desktop, Top Center Mobile) */}
-                <div className="absolute top-16 md:top-8 right-4 md:right-8 z-40 flex flex-row md:flex-col gap-3 md:gap-6 justify-end items-end pointer-events-none">
-                    <div className="relative group pointer-events-auto">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000 hidden md:block" />
-                        <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-32 md:w-56 aspect-video shadow-2xl">
+                {/* WebRTC Video Overlay (Top Right) */}
+                <div className="absolute top-8 right-8 z-40 flex flex-col gap-6">
+                    <div className="relative group">
+                        {/* Remote Video Glow */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000" />
+                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-56 aspect-video shadow-2xl">
                             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover mix-blend-luminosity hover:mix-blend-normal transition-all duration-700 pointer-events-none" />
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
-                                <span className="text-[10px] md:text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting...</span>
+                                <span className="text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative group md:translate-x-12 pointer-events-auto">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 hidden md:block" />
-                        <div className="relative overflow-hidden rounded-lg md:rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-24 md:w-36 aspect-video shadow-xl">
+                    <div className="relative group translate-x-12">
+                        {/* Local Video Glow */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
+                        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-36 aspect-video shadow-xl">
                             <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] opacity-70 hover:opacity-100 transition-opacity duration-500" />
                         </div>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-3 justify-end translate-x-12 mt-2 pointer-events-auto">
+                    <div className="flex items-center gap-3 justify-end translate-x-12 mt-2">
                         <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isMuted ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10 hover:border-mystic/30")}>
                             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                         </button>
@@ -611,19 +624,21 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     </div>
                 </div>
 
-                {/* Live Cursors */}
-                {Object.entries(cursors).map(([userId, pos]) => (
-                    <div
-                        key={userId}
-                        className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
-                        style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
-                    >
-                        <MousePointer2 className="w-6 h-6 text-ethereal fill-ethereal drop-shadow-md -rotate-12" />
-                        <span className="mt-1 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap">
-                            Seeker
-                        </span>
-                    </div>
-                ))}
+                {/* Live Cursors (Desktop only — hidden on touch devices via CSS) */}
+                <div className="hidden md:block">
+                    {Object.entries(cursors).map(([userId, pos]) => (
+                        <div
+                            key={userId}
+                            className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
+                            style={{ left: pos.x, top: pos.y }}
+                        >
+                            <MousePointer2 className="w-5 h-5 text-ethereal fill-ethereal/80 drop-shadow-[0_0_6px_rgba(45,212,191,0.5)] -rotate-12" />
+                            <span className="mt-0.5 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap shadow-lg">
+                                Seeker
+                            </span>
+                        </div>
+                    ))}
+                </div>
 
                 {/* Tarot Cards Table Area */}
                 <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">
