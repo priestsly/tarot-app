@@ -64,9 +64,13 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 peerRef.current?.on('call', call => {
                     call.answer(stream);
                     call.on('stream', remoteStream => {
-                        console.log("Received remote stream (answering)");
-                        if (remoteVideoRef.current) {
+                        console.log("Received remote stream (answering)", remoteStream.id);
+                        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
                             remoteVideoRef.current.srcObject = remoteStream;
+                            // Ensure playback starts
+                            remoteVideoRef.current.onloadedmetadata = () => {
+                                remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
+                            };
                         }
                     });
                 });
@@ -133,9 +137,13 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         console.log("Calling user", userId);
         const call = peerRef.current.call(userId, stream);
         call.on('stream', remoteStream => {
-            console.log("Received remote stream (calling)");
-            if (remoteVideoRef.current) {
+            console.log("Received remote stream (calling)", remoteStream.id);
+            if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
                 remoteVideoRef.current.srcObject = remoteStream;
+                // Ensure playback starts
+                remoteVideoRef.current.onloadedmetadata = () => {
+                    remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
+                };
             }
         });
     }
@@ -280,8 +288,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 {/* WebRTC Video Overlay (Top Right) */}
                 <div className="absolute top-6 right-6 z-40 flex flex-col gap-4">
                     <div className="relative group overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 w-48 aspect-video shadow-2xl">
-                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover bg-neutral-900" />
-                        <div className="absolute inset-0 bg-neutral-900 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity">
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover bg-neutral-900 pointer-events-none" />
+                        <div className="absolute inset-0 bg-neutral-900 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
                             <span className="text-sm text-neutral-500">Waiting for peer...</span>
                         </div>
                     </div>
