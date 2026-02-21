@@ -41,25 +41,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         // 1. Initialize Socket
         socket = io();
 
-        // 2. Initialize WebRTC peer via PeerJS with explicit STUN servers for NAT Traversal
-        peerRef.current = new Peer({
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' }
-                ]
-            }
-        });
-
-        peerRef.current.on('open', (id) => {
-            setMyPeerId(id);
-            console.log('My peer ID is: ' + id);
-
-            // Join Room via Socket.io with our PeerJS ID
-            socket.emit("join-room", roomId, id);
-        });
-
-        // 3. Setup User Media (Camera/Mic)
+        // 2. Setup User Media (Camera/Mic) FIRST
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
             audio: true
@@ -70,14 +52,31 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     myVideoRef.current.srcObject = stream;
                 }
 
+                // 3. Initialize WebRTC peer via PeerJS ONCE STREAM IS READY
+                peerRef.current = new Peer({
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478' }
+                        ]
+                    }
+                });
+
+                peerRef.current.on('open', (id) => {
+                    setMyPeerId(id);
+                    console.log('My peer ID is: ' + id);
+
+                    // Join Room ONLY when we have a media stream and a peer ID
+                    socket.emit("join-room", roomId, id);
+                });
+
                 // Answer incoming calls
-                peerRef.current?.on('call', call => {
+                peerRef.current.on('call', call => {
                     call.answer(stream);
                     call.on('stream', remoteStream => {
                         console.log("Received remote stream (answering)", remoteStream.id);
                         if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
                             remoteVideoRef.current.srcObject = remoteStream;
-                            // Ensure playback starts
                             remoteVideoRef.current.onloadedmetadata = () => {
                                 remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
                             };
@@ -89,13 +88,21 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 socket.on("user-connected", (userId: string) => {
                     console.log("User connected:", userId);
                     setRemotePeerId(userId);
-                    // Add slight delay to ensure peer is fully ready
-                    setTimeout(() => connectToNewUser(userId, stream), 1000);
+                    // Call the new user
+                    connectToNewUser(userId, stream);
                 });
             })
             .catch(err => {
                 console.error("Failed to get local stream", err);
-                // Fallback for testing without camera: still join the room for cards
+                // Fallback: still join room but no camera
+                peerRef.current = new Peer({
+                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+                });
+                peerRef.current.on('open', (id) => {
+                    setMyPeerId(id);
+                    socket.emit("join-room", roomId, id);
+                });
+                socket.on("user-connected", (userId: string) => setRemotePeerId(userId));
             });
 
         // Handle user disconnect
