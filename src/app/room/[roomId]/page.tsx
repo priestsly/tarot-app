@@ -149,10 +149,15 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         };
     }, [roomId]);
 
-    function connectToNewUser(userId: string, stream: MediaStream) {
+    function connectToNewUser(userId: string, stream: MediaStream | null) {
         if (!peerRef.current) return;
         console.log("Calling user", userId);
-        const call = peerRef.current.call(userId, stream);
+
+        // PeerJS requires a MediaStream when calling, if we don't have one, we can call without it
+        // and just wait to receive their stream. However, in PeerJS, to receive a stream, you often
+        // need to initiate the call object properly. We can pass an empty stream or use modern APIs:
+        const call = stream ? peerRef.current.call(userId, stream) : peerRef.current.call(userId, new MediaStream());
+
         call.on('stream', remoteStream => {
             console.log("Received remote stream (calling)", remoteStream.id);
             if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
