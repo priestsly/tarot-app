@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2 } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -29,9 +29,24 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     // Premium UI State
     interface ActivityLog { id: string; message: string; timestamp: string; userId: string; }
     interface CursorData { x: number; y: number; }
+    interface ChatMessage { id: string; sender: string; text: string; timestamp: string; }
+
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [cursors, setCursors] = useState<Record<string, CursorData>>({});
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState("");
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
     const lastCursorEmit = useRef<number>(0);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (isChatOpen) scrollToBottom();
+    }, [messages, isChatOpen]);
 
     const appendLog = useCallback((message: string) => {
         const logEntry: ActivityLog = {
@@ -171,6 +186,18 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             if (serverLogs) setLogs(serverLogs);
         });
 
+        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => {
+            if (serverMsgs) setMessages(serverMsgs);
+        });
+
+        socket.on("chat-message", (msg: ChatMessage) => {
+            setMessages(prev => {
+                const newMsgs = [...prev, msg];
+                if (newMsgs.length > 100) newMsgs.shift();
+                return newMsgs;
+            });
+        });
+
         socket.on("activity-log", (logEntry: ActivityLog) => {
             setLogs(prev => {
                 const newLogs = [...prev, logEntry];
@@ -271,6 +298,28 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
     // ========== TAROT INTERACTIONS ==========
 
+    const handleClearTable = () => {
+        appendLog("Cleared the mystical table");
+        setCards([]);
+        socket.emit("clear-table", roomId);
+    };
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const msg: ChatMessage = {
+            id: Math.random().toString(36).substring(2, 9),
+            sender: "Seeker",
+            text: chatInput.trim(),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setMessages(prev => [...prev, msg]);
+        socket.emit("chat-message", roomId, msg);
+        setChatInput("");
+    };
+
     const handleDrawCard = () => {
         appendLog("Drew a mysterious card from the aether");
         const newCard: CardState = {
@@ -349,13 +398,98 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {/* Overlay for mobile when sidebar is open */}
+            {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
                 <div
                     className="md:hidden fixed inset-0 bg-void/80 z-40 backdrop-blur-md"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
+
+            {/* Top Center Card Counter (Discreet) */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-mystic/10 backdrop-blur-md border border-mystic/20 rounded-full flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-ethereal animate-pulse" />
+                <span className="text-xs text-mystic font-mono tracking-widest uppercase font-bold">Cards: {cards.length}</span>
+            </div>
+
+            {/* Floating Action Bar (Mobile Only) */}
+            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                <button
+                    onClick={handleDrawCard}
+                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-white/5 active:bg-white/10 rounded-xl transition-all"
+                >
+                    <PlusSquare className="w-6 h-6 text-mystic mb-1" />
+                    <span className="text-[9px] font-bold text-neutral-300 uppercase">Draw</span>
+                </button>
+                <button
+                    onClick={handleThreeCardSpread}
+                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30 shadow-[0_0_15px_rgba(252,211,77,0.1)]"
+                >
+                    <Sparkles className="w-6 h-6 text-mystic mb-1" />
+                    <span className="text-[9px] font-bold text-mystic uppercase text-center leading-tight">3-Card</span>
+                </button>
+                <button
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                    className="flex flex-col items-center justify-center p-3 w-16 h-16 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
+                >
+                    <MessageCircle className="w-6 h-6 text-ethereal mb-1" />
+                    <span className="text-[9px] font-bold text-neutral-300 uppercase">Chat</span>
+                    {messages.length > 0 && (
+                        <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-ethereal rounded-full" />
+                    )}
+                </button>
+            </div>
+
+            {/* Chat Drawer Side Panel */}
+            <aside className={cn(
+                "fixed inset-y-0 right-0 w-80 bg-black/80 backdrop-blur-2xl border-l border-white/10 flex flex-col z-50 shadow-2xl transition-transform duration-500 ease-out",
+                isChatOpen ? "translate-x-0" : "translate-x-full"
+            )}>
+                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                    <h3 className="font-cinzel text-xl text-ethereal font-bold flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" />
+                        Whispers
+                    </h3>
+                    <button onClick={() => setIsChatOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {messages.map(msg => (
+                        <div key={msg.id} className="flex flex-col gap-1">
+                            <div className="flex items-baseline justify-between">
+                                <span className={cn("text-xs font-bold", msg.sender === "Seeker" ? "text-mystic" : "text-ethereal")}>{msg.sender}</span>
+                                <span className="text-[9px] text-neutral-500 font-mono">{msg.timestamp}</span>
+                            </div>
+                            <div className={cn(
+                                "p-3 rounded-xl text-sm leading-relaxed",
+                                msg.sender === "Seeker" ? "bg-mystic/10 text-neutral-200 rounded-tr-sm" : "bg-white/5 text-neutral-300 rounded-tl-sm"
+                            )}>
+                                {msg.text}
+                            </div>
+                        </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10 bg-black/40 flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        placeholder="Send a whisper..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-ethereal/50 transition-colors placeholder:text-neutral-600"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!chatInput.trim()}
+                        className="p-3 rounded-xl bg-ethereal/20 text-ethereal hover:bg-ethereal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <Send className="w-5 h-5" />
+                    </button>
+                </form>
+            </aside>
 
             {/* Sidebar / Left Menu */}
             <aside className={cn(
@@ -390,17 +524,31 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         <Sparkles className="w-5 h-5 relative z-10" />
                         <span className="relative z-10">3-Card Spread</span>
                     </button>
-                    <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-nebula to-mystic rounded-2xl blur opacity-20 group-hover:opacity-60 transition duration-500" />
+                    <div className="flex gap-2">
                         <button
                             onClick={handleDrawCard}
-                            className="w-full relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 overflow-hidden"
+                            className="flex-1 relative flex items-center justify-center gap-2 px-4 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 hover:bg-white/5"
                         >
-                            <div className="absolute inset-0 bg-white/5 group-hover:bg-transparent transition-colors" />
-                            <PlusSquare className="w-5 h-5 text-mystic relative z-10" />
-                            <span className="relative z-10">Draw Card</span>
+                            <PlusSquare className="w-4 h-4 text-mystic" />
+                            <span>Draw</span>
+                        </button>
+                        <button
+                            onClick={handleClearTable}
+                            title="Clear Table"
+                            className="relative flex items-center justify-center px-4 py-4 bg-red-500/10 text-red-400 rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-red-500/20 hover:bg-red-500/20"
+                        >
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
+
+                    {/* Desktop Chat Toggle */}
+                    <button
+                        onClick={() => setIsChatOpen(true)}
+                        className="hidden md:flex w-full relative items-center justify-center gap-3 px-6 py-3 bg-ethereal/10 text-ethereal rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-ethereal/30 hover:bg-ethereal/20"
+                    >
+                        <MessageCircle className="w-5 h-5" />
+                        <span>Open Chat</span>
+                    </button>
                 </div>
 
                 <div className="mt-auto pt-6 border-t border-white/10 relative z-10 flex flex-col flex-1 min-h-[150px]">
@@ -434,28 +582,26 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none mix-blend-overlay" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
 
-                {/* WebRTC Video Overlay (Top Right) */}
-                <div className="absolute top-8 right-8 z-40 flex flex-col gap-6">
-                    <div className="relative group">
-                        {/* Remote Video Glow */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000" />
-                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-56 aspect-video shadow-2xl">
+                {/* WebRTC Video Overlay (Top Right Desktop, Top Center Mobile) */}
+                <div className="absolute top-16 md:top-8 right-4 md:right-8 z-40 flex flex-row md:flex-col gap-3 md:gap-6 justify-end items-end pointer-events-none">
+                    <div className="relative group pointer-events-auto">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000 hidden md:block" />
+                        <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-32 md:w-56 aspect-video shadow-2xl">
                             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover mix-blend-luminosity hover:mix-blend-normal transition-all duration-700 pointer-events-none" />
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
-                                <span className="text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
+                                <span className="text-[10px] md:text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting...</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative group translate-x-12">
-                        {/* Local Video Glow */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
-                        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-36 aspect-video shadow-xl">
+                    <div className="relative group md:translate-x-12 pointer-events-auto">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 hidden md:block" />
+                        <div className="relative overflow-hidden rounded-lg md:rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-24 md:w-36 aspect-video shadow-xl">
                             <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] opacity-70 hover:opacity-100 transition-opacity duration-500" />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 justify-end translate-x-12 mt-2">
+                    <div className="hidden md:flex items-center gap-3 justify-end translate-x-12 mt-2 pointer-events-auto">
                         <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isMuted ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10 hover:border-mystic/30")}>
                             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                         </button>

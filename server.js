@@ -39,13 +39,14 @@ app.prepare().then(() => {
       console.log(`User ${userId} (socket ${socket.id}) joined room ${roomId}`);
 
       if (!rooms.has(roomId)) {
-        rooms.set(roomId, { users: new Set(), cards: [], logs: [] });
+        rooms.set(roomId, { users: new Set(), cards: [], logs: [], messages: [] });
       }
       rooms.get(roomId).users.add(userId);
 
       // Send current state to newly joined user
       socket.emit("sync-state", rooms.get(roomId).cards);
       socket.emit("sync-logs", rooms.get(roomId).logs);
+      socket.emit("sync-messages", rooms.get(roomId).messages);
 
       // Notify others in room
       socket.to(roomId).emit("user-connected", userId);
@@ -113,6 +114,26 @@ app.prepare().then(() => {
       if (room) {
         room.cards = allCards;
         socket.to(roomId).emit("sync-state", allCards);
+      }
+    });
+
+    // Chat System
+    socket.on("chat-message", (roomId, messageData) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        if (!room.messages) room.messages = [];
+        room.messages.push(messageData);
+        if (room.messages.length > 100) room.messages.shift(); // Keep last 100
+        io.to(roomId).emit("chat-message", messageData);
+      }
+    });
+
+    // Clear Table
+    socket.on("clear-table", (roomId) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.cards = [];
+        io.to(roomId).emit("sync-state", []);
       }
     });
   });
