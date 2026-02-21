@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -25,6 +25,23 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     // Real-time State
     const [cards, setCards] = useState<CardState[]>([]);
     const [maxZIndex, setMaxZIndex] = useState(1);
+
+    // Premium UI State
+    interface ActivityLog { id: string; message: string; timestamp: string; userId: string; }
+    interface CursorData { x: number; y: number; }
+    const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const [cursors, setCursors] = useState<Record<string, CursorData>>({});
+    const lastCursorEmit = useRef<number>(0);
+
+    const appendLog = useCallback((message: string) => {
+        const logEntry: ActivityLog = {
+            id: Math.random().toString(36).substring(2, 9),
+            message,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            userId: socket?.id || "Unknown"
+        };
+        socket?.emit("activity-log", roomId, logEntry);
+    }, [roomId]);
 
     // WebRTC & Audio/Video State
     const [myPeerId, setMyPeerId] = useState<string>("");
@@ -142,6 +159,28 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 remoteVideoRef.current.srcObject = null;
             }
             setRemotePeerId("");
+            setCursors(prev => {
+                const next = { ...prev };
+                delete next[userId];
+                return next;
+            });
+        });
+
+        // ========== PREMIUM FEATURES SYNC ==========
+        socket.on("sync-logs", (serverLogs: ActivityLog[]) => {
+            if (serverLogs) setLogs(serverLogs);
+        });
+
+        socket.on("activity-log", (logEntry: ActivityLog) => {
+            setLogs(prev => {
+                const newLogs = [...prev, logEntry];
+                if (newLogs.length > 50) newLogs.shift();
+                return newLogs;
+            });
+        });
+
+        socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
+            setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
         });
 
         // ========== TAROT STATE SYNC ==========
@@ -233,6 +272,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     // ========== TAROT INTERACTIONS ==========
 
     const handleDrawCard = () => {
+        appendLog("Drew a mysterious card from the aether");
         const newCard: CardState = {
             id: Math.random().toString(36).substring(2, 9),
             cardIndex: Math.floor(Math.random() * 78), // 0-77
@@ -247,6 +287,21 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         // Optimistic update
         setCards(prev => [...prev, newCard]);
         socket.emit("add-card", roomId, newCard);
+    };
+
+    const handleThreeCardSpread = () => {
+        appendLog("Manifested a 3-Card Spread (Past, Present, Future)");
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const spread: CardState[] = [
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX - 220, y: centerY - 150, zIndex: maxZIndex + 1, isFlipped: false, isReversed: Math.random() > 0.5 },
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX, y: centerY - 150, zIndex: maxZIndex + 2, isFlipped: false, isReversed: Math.random() > 0.5 },
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX + 220, y: centerY - 150, zIndex: maxZIndex + 3, isFlipped: false, isReversed: Math.random() > 0.5 }
+        ];
+        setMaxZIndex(prev => prev + 3);
+        const newCards = [...cards, ...spread];
+        setCards(newCards);
+        socket.emit("sync-all-cards", roomId, newCards);
     };
 
     const handlePointerDown = useCallback((id: string) => {
@@ -270,9 +325,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     }, [roomId]);
 
     const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
+        if (isFlipped) appendLog("Revealed a card's destiny");
         setCards(prev => prev.map(c => c.id === id ? { ...c, isReversed, isFlipped } : c));
         socket.emit("flip-card", roomId, id, isReversed, isFlipped);
-    }, [roomId]);
+    }, [roomId, appendLog]);
 
     return (
         <div className="flex h-screen bg-void text-neutral-50 overflow-hidden font-inter relative">
@@ -326,30 +382,54 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     </div>
                 </div>
 
-                <div className="relative group z-10">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-nebula to-mystic rounded-2xl blur opacity-20 group-hover:opacity-60 transition duration-500" />
+                <div className="relative group z-10 flex flex-col gap-3">
                     <button
-                        onClick={handleDrawCard}
-                        className="w-full relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 overflow-hidden"
+                        onClick={handleThreeCardSpread}
+                        className="w-full relative flex items-center justify-center gap-3 px-6 py-3 bg-mystic/10 text-mystic rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-mystic/30 hover:bg-mystic/20 overflow-hidden"
                     >
-                        <div className="absolute inset-0 bg-white/5 group-hover:bg-transparent transition-colors" />
-                        <PlusSquare className="w-5 h-5 text-mystic relative z-10" />
-                        <span className="relative z-10">Draw Card</span>
+                        <Sparkles className="w-5 h-5 relative z-10" />
+                        <span className="relative z-10">3-Card Spread</span>
                     </button>
+                    <div className="relative group">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-nebula to-mystic rounded-2xl blur opacity-20 group-hover:opacity-60 transition duration-500" />
+                        <button
+                            onClick={handleDrawCard}
+                            className="w-full relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/5 group-hover:bg-transparent transition-colors" />
+                            <PlusSquare className="w-5 h-5 text-mystic relative z-10" />
+                            <span className="relative z-10">Draw Card</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="mt-auto pt-8 border-t border-white/10 relative z-10">
-                    <p className="text-xs text-mystic/80 mb-4 font-cinzel font-bold tracking-widest uppercase">The Ritual Rituals</p>
-                    <ul className="text-xs text-neutral-400 space-y-3 font-medium tracking-wide">
-                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Click <span className="text-white">Draw Card</span> to manifest</li>
-                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Drag cards across the aether</li>
-                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Double-click to reveal destiny</li>
-                    </ul>
+                <div className="mt-auto pt-6 border-t border-white/10 relative z-10 flex flex-col flex-1 min-h-[150px]">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Activity className="w-4 h-4 text-mystic" />
+                        <p className="text-xs text-mystic/80 font-cinzel font-bold tracking-widest uppercase">The Chronicle</p>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide pr-2">
+                        {logs.slice().reverse().map(log => (
+                            <div key={log.id} className="text-[10px] leading-relaxed border-l border-white/10 pl-3">
+                                <span className="text-ethereal block mb-0.5 font-mono">{log.timestamp}</span>
+                                <span className="text-neutral-300 font-medium tracking-wide">{log.message}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </aside>
 
             {/* Main Table Area */}
-            <main className="flex-1 relative bg-transparent overflow-hidden">
+            <main
+                className="flex-1 relative bg-transparent overflow-hidden"
+                onPointerMove={(e) => {
+                    const now = Date.now();
+                    if (now - lastCursorEmit.current > 40) {
+                        lastCursorEmit.current = now;
+                        socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
+                    }
+                }}
+            >
                 {/* Subtle astrolabe/grid pattern for the table context */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none mix-blend-overlay" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
@@ -384,6 +464,20 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         </button>
                     </div>
                 </div>
+
+                {/* Live Cursors */}
+                {Object.entries(cursors).map(([userId, pos]) => (
+                    <div
+                        key={userId}
+                        className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
+                        style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+                    >
+                        <MousePointer2 className="w-6 h-6 text-ethereal fill-ethereal drop-shadow-md -rotate-12" />
+                        <span className="mt-1 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap">
+                            Seeker
+                        </span>
+                    </div>
+                ))}
 
                 {/* Tarot Cards Table Area */}
                 <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">

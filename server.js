@@ -39,12 +39,13 @@ app.prepare().then(() => {
       console.log(`User ${userId} (socket ${socket.id}) joined room ${roomId}`);
 
       if (!rooms.has(roomId)) {
-        rooms.set(roomId, { users: new Set(), cards: [] });
+        rooms.set(roomId, { users: new Set(), cards: [], logs: [] });
       }
       rooms.get(roomId).users.add(userId);
 
       // Send current state to newly joined user
       socket.emit("sync-state", rooms.get(roomId).cards);
+      socket.emit("sync-logs", rooms.get(roomId).logs);
 
       // Notify others in room
       socket.to(roomId).emit("user-connected", userId);
@@ -85,6 +86,33 @@ app.prepare().then(() => {
           card.isFlipped = isFlipped;
           io.to(roomId).emit("card-flipped", cardId, isReversed, isFlipped);
         }
+      }
+    });
+
+    // Premium Features: Live Cursors & Action Logs
+    socket.on("cursor-move", (roomId, cursorData) => {
+      // cursorData: { userId, x, y }
+      // We don't save cursors to room state, just broadcast
+      socket.to(roomId).emit("cursor-move", cursorData);
+    });
+
+    socket.on("activity-log", (roomId, logEntry) => {
+      // logEntry: { id, message, timestamp, userId }
+      const room = rooms.get(roomId);
+      if (room) {
+        if (!room.logs) room.logs = [];
+        room.logs.push(logEntry);
+        if (room.logs.length > 50) room.logs.shift(); // Keep last 50
+        io.to(roomId).emit("activity-log", logEntry);
+      }
+    });
+
+    // Auto-Spread Feature Sync (Bulk Update)
+    socket.on("sync-all-cards", (roomId, allCards) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.cards = allCards;
+        socket.to(roomId).emit("sync-state", allCards);
       }
     });
   });

@@ -78,9 +78,10 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
             onDoubleClick={handleDoubleClick}
-            className="absolute w-36 h-56 cursor-grab active:cursor-grabbing rounded-xl transition-all duration-300"
+            className="absolute w-36 h-56 cursor-grab active:cursor-grabbing rounded-xl"
             style={{
-                transformStyle: "preserve-3d"
+                transformStyle: "preserve-3d",
+                willChange: "transform, box-shadow"
             }}
         >
             {/* Front of card (shown when flipped) */}
