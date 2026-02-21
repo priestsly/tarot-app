@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2 } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -68,6 +68,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
 
     useEffect(() => {
         // 1. Initialize Socket
@@ -380,281 +381,307 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     }, [roomId, appendLog]);
 
     return (
-        <div className="flex h-screen bg-void text-neutral-50 overflow-hidden font-inter relative">
+        <div className="flex flex-col h-screen bg-void text-neutral-50 overflow-hidden font-inter relative">
 
-            {/* Dynamic Background Elements */}
+            {/* ═══════════════ ANIMATED BACKGROUND ═══════════════ */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-nebula/10 rounded-full blur-[150px] mix-blend-screen" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-ethereal/10 rounded-full blur-[150px] mix-blend-screen" />
-                <div className="absolute top-[40%] left-[40%] w-[30vw] h-[30vw] bg-mystic/5 rounded-full blur-[100px] mix-blend-screen" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-screen" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-nebula/10 rounded-full blur-[150px] mix-blend-screen animate-pulse-slow" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-ethereal/10 rounded-full blur-[150px] mix-blend-screen animate-pulse-slow" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-[40%] left-[40%] w-[30vw] h-[30vw] bg-mystic/5 rounded-full blur-[100px] mix-blend-screen animate-float" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen" />
             </div>
 
-            {/* Mobile Toggle */}
-            <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="md:hidden absolute top-6 left-6 z-50 p-3 glass-panel rounded-xl text-mystic hover:text-white transition-colors border border-mystic/20"
-            >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-
-            {/* Mobile Sidebar Overlay */}
-            {isSidebarOpen && (
-                <div
-                    className="md:hidden fixed inset-0 bg-void/80 z-40 backdrop-blur-md"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
-
-            {/* Top Center Card Counter (Discreet) */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-mystic/10 backdrop-blur-md border border-mystic/20 rounded-full flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-ethereal animate-pulse" />
-                <span className="text-xs text-mystic font-mono tracking-widest uppercase font-bold">Cards: {cards.length}</span>
-            </div>
-
-            {/* Floating Action Bar (Mobile Only) */}
-            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
-                <button
-                    onClick={handleDrawCard}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-white/5 active:bg-white/10 rounded-xl transition-all"
-                >
-                    <PlusSquare className="w-5 h-5 text-mystic mb-0.5" />
-                    <span className="text-[8px] font-bold text-neutral-300 uppercase">Draw</span>
-                </button>
-                <button
-                    onClick={handleThreeCardSpread}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30"
-                >
-                    <Sparkles className="w-5 h-5 text-mystic mb-0.5" />
-                    <span className="text-[8px] font-bold text-mystic uppercase">Spread</span>
-                </button>
-                <button
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
-                >
-                    <MessageCircle className="w-5 h-5 text-ethereal mb-0.5" />
-                    <span className="text-[8px] font-bold text-neutral-300 uppercase">Chat</span>
-                    {messages.length > 0 && (
-                        <div className="absolute top-1 right-1 w-2 h-2 bg-ethereal rounded-full" />
-                    )}
-                </button>
-                <div className="w-px h-8 bg-white/10" />
-                <button onClick={toggleMute} className={cn("flex flex-col items-center justify-center p-2 w-14 h-14 rounded-xl transition-all", isMuted ? "bg-red-500/10 text-red-400" : "bg-white/5 text-mystic")}>
-                    {isMuted ? <MicOff className="w-5 h-5 mb-0.5" /> : <Mic className="w-5 h-5 mb-0.5" />}
-                    <span className="text-[8px] font-bold uppercase">{isMuted ? 'Muted' : 'Mic'}</span>
-                </button>
-                <button onClick={toggleVideo} className={cn("flex flex-col items-center justify-center p-2 w-14 h-14 rounded-xl transition-all", isVideoOff ? "bg-red-500/10 text-red-400" : "bg-white/5 text-ethereal")}>
-                    {isVideoOff ? <VideoOff className="w-5 h-5 mb-0.5" /> : <Video className="w-5 h-5 mb-0.5" />}
-                    <span className="text-[8px] font-bold uppercase">{isVideoOff ? 'Off' : 'Cam'}</span>
-                </button>
-            </div>
-
-            {/* Chat Drawer Side Panel */}
-            <aside className={cn(
-                "fixed inset-y-0 right-0 w-80 bg-black/80 backdrop-blur-2xl border-l border-white/10 flex flex-col z-50 shadow-2xl transition-transform duration-500 ease-out",
-                isChatOpen ? "translate-x-0" : "translate-x-full"
-            )}>
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
-                    <h3 className="font-cinzel text-xl text-ethereal font-bold flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5" />
-                        Whispers
-                    </h3>
-                    <button onClick={() => setIsChatOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {messages.map(msg => (
-                        <div key={msg.id} className="flex flex-col gap-1">
-                            <div className="flex items-baseline justify-between">
-                                <span className={cn("text-xs font-bold", msg.sender === "Seeker" ? "text-mystic" : "text-ethereal")}>{msg.sender}</span>
-                                <span className="text-[9px] text-neutral-500 font-mono">{msg.timestamp}</span>
+            {/* ═══════════════ TOP: VIDEO STRIP ═══════════════ */}
+            <div className="relative z-30 flex-shrink-0">
+                {/* Video Bar */}
+                <div className={cn(
+                    "transition-all duration-500 ease-out overflow-hidden",
+                    isVideoBarVisible ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+                )}>
+                    <div className="flex items-stretch gap-2 p-2 bg-black/40 backdrop-blur-xl border-b border-white/10">
+                        {/* Remote Video */}
+                        <div className="flex-1 relative group overflow-hidden rounded-xl border border-white/10 bg-black/60 aspect-video max-h-[140px]">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-ethereal/20 to-nebula/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-700" />
+                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover relative z-10" />
+                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                                <span className="text-xs text-ethereal/50 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
                             </div>
-                            <div className={cn(
-                                "p-3 rounded-xl text-sm leading-relaxed",
-                                msg.sender === "Seeker" ? "bg-mystic/10 text-neutral-200 rounded-tr-sm" : "bg-white/5 text-neutral-300 rounded-tl-sm"
-                            )}>
-                                {msg.text}
+                            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 bg-black/60 rounded text-[9px] text-ethereal font-mono backdrop-blur-sm border border-ethereal/20">
+                                Remote
                             </div>
                         </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                </div>
 
-                <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10 bg-black/40 flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        placeholder="Send a whisper..."
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-ethereal/50 transition-colors placeholder:text-neutral-600"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!chatInput.trim()}
-                        className="p-3 rounded-xl bg-ethereal/20 text-ethereal hover:bg-ethereal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Send className="w-5 h-5" />
-                    </button>
-                </form>
-            </aside>
+                        {/* Local Video */}
+                        <div className="flex-1 relative group overflow-hidden rounded-xl border border-white/10 bg-black/60 aspect-video max-h-[140px]">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-mystic/20 to-nebula/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-700" />
+                            <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] relative z-10" />
+                            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 bg-black/60 rounded text-[9px] text-mystic font-mono backdrop-blur-sm border border-mystic/20">
+                                You
+                            </div>
+                        </div>
 
-            {/* Sidebar / Left Menu */}
-            <aside className={cn(
-                "fixed md:relative inset-y-0 left-0 w-72 glass-panel flex flex-col p-8 space-y-8 z-50 transition-transform duration-500 ease-out border-r border-white/10",
-                isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-            )}>
-                <div className="space-y-6 pt-12 md:pt-0 relative z-10">
-                    <button
-                        onClick={() => router.push("/")}
-                        className="flex items-center gap-2 text-neutral-400 hover:text-mystic transition-colors text-sm font-medium tracking-wide"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Leave Room
-                    </button>
-                    <div>
-                        <h2 className="text-3xl font-black font-cinzel bg-gradient-to-br from-white via-mystic to-mystic/50 bg-clip-text text-transparent drop-shadow-md">Mystic Tarot</h2>
-                        <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-black/40 border border-white/10 rounded-xl group hover:border-mystic/30 transition-colors shadow-inner backdrop-blur-md">
-                            <span className="text-xs text-neutral-400 font-mono truncate flex-1 tracking-wider uppercase">ID: <span className="text-mystic/80">{roomId}</span></span>
-                            <button onClick={copyRoomId} className="text-neutral-500 hover:text-mystic transition-colors" title="Copy Room ID">
-                                <Copy className="w-4 h-4" />
+                        {/* Controls Column */}
+                        <div className="flex flex-col justify-center gap-1.5 px-1">
+                            <button onClick={toggleMute} className={cn("p-2 rounded-lg transition-all border", isMuted ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10")} title={isMuted ? 'Unmute' : 'Mute'}>
+                                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                            </button>
+                            <button onClick={toggleVideo} className={cn("p-2 rounded-lg transition-all border", isVideoOff ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-white/5 text-ethereal border-white/10 hover:bg-white/10")} title={isVideoOff ? 'Enable Camera' : 'Disable Camera'}>
+                                {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
                             </button>
                         </div>
-                        {copied && <p className="text-xs text-ethereal mt-2 font-medium tracking-wide">Spell copied to clipboard!</p>}
                     </div>
                 </div>
 
-                <div className="relative group z-10 flex flex-col gap-3">
-                    <button
-                        onClick={handleThreeCardSpread}
-                        className="w-full relative flex items-center justify-center gap-3 px-6 py-3 bg-mystic/10 text-mystic rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-mystic/30 hover:bg-mystic/20 overflow-hidden"
-                    >
-                        <Sparkles className="w-5 h-5 relative z-10" />
-                        <span className="relative z-10">3-Card Spread</span>
-                    </button>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleDrawCard}
-                            className="flex-1 relative flex items-center justify-center gap-2 px-4 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 hover:bg-white/5"
-                        >
-                            <PlusSquare className="w-4 h-4 text-mystic" />
-                            <span>Draw</span>
-                        </button>
-                        <button
-                            onClick={handleClearTable}
-                            title="Clear Table"
-                            className="relative flex items-center justify-center px-4 py-4 bg-red-500/10 text-red-400 rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-red-500/20 hover:bg-red-500/20"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
+                {/* Video Toggle Button */}
+                <button
+                    onClick={() => setIsVideoBarVisible(!isVideoBarVisible)}
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full z-40 px-4 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-b-xl text-neutral-400 hover:text-white transition-all flex items-center gap-1.5 text-xs"
+                >
+                    {isVideoBarVisible ? <><EyeOff className="w-3 h-3" />Hide</> : <><Eye className="w-3 h-3" />Show</>}
+                </button>
+            </div>
 
-                    {/* Desktop Chat Toggle */}
-                    <button
-                        onClick={() => setIsChatOpen(true)}
-                        className="hidden md:flex w-full relative items-center justify-center gap-3 px-6 py-3 bg-ethereal/10 text-ethereal rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-ethereal/30 hover:bg-ethereal/20"
-                    >
-                        <MessageCircle className="w-5 h-5" />
-                        <span>Open Chat</span>
-                    </button>
+            {/* ═══════════════ MIDDLE: MAIN CONTENT ═══════════════ */}
+            <div className="flex flex-1 min-h-0 relative z-10">
+
+                {/* Mobile Menu Toggle */}
+                <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="md:hidden absolute top-3 left-3 z-50 p-2.5 bg-black/50 backdrop-blur-md rounded-xl text-mystic hover:text-white transition-colors border border-mystic/20"
+                >
+                    {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+
+                {/* Card Counter Badge */}
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-black/50 backdrop-blur-md border border-mystic/20 rounded-full flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-ethereal animate-pulse" />
+                    <span className="text-[10px] text-mystic font-mono tracking-widest uppercase font-bold">Cards: {cards.length}</span>
                 </div>
 
-                <div className="mt-auto pt-6 border-t border-white/10 relative z-10 flex flex-col flex-1 min-h-[150px]">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Activity className="w-4 h-4 text-mystic" />
-                        <p className="text-xs text-mystic/80 font-cinzel font-bold tracking-widest uppercase">The Chronicle</p>
+                {/* Mobile Sidebar Overlay */}
+                {isSidebarOpen && (
+                    <div
+                        className="md:hidden fixed inset-0 bg-void/80 z-40 backdrop-blur-md"
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
+                )}
+
+                {/* Chat Drawer */}
+                <aside className={cn(
+                    "fixed inset-y-0 right-0 w-80 bg-black/80 backdrop-blur-2xl border-l border-white/10 flex flex-col z-50 shadow-2xl transition-transform duration-500 ease-out",
+                    isChatOpen ? "translate-x-0" : "translate-x-full"
+                )}>
+                    <div className="flex items-center justify-between p-5 border-b border-white/10">
+                        <h3 className="font-cinzel text-lg text-ethereal font-bold flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4" />
+                            Whispers
+                        </h3>
+                        <button onClick={() => setIsChatOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide pr-2">
-                        {logs.slice().reverse().map(log => (
-                            <div key={log.id} className="text-[10px] leading-relaxed border-l border-white/10 pl-3">
-                                <span className="text-ethereal block mb-0.5 font-mono">{log.timestamp}</span>
-                                <span className="text-neutral-300 font-medium tracking-wide">{log.message}</span>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {messages.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-full opacity-30">
+                                <MessageCircle className="w-10 h-10 text-ethereal mb-3" />
+                                <p className="text-xs text-neutral-400 font-mono">No whispers yet...</p>
+                            </div>
+                        )}
+                        {messages.map(msg => (
+                            <div key={msg.id} className="flex flex-col gap-1">
+                                <div className="flex items-baseline justify-between">
+                                    <span className={cn("text-xs font-bold", msg.sender === "Seeker" ? "text-mystic" : "text-ethereal")}>{msg.sender}</span>
+                                    <span className="text-[9px] text-neutral-500 font-mono">{msg.timestamp}</span>
+                                </div>
+                                <div className={cn(
+                                    "p-3 rounded-xl text-sm leading-relaxed",
+                                    msg.sender === "Seeker" ? "bg-mystic/10 text-neutral-200 rounded-tr-sm" : "bg-white/5 text-neutral-300 rounded-tl-sm"
+                                )}>
+                                    {msg.text}
+                                </div>
+                            </div>
+                        ))}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-black/40 flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={e => setChatInput(e.target.value)}
+                            placeholder="Send a whisper..."
+                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-ethereal/50 transition-colors placeholder:text-neutral-600"
+                        />
+                        <button
+                            type="submit"
+                            disabled={!chatInput.trim()}
+                            className="p-2.5 rounded-xl bg-ethereal/20 text-ethereal hover:bg-ethereal/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </form>
+                </aside>
+
+                {/* ── SIDEBAR (LEFT PANEL) ── */}
+                <aside className={cn(
+                    "fixed md:relative inset-y-0 left-0 w-64 bg-black/40 backdrop-blur-xl flex flex-col p-5 space-y-5 z-50 transition-transform duration-500 ease-out border-r border-white/10",
+                    isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+                )}>
+                    <div className="space-y-4 pt-10 md:pt-0 relative z-10">
+                        <button
+                            onClick={() => router.push("/")}
+                            className="flex items-center gap-2 text-neutral-500 hover:text-mystic transition-colors text-xs font-medium tracking-wide"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            Leave Room
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-black font-cinzel bg-gradient-to-br from-white via-mystic to-mystic/50 bg-clip-text text-transparent">Mystic Tarot</h2>
+                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-black/40 border border-white/10 rounded-lg group hover:border-mystic/30 transition-colors">
+                                <span className="text-[10px] text-neutral-400 font-mono truncate flex-1 tracking-wider uppercase">ID: <span className="text-mystic/80">{roomId}</span></span>
+                                <button onClick={copyRoomId} className="text-neutral-500 hover:text-mystic transition-colors" title="Copy Room ID">
+                                    <Copy className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                            {copied && <p className="text-[10px] text-ethereal mt-1.5 font-medium">Copied!</p>}
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="relative z-10 flex flex-col gap-2">
+                        <button
+                            onClick={handleThreeCardSpread}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-mystic/10 text-mystic rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-mystic/30 hover:bg-mystic/20"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            3-Card Spread
+                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleDrawCard}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-white rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10"
+                            >
+                                <PlusSquare className="w-4 h-4 text-mystic" />
+                                Draw
+                            </button>
+                            <button
+                                onClick={handleClearTable}
+                                title="Clear Table"
+                                className="flex items-center justify-center px-3 py-3 bg-red-500/10 text-red-400 rounded-xl transition-all active:scale-[0.98] border border-red-500/20 hover:bg-red-500/20"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setIsChatOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ethereal/10 text-ethereal rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-ethereal/30 hover:bg-ethereal/20"
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                            Whispers
+                            {messages.length > 0 && <div className="w-2 h-2 bg-ethereal rounded-full animate-pulse" />}
+                        </button>
+                    </div>
+
+                    {/* Chronicle (Activity Log) */}
+                    <div className="flex-1 min-h-0 pt-4 border-t border-white/10 relative z-10 flex flex-col">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-3.5 h-3.5 text-mystic" />
+                            <p className="text-[10px] text-mystic/80 font-cinzel font-bold tracking-widest uppercase">Chronicle</p>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'none' }}>
+                            {logs.slice().reverse().map(log => (
+                                <div key={log.id} className="text-[9px] leading-relaxed border-l border-white/10 pl-2">
+                                    <span className="text-ethereal/80 block font-mono">{log.timestamp}</span>
+                                    <span className="text-neutral-400 font-medium">{log.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </aside>
+
+                {/* ── TAROT TABLE (BOUNDED AREA) ── */}
+                <main
+                    className="flex-1 relative overflow-hidden"
+                    onPointerMove={(e) => {
+                        if (e.pointerType === 'touch') return;
+                        const now = Date.now();
+                        if (now - lastCursorEmit.current > 50) {
+                            lastCursorEmit.current = now;
+                            socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
+                        }
+                    }}
+                >
+                    {/* Table texture */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
+                    {/* Center glow effect for table */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50vw] h-[50vh] bg-nebula/5 rounded-full blur-[120px] pointer-events-none" />
+
+                    {/* Live Cursors (Desktop only) */}
+                    <div className="hidden md:block">
+                        {Object.entries(cursors).map(([userId, pos]) => (
+                            <div
+                                key={userId}
+                                className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
+                                style={{ left: pos.x, top: pos.y }}
+                            >
+                                <MousePointer2 className="w-5 h-5 text-ethereal fill-ethereal/80 drop-shadow-[0_0_6px_rgba(45,212,191,0.5)] -rotate-12" />
+                                <span className="mt-0.5 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap shadow-lg">
+                                    Seeker
+                                </span>
                             </div>
                         ))}
                     </div>
-                </div>
-            </aside>
 
-            {/* Main Table Area */}
-            <main
-                className="flex-1 relative bg-transparent overflow-hidden"
-                onPointerMove={(e) => {
-                    // Only emit cursors for mouse/trackpad (pointer: fine), NOT touch screens
-                    if (e.pointerType === 'touch') return;
-                    const now = Date.now();
-                    if (now - lastCursorEmit.current > 50) {
-                        lastCursorEmit.current = now;
-                        socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
-                    }
-                }}
-            >
-                {/* Subtle astrolabe/grid pattern for the table context */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none mix-blend-overlay" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
-
-                {/* WebRTC Video Overlay (Top Right) */}
-                <div className="absolute top-8 right-8 z-40 flex flex-col gap-6">
-                    <div className="relative group">
-                        {/* Remote Video Glow */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000" />
-                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-56 aspect-video shadow-2xl">
-                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover mix-blend-luminosity hover:mix-blend-normal transition-all duration-700 pointer-events-none" />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
-                                <span className="text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
-                            </div>
-                        </div>
+                    {/* Cards */}
+                    <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">
+                        {cards.map(card => (
+                            <TarotCard
+                                key={card.id}
+                                card={card}
+                                onDragEnd={handleDragEnd}
+                                onFlipEnd={handleFlipEnd}
+                                onPointerDown={handlePointerDown}
+                                isLocal={true}
+                            />
+                        ))}
                     </div>
+                </main>
+            </div>
 
-                    <div className="relative group translate-x-12">
-                        {/* Local Video Glow */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
-                        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-36 aspect-video shadow-xl">
-                            <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] opacity-70 hover:opacity-100 transition-opacity duration-500" />
-                        </div>
-                    </div>
+            {/* ═══════════════ BOTTOM: MOBILE FLOATING BAR ═══════════════ */}
+            <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                <button
+                    onClick={handleDrawCard}
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-white/5 active:bg-white/10 rounded-xl transition-all"
+                >
+                    <PlusSquare className="w-5 h-5 text-mystic" />
+                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-0.5">Draw</span>
+                </button>
+                <button
+                    onClick={handleThreeCardSpread}
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30"
+                >
+                    <Sparkles className="w-5 h-5 text-mystic" />
+                    <span className="text-[7px] font-bold text-mystic uppercase mt-0.5">Spread</span>
+                </button>
+                <button
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
+                >
+                    <MessageCircle className="w-5 h-5 text-ethereal" />
+                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-0.5">Chat</span>
+                    {messages.length > 0 && <div className="absolute top-0.5 right-1.5 w-2 h-2 bg-ethereal rounded-full" />}
+                </button>
+                <button
+                    onClick={handleClearTable}
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-red-500/10 active:bg-red-500/20 rounded-xl transition-all border border-red-500/20"
+                >
+                    <Trash2 className="w-5 h-5 text-red-400" />
+                    <span className="text-[7px] font-bold text-red-400 uppercase mt-0.5">Clear</span>
+                </button>
+            </div>
 
-                    <div className="flex items-center gap-3 justify-end translate-x-12 mt-2">
-                        <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isMuted ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10 hover:border-mystic/30")}>
-                            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        </button>
-                        <button onClick={toggleVideo} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isVideoOff ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-ethereal border-white/10 hover:bg-white/10 hover:border-ethereal/30")}>
-                            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Live Cursors (Desktop only — hidden on touch devices via CSS) */}
-                <div className="hidden md:block">
-                    {Object.entries(cursors).map(([userId, pos]) => (
-                        <div
-                            key={userId}
-                            className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
-                            style={{ left: pos.x, top: pos.y }}
-                        >
-                            <MousePointer2 className="w-5 h-5 text-ethereal fill-ethereal/80 drop-shadow-[0_0_6px_rgba(45,212,191,0.5)] -rotate-12" />
-                            <span className="mt-0.5 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap shadow-lg">
-                                Seeker
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Tarot Cards Table Area */}
-                <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">
-                    {cards.map(card => (
-                        <TarotCard
-                            key={card.id}
-                            card={card}
-                            onDragEnd={handleDragEnd}
-                            onFlipEnd={handleFlipEnd}
-                            onPointerDown={handlePointerDown}
-                            isLocal={true}
-                        />
-                    ))}
-                </div>
-
-            </main>
         </div>
     );
 }
+
