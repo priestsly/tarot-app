@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-inter: var(--font-inter), ui-sans-serif, system-ui;
+  --font-cinzel: var(--font-cinzel), ui-serif, Georgia;
+
+  --color-void: #05050A;
+  --color-nebula: #4C1D95;
+  --color-mystic: #FCD34D;
+  --color-ethereal: #2DD4BF;
+
+  /* Custom Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-glow: glow 3s ease-in-out infinite alternate;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    background-color: var(--color-void);
+    color: #f8fafc;
+    font-family: var(--font-inter);
+    /* Subtle noise/stars effect using gradients */
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.08), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(45, 212, 191, 0.05), transparent 25%);
+    background-attachment: fixed;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cinzel);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 10px -10px rgba(252, 211, 77, 0.5); }
+  to { box-shadow: 0 0 20px 5px rgba(252, 211, 77, 0.2); }
+}
+
+.glass-panel {
+  @apply bg-[#0f0f1a]/60 backdrop-blur-xl border border-white/10 shadow-2xl;
 }

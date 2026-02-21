@@ -56,9 +56,6 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
             dragMomentum={false}
             onPointerDown={() => onPointerDown(card.id)}
             onDragEnd={(e, info) => {
-                // info.point gets the absolute viewport drop point, but it's often easier to just get the offset if we rely on a container
-                // Since we emit absolute or relative coordinates, let's keep it simple:
-                // We accumulate the drag offset to x, y.
                 onDragEnd(card.id, card.x + info.offset.x, card.y + info.offset.y);
             }}
             initial={{ x: card.x, y: card.y, scale: 0, opacity: 0 }}
@@ -71,15 +68,17 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateY: card.isFlipped ? 180 : 0,
                 rotateZ: card.isFlipped && card.isReversed ? 180 : 0
             }}
+            whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(252, 211, 77, 0.2)" }}
+            whileTap={{ scale: 0.95 }}
             transition={{
                 type: "spring",
-                stiffness: 300,
-                damping: 30,
-                rotateY: { duration: 0.6 },
-                rotateZ: { duration: 0.6 }
+                stiffness: 260,
+                damping: 20,
+                rotateY: { duration: 0.8, ease: "easeInOut" },
+                rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
             onDoubleClick={handleDoubleClick}
-            className="absolute w-36 h-56 cursor-grab active:cursor-grabbing border-2 border-transparent hover:border-purple-500/50 rounded-xl transition-colors duration-200"
+            className="absolute w-36 h-56 cursor-grab active:cursor-grabbing rounded-xl transition-all duration-300"
             style={{
                 transformStyle: "preserve-3d"
             }}
@@ -87,32 +86,46 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
             {/* Front of card (shown when flipped) */}
             <div
                 className={cn(
-                    "absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 shadow-2xl flex flex-col items-center justify-center p-4 backface-hidden",
-                    "border border-indigo-200"
+                    "absolute inset-0 rounded-xl bg-gradient-to-br from-void to-[#1a1a2e] flex flex-col items-center justify-center p-3 shadow-2xl backface-hidden border border-mystic/40",
+                    "before:absolute before:inset-0 before:rounded-xl before:bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] before:opacity-30 before:pointer-events-none before:mix-blend-screen"
                 )}
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
-                <div className="flex-1 w-full border-2 border-indigo-300 rounded-lg flex items-center justify-center bg-white p-2">
-                    <span className="text-center font-serif text-indigo-900 font-bold leading-tight">
+                <div className="absolute inset-1 rounded-lg border border-mystic/40 flex flex-col items-center justify-center bg-black/60 shadow-inner p-2 z-10 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-mystic/10 to-transparent pointer-events-none" />
+
+                    <span className="text-center font-cinzel text-mystic font-bold leading-tight text-lg drop-shadow-[0_0_8px_rgba(252,211,77,0.8)] px-1">
                         {getCardName(card.cardIndex)}
                     </span>
-                </div>
-                <div className="h-6 mt-2 text-[10px] text-indigo-500 font-mono tracking-widest uppercase">
-                    {card.isReversed ? "Reversed" : "Upright"}
+
+                    <div className="absolute bottom-3 text-[9px] text-ethereal font-mono tracking-widest uppercase opacity-80 font-semibold shadow-black">
+                        {card.isReversed ? "Reversed" : "Upright"}
+                    </div>
                 </div>
             </div>
 
             {/* Back of Card (shown initially) */}
             <div
-                className="absolute inset-0 rounded-xl bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] bg-indigo-950 shadow-2xl flex items-center justify-center p-2 border border-indigo-500/30 backface-hidden"
+                className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#0a0a16] to-[#120f26] shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-center p-1.5 border border-mystic/50 backface-hidden overflow-hidden"
                 style={{ backfaceVisibility: "hidden" }}
             >
-                <div className="w-full h-full border border-indigo-400/20 rounded-lg flex items-center justify-center">
-                    <div className="w-16 h-16 bg-gradient-to-tr from-purple-500/20 to-indigo-500/20 rounded-full blur-md absolute" />
-                    <svg viewBox="0 0 100 100" className="w-12 h-12 text-indigo-400 opacity-60">
-                        <path fill="currentColor" d="M50 0 L100 50 L50 100 L0 50 Z" />
-                        <circle fill="transparent" stroke="currentColor" strokeWidth="2" cx="50" cy="50" r="25" />
+                {/* Gold foil texture overlay */}
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+
+                <div className="w-full h-full border-2 border-mystic/40 rounded-lg flex items-center justify-center relative bg-black/40 overflow-hidden">
+                    {/* Glowing center orb */}
+                    <div className="w-24 h-24 bg-gradient-to-tr from-mystic/20 to-nebula/30 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
+
+                    {/* Mystical SVG Graphic */}
+                    <svg viewBox="0 0 100 100" className="w-16 h-16 text-mystic opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(252,211,77,0.5)]">
+                        <path fill="none" stroke="currentColor" strokeWidth="1.5" d="M50 5 L95 50 L50 95 L5 50 Z" />
+                        <circle fill="none" stroke="currentColor" strokeWidth="1" cx="50" cy="50" r="30" />
+                        <circle fill="currentColor" cx="50" cy="50" r="4" />
+                        <path fill="none" stroke="currentColor" strokeWidth="0.5" d="M50 5 L50 95 M5 50 L95 50" />
+                        <circle fill="none" stroke="currentColor" strokeWidth="1" cx="50" cy="50" r="42" strokeDasharray="2 4" />
                     </svg>
+
+                    <div className="absolute inset-1.5 border border-mystic/20 rounded-md pointer-events-none" />
                 </div>
             </div>
         </motion.div>

@@ -275,12 +275,20 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     }, [roomId]);
 
     return (
-        <div className="flex h-screen bg-neutral-950 text-neutral-50 overflow-hidden font-sans">
+        <div className="flex h-screen bg-void text-neutral-50 overflow-hidden font-inter relative">
+
+            {/* Dynamic Background Elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-nebula/10 rounded-full blur-[150px] mix-blend-screen" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-ethereal/10 rounded-full blur-[150px] mix-blend-screen" />
+                <div className="absolute top-[40%] left-[40%] w-[30vw] h-[30vw] bg-mystic/5 rounded-full blur-[100px] mix-blend-screen" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-screen" />
+            </div>
 
             {/* Mobile Toggle */}
             <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="md:hidden absolute top-6 left-6 z-50 p-2.5 bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl text-white shadow-xl hover:bg-neutral-800 transition-colors"
+                className="md:hidden absolute top-6 left-6 z-50 p-3 glass-panel rounded-xl text-mystic hover:text-white transition-colors border border-mystic/20"
             >
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -288,83 +296,97 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             {/* Overlay for mobile when sidebar is open */}
             {isSidebarOpen && (
                 <div
-                    className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+                    className="md:hidden fixed inset-0 bg-void/80 z-40 backdrop-blur-md"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
             {/* Sidebar / Left Menu */}
             <aside className={cn(
-                "fixed md:relative inset-y-0 left-0 w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col p-6 space-y-8 z-50 shadow-2xl transition-transform duration-300",
+                "fixed md:relative inset-y-0 left-0 w-72 glass-panel flex flex-col p-8 space-y-8 z-50 transition-transform duration-500 ease-out border-r border-white/10",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
             )}>
-                <div className="space-y-4 pt-12 md:pt-0">
+                <div className="space-y-6 pt-12 md:pt-0 relative z-10">
                     <button
                         onClick={() => router.push("/")}
-                        className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm font-medium"
+                        className="flex items-center gap-2 text-neutral-400 hover:text-mystic transition-colors text-sm font-medium tracking-wide"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Leave Room
                     </button>
                     <div>
-                        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">Mystic Tarot</h2>
-                        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg group hover:border-neutral-700 transition-colors">
-                            <span className="text-xs text-neutral-500 font-mono truncate flex-1">ID: {roomId}</span>
-                            <button onClick={copyRoomId} className="text-neutral-500 hover:text-white transition-colors" title="Copy Room ID">
+                        <h2 className="text-3xl font-black font-cinzel bg-gradient-to-br from-white via-mystic to-mystic/50 bg-clip-text text-transparent drop-shadow-md">Mystic Tarot</h2>
+                        <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-black/40 border border-white/10 rounded-xl group hover:border-mystic/30 transition-colors shadow-inner backdrop-blur-md">
+                            <span className="text-xs text-neutral-400 font-mono truncate flex-1 tracking-wider uppercase">ID: <span className="text-mystic/80">{roomId}</span></span>
+                            <button onClick={copyRoomId} className="text-neutral-500 hover:text-mystic transition-colors" title="Copy Room ID">
                                 <Copy className="w-4 h-4" />
                             </button>
                         </div>
-                        {copied && <p className="text-xs text-green-400 mt-2">Copied to clipboard!</p>}
+                        {copied && <p className="text-xs text-ethereal mt-2 font-medium tracking-wide">Spell copied to clipboard!</p>}
                     </div>
                 </div>
 
-                <button
-                    onClick={handleDrawCard}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-neutral-950 rounded-xl font-medium transition-all hover:bg-neutral-200 active:scale-95 shadow-xl shadow-white/5"
-                >
-                    <PlusSquare className="w-5 h-5" />
-                    Draw Card
-                </button>
+                <div className="relative group z-10">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-nebula to-mystic rounded-2xl blur opacity-20 group-hover:opacity-60 transition duration-500" />
+                    <button
+                        onClick={handleDrawCard}
+                        className="w-full relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0a0a12] text-white rounded-2xl font-semibold tracking-wide transition-all active:scale-[0.98] border border-white/10 overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-white/5 group-hover:bg-transparent transition-colors" />
+                        <PlusSquare className="w-5 h-5 text-mystic relative z-10" />
+                        <span className="relative z-10">Draw Card</span>
+                    </button>
+                </div>
 
-                <div className="mt-auto pt-8 border-t border-neutral-800">
-                    <p className="text-xs text-neutral-500 mb-2 font-medium">How to play</p>
-                    <ul className="text-xs text-neutral-400 space-y-2">
-                        <li>• Click <span className="text-white">Draw Card</span> to place a random card</li>
-                        <li>• Drag cards across the table</li>
-                        <li>• Double-click cards to flip them</li>
+                <div className="mt-auto pt-8 border-t border-white/10 relative z-10">
+                    <p className="text-xs text-mystic/80 mb-4 font-cinzel font-bold tracking-widest uppercase">The Ritual Rituals</p>
+                    <ul className="text-xs text-neutral-400 space-y-3 font-medium tracking-wide">
+                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Click <span className="text-white">Draw Card</span> to manifest</li>
+                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Drag cards across the aether</li>
+                        <li className="flex gap-2"><div className="w-1 h-1 rounded-full bg-ethereal mt-1.5" />Double-click to reveal destiny</li>
                     </ul>
                 </div>
             </aside>
 
             {/* Main Table Area */}
-            <main className="flex-1 relative bg-neutral-950 overflow-hidden">
-                {/* Subtle grid pattern for the table context */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+            <main className="flex-1 relative bg-transparent overflow-hidden">
+                {/* Subtle astrolabe/grid pattern for the table context */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none mix-blend-overlay" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
 
                 {/* WebRTC Video Overlay (Top Right) */}
-                <div className="absolute top-6 right-6 z-40 flex flex-col gap-4">
-                    <div className="relative group overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 w-48 aspect-video shadow-2xl">
-                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover bg-neutral-900 pointer-events-none" />
-                        <div className="absolute inset-0 bg-neutral-900 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
-                            <span className="text-sm text-neutral-500">Waiting for peer...</span>
+                <div className="absolute top-8 right-8 z-40 flex flex-col gap-6">
+                    <div className="relative group">
+                        {/* Remote Video Glow */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-ethereal to-nebula rounded-3xl blur opacity-30 group-hover:opacity-60 transition duration-1000" />
+                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md w-56 aspect-video shadow-2xl">
+                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover mix-blend-luminosity hover:mix-blend-normal transition-all duration-700 pointer-events-none" />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 data-[novideo=true]:opacity-100 transition-opacity pointer-events-none">
+                                <span className="text-sm text-ethereal/70 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
+                            </div>
                         </div>
                     </div>
-                    <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 w-32 aspect-video shadow-xl translate-x-12">
-                        <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover bg-neutral-900 transform scale-x-[-1]" />
+
+                    <div className="relative group translate-x-12">
+                        {/* Local Video Glow */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-mystic to-nebula rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
+                        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/50 backdrop-blur-md w-36 aspect-video shadow-xl">
+                            <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] opacity-70 hover:opacity-100 transition-opacity duration-500" />
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-2 justify-end translate-x-12">
-                        <button onClick={toggleMute} className={cn("p-2 rounded-full border transition-colors", isMuted ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700")}>
-                            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    <div className="flex items-center gap-3 justify-end translate-x-12 mt-2">
+                        <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isMuted ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10 hover:border-mystic/30")}>
+                            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                         </button>
-                        <button onClick={toggleVideo} className={cn("p-2 rounded-full border transition-colors", isVideoOff ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700")}>
-                            {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                        <button onClick={toggleVideo} className={cn("p-3 rounded-xl transition-all shadow-lg backdrop-blur-md border", isVideoOff ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-ethereal border-white/10 hover:bg-white/10 hover:border-ethereal/30")}>
+                            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                         </button>
                     </div>
                 </div>
 
                 {/* Tarot Cards Table Area */}
-                <div className="absolute inset-0 z-10 w-full h-full" id="tarot-table">
+                <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">
                     {cards.map(card => (
                         <TarotCard
                             key={card.id}
