@@ -41,8 +41,15 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         // 1. Initialize Socket
         socket = io();
 
-        // 2. Initialize WebRTC peer via PeerJS
-        peerRef.current = new Peer();
+        // 2. Initialize WebRTC peer via PeerJS with explicit STUN servers for NAT Traversal
+        peerRef.current = new Peer({
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        });
 
         peerRef.current.on('open', (id) => {
             setMyPeerId(id);
@@ -53,7 +60,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         });
 
         // 3. Setup User Media (Camera/Mic)
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: true
+        })
             .then(stream => {
                 streamRef.current = stream;
                 if (myVideoRef.current) {
