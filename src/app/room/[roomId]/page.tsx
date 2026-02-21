@@ -64,6 +64,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 peerRef.current?.on('call', call => {
                     call.answer(stream);
                     call.on('stream', remoteStream => {
+                        console.log("Received remote stream (answering)");
                         if (remoteVideoRef.current) {
                             remoteVideoRef.current.srcObject = remoteStream;
                         }
@@ -74,7 +75,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 socket.on("user-connected", (userId: string) => {
                     console.log("User connected:", userId);
                     setRemotePeerId(userId);
-                    connectToNewUser(userId, stream);
+                    // Add slight delay to ensure peer is fully ready
+                    setTimeout(() => connectToNewUser(userId, stream), 1000);
                 });
             })
             .catch(err => {
@@ -128,8 +130,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
     function connectToNewUser(userId: string, stream: MediaStream) {
         if (!peerRef.current) return;
+        console.log("Calling user", userId);
         const call = peerRef.current.call(userId, stream);
         call.on('stream', remoteStream => {
+            console.log("Received remote stream (calling)");
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = remoteStream;
             }
