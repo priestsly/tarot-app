@@ -66,7 +66,15 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
                         remoteVideoRef.current.srcObject = remoteStream;
                         remoteVideoRef.current.onloadedmetadata = () => {
-                            remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
+                            remoteVideoRef.current?.play().catch(e => {
+                                console.error("Play error:", e);
+                                if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                                    // Browser blocked autoplay (likely because it has audio and user hasn't interacted).
+                                    // Mute it temporarily to force video playback, user can unmute later.
+                                    remoteVideoRef.current.muted = true;
+                                    remoteVideoRef.current.play().catch(console.error);
+                                }
+                            });
                         };
                     }
                 });
@@ -183,7 +191,14 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 remoteVideoRef.current.srcObject = remoteStream;
                 // Ensure playback starts
                 remoteVideoRef.current.onloadedmetadata = () => {
-                    remoteVideoRef.current?.play().catch(e => console.error("Play error:", e));
+                    remoteVideoRef.current?.play().catch(e => {
+                        console.error("Play error:", e);
+                        if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                            // Browser blocked autoplay. Mute to force video playback.
+                            remoteVideoRef.current.muted = true;
+                            remoteVideoRef.current.play().catch(console.error);
+                        }
+                    });
                 };
             }
         });
