@@ -328,8 +328,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         const newCard: CardState = {
             id: Math.random().toString(36).substring(2, 9),
             cardIndex: Math.floor(Math.random() * 78), // 0-77
-            x: window.innerWidth / 2 - 100 + Math.random() * 40 - 20, // Center-ish with jitter
-            y: window.innerHeight / 2 - 150 + Math.random() * 40 - 20,
+            x: 50, // Bottom center dealing
+            y: 80 + Math.random() * 5, // Slight jitter
             isFlipped: false,
             isReversed: false,
             zIndex: maxZIndex
@@ -343,12 +343,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
     const handleThreeCardSpread = () => {
         appendLog("Manifested a 3-Card Spread (Past, Present, Future)");
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
         const spread: CardState[] = [
-            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX - 220, y: centerY - 150, zIndex: maxZIndex + 1, isFlipped: false, isReversed: Math.random() > 0.5 },
-            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX, y: centerY - 150, zIndex: maxZIndex + 2, isFlipped: false, isReversed: Math.random() > 0.5 },
-            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: centerX + 220, y: centerY - 150, zIndex: maxZIndex + 3, isFlipped: false, isReversed: Math.random() > 0.5 }
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: 20, y: 40, zIndex: maxZIndex + 1, isFlipped: false, isReversed: Math.random() > 0.5 },
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: 50, y: 40, zIndex: maxZIndex + 2, isFlipped: false, isReversed: Math.random() > 0.5 },
+            { id: Math.random().toString(36).substring(2, 9), cardIndex: Math.floor(Math.random() * 78), x: 80, y: 40, zIndex: maxZIndex + 3, isFlipped: false, isReversed: Math.random() > 0.5 }
         ];
         setMaxZIndex(prev => prev + 3);
         const newCards = [...cards, ...spread];
@@ -367,9 +365,21 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         });
     }, [maxZIndex, roomId]);
 
-    const handleDragEnd = useCallback((id: string, x: number, y: number) => {
+    const handleDragEnd = useCallback((id: string, screenX: number, screenY: number) => {
+        if (!tableRef.current) return;
+        const rect = tableRef.current.getBoundingClientRect();
+
+        // Convert screen pixels to relative percentage based on the table's dimensions
+        let percentX = (screenX / rect.width) * 100;
+        let percentY = (screenY / rect.height) * 100;
+
+        // Clamp percentages to avoid going totally out of bounds (approximate card dimensions 144x224)
+        // 144px width is roughly 10-15% of screen, so clamping just enough to keep it visible
+        percentX = Math.max(5, Math.min(95, percentX));
+        percentY = Math.max(5, Math.min(95, percentY));
+
         setCards(prev => {
-            const next = prev.map(c => c.id === id ? { ...c, x, y } : c);
+            const next = prev.map(c => c.id === id ? { ...c, x: percentX, y: percentY } : c);
             const updatedCard = next.find(c => c.id === id);
             if (updatedCard) socket.emit("update-card", roomId, updatedCard);
             return next;

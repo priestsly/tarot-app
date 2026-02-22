@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -44,6 +44,39 @@ const getCardName = (index: number) => {
 
 export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, isLocal, constraintsRef }: TarotCardProps) {
     // We use Framer Motion's `drag` feature. The layout needs boundaries.
+    const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
+    const [hasCalculated, setHasCalculated] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    // Convert percentage to pixels dynamically based on table size
+    useEffect(() => {
+        if (!constraintsRef?.current) return;
+        const container = constraintsRef.current;
+
+        const updatePosition = () => {
+            const rect = container.getBoundingClientRect();
+            // width: 144px, height: 224px (w-36 h-56)
+            setPixelPos({
+                x: (card.x / 100) * rect.width - 72,
+                y: (card.y / 100) * rect.height - 112
+            });
+            setHasCalculated(true);
+        };
+
+        // Update initially
+        const tm = setTimeout(updatePosition, 10);
+
+        const observer = new ResizeObserver(() => {
+            updatePosition();
+        });
+
+        observer.observe(container);
+
+        return () => {
+            clearTimeout(tm);
+            observer.disconnect();
+        };
+    }, [card.x, card.y, constraintsRef]);
 
     const handleDoubleClick = () => {
         // Determine random reversed state only when flipping face up for the first time
@@ -53,19 +86,32 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
     return (
         <motion.div
+            ref={cardRef}
             drag
             dragMomentum={false}
             dragConstraints={constraintsRef}
             onPointerDown={() => onPointerDown(card.id)}
             onDragEnd={(e, info) => {
-                onDragEnd(card.id, card.x + info.offset.x, card.y + info.offset.y);
+                if (!constraintsRef?.current || !cardRef.current) return;
+                const containerRect = constraintsRef.current.getBoundingClientRect();
+                const cardRect = cardRef.current.getBoundingClientRect();
+
+                // Calculate center point relative to the container
+                const centerXPx = (cardRect.left - containerRect.left) + cardRect.width / 2;
+                const centerYPx = (cardRect.top - containerRect.top) + cardRect.height / 2;
+
+                // Convert back to percentages
+                const newPercentX = (centerXPx / containerRect.width) * 100;
+                const newPercentY = (centerYPx / containerRect.height) * 100;
+
+                onDragEnd(card.id, newPercentX, newPercentY);
             }}
-            initial={{ x: card.x, y: card.y, scale: 0, opacity: 0 }}
+            initial={{ x: pixelPos.x, y: pixelPos.y, scale: 0, opacity: 0 }}
             animate={{
-                x: card.x,
-                y: card.y,
+                x: pixelPos.x,
+                y: pixelPos.y,
                 scale: 1,
-                opacity: 1,
+                opacity: hasCalculated ? 1 : 0,
                 zIndex: card.zIndex,
                 rotateY: card.isFlipped ? 180 : 0,
                 rotateZ: card.isFlipped && card.isReversed ? 180 : 0
