@@ -29,24 +29,24 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-obsidian text-neutral-50 flex flex-col items-center justify-center p-4 selection:bg-gold/30 relative overflow-hidden font-inter">
+    <div className="min-h-screen bg-[#07040D] text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-purple-500/30 relative overflow-hidden font-inter">
 
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
           transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[5%] left-[10%] w-[600px] h-[600px] bg-gold-light/10 rounded-full blur-[140px] mix-blend-screen"
+          className="absolute top-[5%] left-[10%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[140px] mix-blend-screen"
         />
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[5%] right-[5%] w-[700px] h-[700px] bg-emerald/10 rounded-full blur-[160px] mix-blend-screen"
+          className="absolute bottom-[5%] right-[5%] w-[700px] h-[700px] bg-purple-600/10 rounded-full blur-[160px] mix-blend-screen"
         />
         <motion.div
           animate={{ y: [0, -40, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[35%] right-[25%] w-[400px] h-[400px] bg-crimson/10 rounded-full blur-[120px] mix-blend-screen"
+          className="absolute top-[35%] right-[25%] w-[400px] h-[400px] bg-slate-400/5 rounded-full blur-[120px] mix-blend-screen"
         />
 
         {/* Floating Sparks (Gold/White) */}
@@ -69,11 +69,13 @@ export default function Home() {
               height: Math.random() * 3 + 'px',
               top: Math.random() * 100 + '%',
               left: Math.random() * 100 + '%',
-              backgroundColor: Math.random() > 0.5 ? '#D4AF37' : '#FFFFFF',
-              boxShadow: '0 0 12px rgba(212,175,55,0.8)'
+              backgroundColor: Math.random() > 0.5 ? '#E2E8F0' : '#FFFFFF',
+              boxShadow: '0 0 12px rgba(226,232,240,0.8)'
             }}
           />
         ))}
+        {/* Subtle texture overlay */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen" />
       </div>
 
       <motion.div
@@ -88,48 +90,48 @@ export default function Home() {
             whileHover={{ scale: 1.05, rotate: 5 }}
             className="mx-auto w-24 h-24 relative flex items-center justify-center"
           >
-            <div className="absolute inset-0 bg-gradient-to-tr from-gold to-crimson rounded-[2rem] blur-xl opacity-30 animate-pulse-slow" />
-            <div className="relative bg-charcoal border border-gold/20 p-5 rounded-[2rem] shadow-2xl backdrop-blur-xl">
-              <Moon className="w-12 h-12 text-gold" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-[2rem] blur-xl opacity-30 animate-pulse-slow" />
+            <div className="relative bg-[#0B0813] border border-slate-500/20 p-5 rounded-[2rem] shadow-2xl backdrop-blur-xl">
+              <Moon className="w-12 h-12 text-slate-200" />
             </div>
-            <Star className="absolute -top-3 -right-3 w-8 h-8 text-gold-light animate-pulse" />
+            <Star className="absolute -top-3 -right-3 w-8 h-8 text-sky-300 animate-pulse" />
           </motion.div>
 
           <div className="space-y-3">
-            <h1 className="text-5xl md:text-6xl font-black tracking-widest font-cinzel bg-gradient-to-br from-[#FDF5E6] via-gold to-[#B8860B] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]">
+            <h1 className="text-5xl md:text-6xl font-black tracking-widest font-cinzel text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-500 drop-shadow-[0_0_15px_rgba(226,232,240,0.3)]">
               Mystic Tarot
             </h1>
-            <p className="text-neutral-400 text-lg md:text-xl font-light tracking-wide max-w-sm mx-auto">
+            <p className="text-slate-400 text-lg md:text-xl font-light tracking-wide max-w-sm mx-auto">
               Seek answers in the dark. Connect and read the cards in real-time.
             </p>
           </div>
         </div>
 
         {/* Action Panel */}
-        <div className="glass-panel rounded-[2rem] p-8 md:p-10 space-y-8 relative overflow-hidden group">
-          {/* Subtle inner gold glow */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-gold/0 via-gold/10 to-gold/0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-xl pointer-events-none" />
+        <div className="glass-panel rounded-[2rem] p-8 md:p-10 space-y-8 relative overflow-hidden group border border-slate-500/10 bg-[#130E24]/40 backdrop-blur-lg shadow-2xl">
+          {/* Subtle inner silver glow */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-slate-300/0 via-slate-300/10 to-slate-300/0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-xl pointer-events-none" />
 
           <button
             onClick={handleCreateRoom}
-            className="w-full relative inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-charcoal to-[#1a1710] text-gold-light rounded-2xl font-semibold tracking-wide transition-all shadow-xl hover:shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-[0.98] border border-gold/30 hover:border-gold overflow-hidden"
+            className="w-full relative inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-indigo-900/40 to-purple-900/40 text-slate-200 rounded-2xl font-semibold tracking-wide transition-all shadow-xl hover:shadow-[0_0_25px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-[0.98] border border-indigo-400/30 hover:border-indigo-400/60 overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gold/10 translate-y-full hover:translate-y-0 transition-transform duration-300 ease-in-out" />
-            <Sparkles className="w-5 h-5 text-gold relative z-10" />
+            <div className="absolute inset-0 bg-indigo-500/10 translate-y-full hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+            <Sparkles className="w-5 h-5 text-indigo-300 relative z-10" />
             <span className="relative z-10 text-lg font-cinzel tracking-widest uppercase">Begin Reading</span>
           </button>
 
           <div className="relative flex items-center">
-            <div className="flex-grow border-t border-white/5" />
-            <span className="flex-shrink-0 mx-4 text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <div className="flex-grow border-t border-slate-600/30" />
+            <span className="flex-shrink-0 mx-4 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
               Or Enter The Void
             </span>
-            <div className="flex-grow border-t border-white/5" />
+            <div className="flex-grow border-t border-slate-600/30" />
           </div>
 
           <form onSubmit={handleJoinRoom} className="space-y-5">
             <div className="space-y-3">
-              <label htmlFor="roomId" className="hidden text-sm font-medium text-neutral-400 ml-1">
+              <label htmlFor="roomId" className="hidden text-sm font-medium text-slate-500 ml-1">
                 Room ID
               </label>
               <div className="relative group/input">
@@ -139,24 +141,24 @@ export default function Home() {
                   value={roomIdInput}
                   onChange={(e) => setRoomIdInput(e.target.value)}
                   placeholder="Paste Room ID here..."
-                  className="w-full bg-obsidian/60 border border-white/10 rounded-2xl px-6 py-4 text-center placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50 transition-all font-mono text-lg shadow-inner text-gold-light"
+                  className="w-full bg-[#0B0813]/60 border border-slate-600/30 rounded-2xl px-6 py-4 text-center placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all font-mono text-lg shadow-inner text-slate-200"
                 />
-                <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-r from-gold/0 via-gold/10 to-gold/0 opacity-0 group-focus-within/input:opacity-100 transition-opacity blur-md" />
+                <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-purple-500/0 opacity-0 group-focus-within/input:opacity-100 transition-opacity blur-md" />
               </div>
             </div>
 
             <button
               type="submit"
               disabled={!roomIdInput.trim()}
-              className="w-full inline-flex items-center justify-center gap-3 px-8 py-5 bg-white/5 text-neutral-300 rounded-2xl font-medium tracking-wide transition-all border border-white/10 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:disabled:transform-none backdrop-blur-sm"
+              className="w-full inline-flex items-center justify-center gap-3 px-8 py-5 bg-slate-800/40 text-slate-300 rounded-2xl font-medium tracking-wide transition-all border border-slate-600/30 hover:bg-slate-700/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:disabled:transform-none backdrop-blur-sm"
             >
-              <LogIn className="w-5 h-5 text-neutral-400 group-hover:text-white" />
+              <LogIn className="w-5 h-5 text-slate-400 group-hover:text-white" />
               <span className="text-lg font-cinzel uppercase tracking-widest">Join Room</span>
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-neutral-600 font-mono tracking-widest uppercase">
+        <p className="text-center text-xs text-slate-600 font-mono tracking-widest uppercase">
           Powered by WebRTC & Socket.io
         </p>
       </motion.div>
