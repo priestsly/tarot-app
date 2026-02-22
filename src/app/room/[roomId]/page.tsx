@@ -70,6 +70,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
 
+    const tableRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         // 1. Initialize Socket
         socket = io();
@@ -381,52 +383,53 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     }, [roomId, appendLog]);
 
     return (
-        <div className="flex flex-col h-screen bg-void text-neutral-50 overflow-hidden font-inter relative">
+        <div className="flex flex-col h-screen bg-obsidian text-neutral-50 overflow-hidden font-inter relative">
 
             {/* ═══════════════ ANIMATED BACKGROUND ═══════════════ */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-nebula/10 rounded-full blur-[150px] mix-blend-screen animate-pulse-slow" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-ethereal/10 rounded-full blur-[150px] mix-blend-screen animate-pulse-slow" style={{ animationDelay: '2s' }} />
-                <div className="absolute top-[40%] left-[40%] w-[30vw] h-[30vw] bg-mystic/5 rounded-full blur-[100px] mix-blend-screen animate-float" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-gold-light/10 rounded-full blur-[160px] mix-blend-screen animate-pulse-slow" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-emerald/10 rounded-full blur-[150px] mix-blend-screen animate-pulse-slow" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-[40%] left-[40%] w-[30vw] h-[30vw] bg-crimson/5 rounded-full blur-[120px] mix-blend-screen animate-float" />
+                {/* Subtle dust overlay */}
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-screen" />
             </div>
 
             {/* ═══════════════ TOP: VIDEO STRIP ═══════════════ */}
-            <div className="relative z-30 flex-shrink-0">
-                {/* Video Bar */}
+            <div className="relative z-30 flex-shrink-0 bg-charcoal/80 border-b border-gold/10 backdrop-blur-xl shadow-2xl transition-all duration-500 ease-in-out">
+                {/* Video Bar Content */}
                 <div className={cn(
-                    "transition-all duration-500 ease-out overflow-hidden",
-                    isVideoBarVisible ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+                    "transition-all duration-500 ease-out overflow-hidden flex",
+                    isVideoBarVisible ? "max-h-[220px] opacity-100 p-3" : "max-h-0 opacity-0 p-0"
                 )}>
-                    <div className="flex items-stretch gap-2 p-2 bg-black/40 backdrop-blur-xl border-b border-white/10">
+                    <div className="flex flex-1 max-w-4xl mx-auto gap-3 items-stretch justify-center h-full">
                         {/* Remote Video */}
-                        <div className="flex-1 relative group overflow-hidden rounded-xl border border-white/10 bg-black/60 aspect-video max-h-[140px]">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-ethereal/20 to-nebula/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-700" />
+                        <div className="flex-1 relative group overflow-hidden rounded-2xl border border-gold/20 bg-obsidian aspect-video shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-gold/20 to-crimson/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none" />
                             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover relative z-10" />
                             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                                <span className="text-xs text-ethereal/50 font-mono tracking-widest animate-pulse">Awaiting spirit...</span>
+                                <span className="text-xs text-gold/50 font-mono tracking-[0.2em] animate-pulse">Awaiting spirit...</span>
                             </div>
-                            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 bg-black/60 rounded text-[9px] text-ethereal font-mono backdrop-blur-sm border border-ethereal/20">
+                            <div className="absolute bottom-2 left-3 z-20 px-3 py-1 bg-black/80 rounded-md text-[9px] text-gold-light font-mono tracking-widest uppercase backdrop-blur-md border border-gold/30">
                                 Remote
                             </div>
                         </div>
 
                         {/* Local Video */}
-                        <div className="flex-1 relative group overflow-hidden rounded-xl border border-white/10 bg-black/60 aspect-video max-h-[140px]">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-mystic/20 to-nebula/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-700" />
+                        <div className="flex-1 relative group overflow-hidden rounded-2xl border border-gold/20 bg-obsidian aspect-video shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-gold/20 to-emerald/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none" />
                             <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] relative z-10" />
-                            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 bg-black/60 rounded text-[9px] text-mystic font-mono backdrop-blur-sm border border-mystic/20">
+                            <div className="absolute bottom-2 left-3 z-20 px-3 py-1 bg-black/80 rounded-md text-[9px] text-gold-light font-mono tracking-widest uppercase backdrop-blur-md border border-gold/30">
                                 You
                             </div>
                         </div>
 
                         {/* Controls Column */}
-                        <div className="flex flex-col justify-center gap-1.5 px-1">
-                            <button onClick={toggleMute} className={cn("p-2 rounded-lg transition-all border", isMuted ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-white/5 text-mystic border-white/10 hover:bg-white/10")} title={isMuted ? 'Unmute' : 'Mute'}>
-                                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                        <div className="flex flex-col justify-center gap-2 pl-2 border-l border-gold/10">
+                            <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all border shadow-lg", isMuted ? "bg-crimson/20 text-crimson border-crimson/40" : "bg-white/5 text-gold border-gold/20 hover:bg-gold/10 hover:border-gold/50")} title={isMuted ? 'Unmute' : 'Mute'}>
+                                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                             </button>
-                            <button onClick={toggleVideo} className={cn("p-2 rounded-lg transition-all border", isVideoOff ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-white/5 text-ethereal border-white/10 hover:bg-white/10")} title={isVideoOff ? 'Enable Camera' : 'Disable Camera'}>
-                                {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                            <button onClick={toggleVideo} className={cn("p-3 rounded-xl transition-all border shadow-lg", isVideoOff ? "bg-crimson/20 text-crimson border-crimson/40" : "bg-white/5 text-gold-light border-gold/20 hover:bg-gold-light/10 hover:border-gold/50")} title={isVideoOff ? 'Enable Camera' : 'Disable Camera'}>
+                                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                             </button>
                         </div>
                     </div>
@@ -435,9 +438,9 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 {/* Video Toggle Button */}
                 <button
                     onClick={() => setIsVideoBarVisible(!isVideoBarVisible)}
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full z-40 px-4 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-b-xl text-neutral-400 hover:text-white transition-all flex items-center gap-1.5 text-xs"
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full z-40 px-6 py-1.5 bg-charcoal/90 backdrop-blur-xl border border-t-0 border-gold/20 rounded-b-2xl text-gold/70 hover:text-gold transition-all flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] shadow-lg font-bold"
                 >
-                    {isVideoBarVisible ? <><EyeOff className="w-3 h-3" />Hide</> : <><Eye className="w-3 h-3" />Show</>}
+                    {isVideoBarVisible ? <><ChevronUp className="w-3 h-3" />Hide Vision</> : <><ChevronDown className="w-3 h-3" />Show Vision</>}
                 </button>
             </div>
 
@@ -468,11 +471,11 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
                 {/* Chat Drawer */}
                 <aside className={cn(
-                    "fixed inset-y-0 right-0 w-80 bg-black/80 backdrop-blur-2xl border-l border-white/10 flex flex-col z-50 shadow-2xl transition-transform duration-500 ease-out",
+                    "fixed inset-y-0 right-0 w-80 bg-obsidian/95 backdrop-blur-3xl border-l border-gold/20 flex flex-col z-50 shadow-[0_0_40px_rgba(212,175,55,0.15)] transition-transform duration-500 ease-out",
                     isChatOpen ? "translate-x-0" : "translate-x-full"
                 )}>
-                    <div className="flex items-center justify-between p-5 border-b border-white/10">
-                        <h3 className="font-cinzel text-lg text-ethereal font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-between p-5 border-b border-gold/10">
+                        <h3 className="font-cinzel text-lg text-gold font-bold flex items-center gap-2 tracking-widest uppercase">
                             <MessageCircle className="w-4 h-4" />
                             Whispers
                         </h3>
@@ -483,19 +486,19 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center h-full opacity-30">
-                                <MessageCircle className="w-10 h-10 text-ethereal mb-3" />
-                                <p className="text-xs text-neutral-400 font-mono">No whispers yet...</p>
+                                <MessageCircle className="w-10 h-10 text-gold mb-3" />
+                                <p className="text-xs text-gold/50 font-mono tracking-widest uppercase">No whispers yet...</p>
                             </div>
                         )}
                         {messages.map(msg => (
                             <div key={msg.id} className="flex flex-col gap-1">
                                 <div className="flex items-baseline justify-between">
-                                    <span className={cn("text-xs font-bold", msg.sender === "Seeker" ? "text-mystic" : "text-ethereal")}>{msg.sender}</span>
+                                    <span className={cn("text-xs font-bold font-cinzel tracking-widest", msg.sender === "Seeker" ? "text-gold" : "text-emerald")}>{msg.sender}</span>
                                     <span className="text-[9px] text-neutral-500 font-mono">{msg.timestamp}</span>
                                 </div>
                                 <div className={cn(
-                                    "p-3 rounded-xl text-sm leading-relaxed",
-                                    msg.sender === "Seeker" ? "bg-mystic/10 text-neutral-200 rounded-tr-sm" : "bg-white/5 text-neutral-300 rounded-tl-sm"
+                                    "p-3 rounded-xl text-sm leading-relaxed border",
+                                    msg.sender === "Seeker" ? "bg-gold/5 text-neutral-200 rounded-tr-sm border-gold/10" : "bg-white/5 text-neutral-300 rounded-tl-sm border-white/5"
                                 )}>
                                     {msg.text}
                                 </div>
@@ -503,18 +506,18 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         ))}
                         <div ref={messagesEndRef} />
                     </div>
-                    <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-black/40 flex items-center gap-2">
+                    <form onSubmit={handleSendMessage} className="p-3 border-t border-gold/10 bg-black/40 flex items-center gap-2">
                         <input
                             type="text"
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
                             placeholder="Send a whisper..."
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-ethereal/50 transition-colors placeholder:text-neutral-600"
+                            className="flex-1 bg-charcoal/50 border border-gold/20 rounded-xl px-4 py-2.5 text-sm text-gold-light focus:outline-none focus:border-gold/50 transition-colors placeholder:text-neutral-600"
                         />
                         <button
                             type="submit"
                             disabled={!chatInput.trim()}
-                            className="p-2.5 rounded-xl bg-ethereal/20 text-ethereal hover:bg-ethereal/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-2.5 rounded-xl bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[0_0_10px_rgba(212,175,55,0.1)]"
                         >
                             <Send className="w-4 h-4" />
                         </button>
@@ -523,74 +526,75 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
                 {/* ── SIDEBAR (LEFT PANEL) ── */}
                 <aside className={cn(
-                    "fixed md:relative inset-y-0 left-0 w-64 bg-black/40 backdrop-blur-xl flex flex-col p-5 space-y-5 z-50 transition-transform duration-500 ease-out border-r border-white/10",
+                    "fixed md:relative inset-y-0 left-0 w-64 bg-charcoal/80 backdrop-blur-2xl flex flex-col p-5 space-y-6 z-50 transition-transform duration-500 ease-out border-r border-gold/10 shadow-[5px_0_30px_rgba(0,0,0,0.5)]",
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
                 )}>
                     <div className="space-y-4 pt-10 md:pt-0 relative z-10">
                         <button
                             onClick={() => router.push("/")}
-                            className="flex items-center gap-2 text-neutral-500 hover:text-mystic transition-colors text-xs font-medium tracking-wide"
+                            className="flex items-center gap-2 text-neutral-500 hover:text-gold transition-colors text-xs font-medium tracking-[0.2em] uppercase"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" />
                             Leave Room
                         </button>
                         <div>
-                            <h2 className="text-2xl font-black font-cinzel bg-gradient-to-br from-white via-mystic to-mystic/50 bg-clip-text text-transparent">Mystic Tarot</h2>
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-black/40 border border-white/10 rounded-lg group hover:border-mystic/30 transition-colors">
-                                <span className="text-[10px] text-neutral-400 font-mono truncate flex-1 tracking-wider uppercase">ID: <span className="text-mystic/80">{roomId}</span></span>
-                                <button onClick={copyRoomId} className="text-neutral-500 hover:text-mystic transition-colors" title="Copy Room ID">
+                            <h2 className="text-2xl font-black font-cinzel tracking-widest text-gold drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">Mystic Tarot</h2>
+                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-obsidian border border-gold/10 rounded-lg group hover:border-gold/30 transition-colors relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gold/5 blur opacity-0 group-hover:opacity-100 transition duration-500" />
+                                <span className="text-[10px] text-neutral-400 font-mono truncate flex-1 tracking-wider uppercase relative z-10">ID: <span className="text-gold/80">{roomId}</span></span>
+                                <button onClick={copyRoomId} className="text-gold/50 hover:text-gold transition-colors relative z-10" title="Copy Room ID">
                                     <Copy className="w-3.5 h-3.5" />
                                 </button>
                             </div>
-                            {copied && <p className="text-[10px] text-ethereal mt-1.5 font-medium">Copied!</p>}
+                            {copied && <p className="text-[10px] text-emerald mt-1.5 font-medium tracking-widest uppercase">Copied!</p>}
                         </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="relative z-10 flex flex-col gap-2">
+                    <div className="relative z-10 flex flex-col gap-3">
                         <button
                             onClick={handleThreeCardSpread}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-mystic/10 text-mystic rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-mystic/30 hover:bg-mystic/20"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gold/10 text-gold-light rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-gold/30 hover:bg-gold/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]"
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <Sparkles className="w-4 h-4 text-gold" />
                             3-Card Spread
                         </button>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             <button
                                 onClick={handleDrawCard}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-white rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10"
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-neutral-300 rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10 hover:text-white"
                             >
-                                <PlusSquare className="w-4 h-4 text-mystic" />
+                                <PlusSquare className="w-4 h-4 text-emerald" />
                                 Draw
                             </button>
                             <button
                                 onClick={handleClearTable}
                                 title="Clear Table"
-                                className="flex items-center justify-center px-3 py-3 bg-red-500/10 text-red-400 rounded-xl transition-all active:scale-[0.98] border border-red-500/20 hover:bg-red-500/20"
+                                className="flex items-center justify-center px-4 py-3 bg-crimson/10 text-crimson rounded-xl transition-all active:scale-[0.98] border border-crimson/30 hover:bg-crimson/20 shadow-[0_0_10px_rgba(128,0,0,0.1)]"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>
                         <button
                             onClick={() => setIsChatOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ethereal/10 text-ethereal rounded-xl font-semibold text-sm tracking-wide transition-all active:scale-[0.98] border border-ethereal/30 hover:bg-ethereal/20"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#112233]/40 text-[#5cb8b2] rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-[#5cb8b2]/30 hover:bg-[#5cb8b2]/10"
                         >
                             <MessageCircle className="w-4 h-4" />
                             Whispers
-                            {messages.length > 0 && <div className="w-2 h-2 bg-ethereal rounded-full animate-pulse" />}
+                            {messages.length > 0 && <div className="w-2 h-2 bg-[#5cb8b2] rounded-full animate-pulse shadow-[0_0_8px_#5cb8b2]" />}
                         </button>
                     </div>
 
                     {/* Chronicle (Activity Log) */}
-                    <div className="flex-1 min-h-0 pt-4 border-t border-white/10 relative z-10 flex flex-col">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Activity className="w-3.5 h-3.5 text-mystic" />
-                            <p className="text-[10px] text-mystic/80 font-cinzel font-bold tracking-widest uppercase">Chronicle</p>
+                    <div className="flex-1 min-h-0 pt-5 border-t border-gold/10 relative z-10 flex flex-col">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Activity className="w-3.5 h-3.5 text-gold/70" />
+                            <p className="text-[10px] text-gold/70 font-cinzel font-bold tracking-[0.2em] uppercase">Chronicle</p>
                         </div>
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'none' }}>
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-hide">
                             {logs.slice().reverse().map(log => (
-                                <div key={log.id} className="text-[9px] leading-relaxed border-l border-white/10 pl-2">
-                                    <span className="text-ethereal/80 block font-mono">{log.timestamp}</span>
+                                <div key={log.id} className="text-[9px] leading-relaxed border-l-2 border-gold/20 pl-2">
+                                    <span className="text-gold/50 block font-mono tracking-widest uppercase">{log.timestamp}</span>
                                     <span className="text-neutral-400 font-medium">{log.message}</span>
                                 </div>
                             ))}
@@ -600,7 +604,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
                 {/* ── TAROT TABLE (BOUNDED AREA) ── */}
                 <main
-                    className="flex-1 relative overflow-hidden"
+                    className="flex-1 relative overflow-hidden bg-obsidian/80"
                     onPointerMove={(e) => {
                         if (e.pointerType === 'touch') return;
                         const now = Date.now();
@@ -610,11 +614,11 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         }
                     }}
                 >
-                    {/* Table texture */}
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-void)_100%)] pointer-events-none" />
+                    {/* Table texture - Hexagonal Grid or Stardust */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(212,175,55,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(212,175,55,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,var(--color-obsidian)_80%)] pointer-events-none" />
                     {/* Center glow effect for table */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50vw] h-[50vh] bg-nebula/5 rounded-full blur-[120px] pointer-events-none" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vh] bg-gold/5 rounded-full blur-[150px] pointer-events-none" />
 
                     {/* Live Cursors (Desktop only) */}
                     <div className="hidden md:block">
@@ -624,8 +628,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                                 className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
                                 style={{ left: pos.x, top: pos.y }}
                             >
-                                <MousePointer2 className="w-5 h-5 text-ethereal fill-ethereal/80 drop-shadow-[0_0_6px_rgba(45,212,191,0.5)] -rotate-12" />
-                                <span className="mt-0.5 px-2 py-0.5 bg-ethereal/20 backdrop-blur-md rounded text-[9px] text-white font-mono border border-ethereal/30 whitespace-nowrap shadow-lg">
+                                <MousePointer2 className="w-5 h-5 text-emerald fill-emerald/80 drop-shadow-[0_0_8px_rgba(9,121,105,0.6)] -rotate-12" />
+                                <span className="mt-0.5 px-2 py-0.5 bg-charcoal/80 backdrop-blur-md rounded text-[9px] text-emerald font-mono tracking-[0.1em] border border-emerald/50 whitespace-nowrap shadow-[0_0_10px_rgba(9,121,105,0.3)]">
                                     Seeker
                                 </span>
                             </div>
@@ -633,7 +637,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     </div>
 
                     {/* Cards */}
-                    <div className="absolute inset-0 z-10 w-full h-full perspective-[1000px]" id="tarot-table">
+                    <div ref={tableRef} className="absolute inset-0 z-10 w-full h-full perspective-[1000px] overflow-hidden" id="tarot-table">
                         {cards.map(card => (
                             <TarotCard
                                 key={card.id}
@@ -642,6 +646,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                                 onFlipEnd={handleFlipEnd}
                                 onPointerDown={handlePointerDown}
                                 isLocal={true}
+                                constraintsRef={tableRef}
                             />
                         ))}
                     </div>
@@ -649,35 +654,35 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             </div>
 
             {/* ═══════════════ BOTTOM: MOBILE FLOATING BAR ═══════════════ */}
-            <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+            <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-charcoal/90 backdrop-blur-2xl border border-gold/20 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
                 <button
                     onClick={handleDrawCard}
                     className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-white/5 active:bg-white/10 rounded-xl transition-all"
                 >
-                    <PlusSquare className="w-5 h-5 text-mystic" />
-                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-0.5">Draw</span>
+                    <PlusSquare className="w-5 h-5 text-emerald" />
+                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-1 tracking-widest">Draw</span>
                 </button>
                 <button
                     onClick={handleThreeCardSpread}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-mystic/10 active:bg-mystic/20 rounded-xl transition-all border border-mystic/30"
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-gold/10 active:bg-gold/20 rounded-xl transition-all border border-gold/30 shadow-[0_0_10px_rgba(212,175,55,0.1)]"
                 >
-                    <Sparkles className="w-5 h-5 text-mystic" />
-                    <span className="text-[7px] font-bold text-mystic uppercase mt-0.5">Spread</span>
+                    <Sparkles className="w-5 h-5 text-gold" />
+                    <span className="text-[7px] font-bold text-gold uppercase mt-1 tracking-widest">Spread</span>
                 </button>
                 <button
                     onClick={() => setIsChatOpen(!isChatOpen)}
                     className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-white/5 active:bg-white/10 rounded-xl transition-all relative"
                 >
-                    <MessageCircle className="w-5 h-5 text-ethereal" />
-                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-0.5">Chat</span>
-                    {messages.length > 0 && <div className="absolute top-0.5 right-1.5 w-2 h-2 bg-ethereal rounded-full" />}
+                    <MessageCircle className="w-5 h-5 text-[#5cb8b2]" />
+                    <span className="text-[7px] font-bold text-neutral-400 uppercase mt-1 tracking-widest">Chat</span>
+                    {messages.length > 0 && <div className="absolute top-1 right-1.5 w-2 h-2 bg-[#5cb8b2] rounded-full shadow-[0_0_5px_#5cb8b2]" />}
                 </button>
                 <button
                     onClick={handleClearTable}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-red-500/10 active:bg-red-500/20 rounded-xl transition-all border border-red-500/20"
+                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-crimson/10 active:bg-crimson/20 rounded-xl transition-all border border-crimson/30"
                 >
-                    <Trash2 className="w-5 h-5 text-red-400" />
-                    <span className="text-[7px] font-bold text-red-400 uppercase mt-0.5">Clear</span>
+                    <Trash2 className="w-5 h-5 text-crimson" />
+                    <span className="text-[7px] font-bold text-crimson uppercase mt-1 tracking-widest">Clear</span>
                 </button>
             </div>
 

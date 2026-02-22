@@ -4,50 +4,91 @@
   --font-inter: var(--font-inter), ui-sans-serif, system-ui;
   --font-cinzel: var(--font-cinzel), ui-serif, Georgia;
 
-  --color-void: #05050A;
-  --color-nebula: #4C1D95;
-  --color-mystic: #FCD34D;
-  --color-ethereal: #2DD4BF;
+  /* Obsidian & Gold Premium Palette */
+  --color-obsidian: #050505;
+  --color-charcoal: #0a0a0c;
+  --color-gold: #D4AF37;
+  --color-gold-light: #F3E5AB;
+  --color-crimson: #800000;
+  --color-emerald: #097969;
 
   /* Custom Animations */
-  --animate-float: float 6s ease-in-out infinite;
-  --animate-pulse-slow: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-glow: glow 3s ease-in-out infinite alternate;
+  --animate-float: float 8s ease-in-out infinite;
+  --animate-float-delayed: float 8s ease-in-out 4s infinite;
+  --animate-pulse-slow: pulse-slow 5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-glow-gold: glow-gold 3s ease-in-out infinite alternate;
 }
 
 @layer base {
   body {
-    background-color: var(--color-void);
+    background-color: var(--color-obsidian);
     color: #f8fafc;
     font-family: var(--font-inter);
-    /* Subtle noise/stars effect using gradients */
-    background-image: 
-      radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.08), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(45, 212, 191, 0.05), transparent 25%);
+    /* Very subtle noise/dust overlay for texture */
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(212, 175, 55, 0.03), transparent 30%),
+      radial-gradient(circle at 90% 80%, rgba(212, 175, 55, 0.02), transparent 40%);
     background-attachment: fixed;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-cinzel);
+    letter-spacing: 0.05em;
   }
 }
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-  100% { transform: translateY(0px); }
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-30px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
-@keyframes glow {
-  from { box-shadow: 0 0 10px -10px rgba(252, 211, 77, 0.5); }
-  to { box-shadow: 0 0 20px 5px rgba(252, 211, 77, 0.2); }
+@keyframes glow-gold {
+  from {
+    box-shadow: 0 0 15px -10px rgba(212, 175, 55, 0.4);
+  }
+
+  to {
+    box-shadow: 0 0 30px 5px rgba(212, 175, 55, 0.15);
+  }
 }
 
+/* Premium Frosted Glass Panel */
 .glass-panel {
-  @apply bg-[#0f0f1a]/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+  @apply bg-[#0a0a0c]/60 backdrop-blur-2xl border border-white/5 shadow-2xl;
+}
+
+/* Hide Scrollbar but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
