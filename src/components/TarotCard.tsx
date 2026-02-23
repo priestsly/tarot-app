@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState, useCallback } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -10,10 +10,10 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export interface CardState {
-    id: string; // unique instance ID
-    cardIndex: number; // 0-77 representing the Tarot card
-    x: number;
-    y: number;
+    id: string;
+    cardIndex: number;
+    x: number;       // percentage 0-100
+    y: number;       // percentage 0-100
     isFlipped: boolean;
     isReversed: boolean;
     zIndex: number;
@@ -28,8 +28,6 @@ interface TarotCardProps {
     constraintsRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-// Map index to a tarot name or just use a generic card back/front for now
-// In a real app we'd map these to actual images. For now we use beautiful CSS fronts.
 const getCardName = (index: number) => {
     const majorArcana = [
         "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
@@ -42,36 +40,110 @@ const getCardName = (index: number) => {
     return `Minor Arcana ${index}`;
 };
 
+// Card dimensions
+const CARD_W = 144; // w-36
+const CARD_H = 224; // h-56
+
 export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, isLocal, constraintsRef }: TarotCardProps) {
-    const cardRef = useRef<HTMLDivElement>(null);
+    // Local drag offset in pixels (resets to 0 when not dragging)
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const isDragging = useRef(false);
+    const dragStart = useRef({ px: 0, py: 0 }); // pointer start position in screen pixels
+
+    const handlePointerDown = useCallback((e: React.PointerEvent) => {
+        // Only left mouse button or touch
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        isDragging.current = true;
+        dragStart.current = { px: e.clientX, py: e.clientY };
+        setDragOffset({ x: 0, y: 0 });
+
+        onPointerDown(card.id);
+
+        // Capture pointer for smooth dragging even outside the element
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    }, [card.id, onPointerDown]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!isDragging.current) return;
+        e.preventDefault();
+
+        const dx = e.clientX - dragStart.current.px;
+        const dy = e.clientY - dragStart.current.py;
+
+        // Compute tentative new position to enforce table boundaries
+        if (constraintsRef?.current) {
+            const rect = constraintsRef.current.getBoundingClientRect();
+            const currentLeftPx = (card.x / 100) * rect.width - CARD_W / 2;
+            const currentTopPx = (card.y / 100) * rect.height - CARD_H / 2;
+
+            let newLeft = currentLeftPx + dx;
+            let newTop = currentTopPx + dy;
+
+            // Clamp to table boundaries
+            newLeft = Math.max(0, Math.min(rect.width - CARD_W, newLeft));
+            newTop = Math.max(0, Math.min(rect.height - CARD_H, newTop));
+
+            setDragOffset({
+                x: newLeft - currentLeftPx,
+                y: newTop - currentTopPx
+            });
+        } else {
+            setDragOffset({ x: dx, y: dy });
+        }
+    }, [card.x, card.y, constraintsRef]);
+
+    const handlePointerUp = useCallback((e: React.PointerEvent) => {
+        if (!isDragging.current) return;
+        isDragging.current = false;
+
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+        if (!constraintsRef?.current) {
+            setDragOffset({ x: 0, y: 0 });
+            return;
+        }
+
+        const rect = constraintsRef.current.getBoundingClientRect();
+
+        // Current CSS anchor in pixels
+        const currentLeftPx = (card.x / 100) * rect.width - CARD_W / 2;
+        const currentTopPx = (card.y / 100) * rect.height - CARD_H / 2;
+
+        // New top-left corner in pixels
+        let newLeft = currentLeftPx + dragOffset.x;
+        let newTop = currentTopPx + dragOffset.y;
+
+        // Clamp to table
+        newLeft = Math.max(0, Math.min(rect.width - CARD_W, newLeft));
+        newTop = Math.max(0, Math.min(rect.height - CARD_H, newTop));
+
+        // Convert to center-based percentages
+        const newCenterX = newLeft + CARD_W / 2;
+        const newCenterY = newTop + CARD_H / 2;
+
+        const newPercentX = (newCenterX / rect.width) * 100;
+        const newPercentY = (newCenterY / rect.height) * 100;
+
+        // Reset drag offset BEFORE emitting (so the CSS left/top takes over cleanly)
+        setDragOffset({ x: 0, y: 0 });
+
+        onDragEnd(card.id, newPercentX, newPercentY);
+    }, [card.id, card.x, card.y, constraintsRef, dragOffset, onDragEnd]);
+
+    const handleDoubleClick = useCallback(() => {
+        const newReversed = card.isFlipped ? card.isReversed : Math.random() > 0.5;
+        onFlipEnd(card.id, newReversed, !card.isFlipped);
+    }, [card.id, card.isFlipped, card.isReversed, onFlipEnd]);
 
     return (
         <motion.div
-            ref={cardRef}
-            drag
-            dragMomentum={false} // Disable momentum to completely stop "swimming"
-            dragElastic={0}   // Strict bounds against the table edge
-            dragConstraints={constraintsRef}
-            onPointerDown={() => onPointerDown(card.id)}
-            onDragEnd={(e, info) => {
-                if (!constraintsRef?.current) return;
-
-                const rect = constraintsRef.current.getBoundingClientRect();
-
-                // Calculate exactly how many percentages the mouse horizontally and vertically moved.
-                const deltaPercentX = (info.offset.x / rect.width) * 100;
-                const deltaPercentY = (info.offset.y / rect.height) * 100;
-
-                // Add to the original card's % position! Guaranteed no desyncs from the DOM.
-                let newPercentX = card.x + deltaPercentX;
-                let newPercentY = card.y + deltaPercentY;
-
-                // Keep safely inside the table boundaries (5% to 95%)
-                newPercentX = Math.max(5, Math.min(95, newPercentX));
-                newPercentY = Math.max(5, Math.min(95, newPercentY));
-
-                onDragEnd(card.id, newPercentX, newPercentY);
-            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onDoubleClick={handleDoubleClick}
             initial={{ scale: 0, opacity: 0 }}
             animate={{
                 scale: 1,
@@ -79,33 +151,24 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 zIndex: card.zIndex,
                 rotateY: card.isFlipped ? 180 : 0,
                 rotateZ: card.isFlipped && card.isReversed ? 180 : 0,
-                // Instantly zero out Framer Motion's internal drag offset because our CSS left/top updates simultaneously!
-                x: 0,
-                y: 0
             }}
-            style={{
-                position: 'absolute',
-                left: `calc(${card.x}% - 72px)`,
-                top: `calc(${card.y}% - 112px)`,
-                transformStyle: "preserve-3d",
-                willChange: "transform, box-shadow, left, top"
-            }}
-            onDoubleClick={() => {
-                const newReversed = card.isFlipped ? card.isReversed : Math.random() > 0.5;
-                onFlipEnd(card.id, newReversed, !card.isFlipped);
-            }}
-            whileHover={{ scale: 1.05, boxShadow: "0 0 35px rgba(226, 232, 240, 0.3)" }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={isDragging.current ? undefined : { scale: 1.05, boxShadow: "0 0 35px rgba(226, 232, 240, 0.3)" }}
             transition={{
                 type: "spring",
                 stiffness: 260,
                 damping: 20,
-                x: { duration: 0 }, // Prevent visual glitch/floating when x and y snap back to 0
-                y: { duration: 0 },
                 rotateY: { duration: 0.8, ease: "easeInOut" },
                 rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
-            className="w-36 h-56 cursor-grab active:cursor-grabbing rounded-xl"
+            className="w-36 h-56 rounded-xl select-none touch-none"
+            style={{
+                position: 'absolute',
+                left: `calc(${card.x}% - ${CARD_W / 2}px + ${dragOffset.x}px)`,
+                top: `calc(${card.y}% - ${CARD_H / 2}px + ${dragOffset.y}px)`,
+                cursor: isDragging.current ? 'grabbing' : 'grab',
+                transformStyle: "preserve-3d",
+                willChange: "left, top, transform",
+            }}
         >
             {/* Front of card (shown when flipped) */}
             <div
@@ -138,30 +201,20 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 className="absolute inset-0 rounded-xl bg-gradient-to-b from-[#1c182a] to-[#0a0710] shadow-[0_15px_40px_rgba(0,0,0,0.9)] flex items-center justify-center p-1.5 border border-slate-400/40 backface-hidden overflow-hidden"
                 style={{ backfaceVisibility: "hidden" }}
             >
-                {/* Silver texture overlay */}
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
 
                 <div className="w-full h-full border border-slate-500/30 rounded-lg flex items-center justify-center relative bg-[#0B0813] overflow-hidden">
-                    {/* Glowing center orb */}
                     <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
 
-                    {/* Minimalist Constellation/Moon Design */}
                     <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-slate-300 opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]">
-                        {/* Outer delicate ring */}
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
-
-                        {/* Crescent Moon */}
                         <path fill="currentColor" opacity="0.9" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
-
-                        {/* Constellation lines and stars */}
                         <path fill="none" stroke="currentColor" strokeWidth="0.5" d="M25 40 L40 30 L50 45 L35 65 L25 40" opacity="0.6" />
                         <circle fill="currentColor" cx="25" cy="40" r="1.5" />
                         <circle fill="currentColor" cx="40" cy="30" r="1" />
                         <circle fill="currentColor" cx="50" cy="45" r="2" />
                         <circle fill="currentColor" cx="35" cy="65" r="1.5" />
-
-                        {/* Sparkles */}
                         <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.8" transform="scale(0.5) translate(70, 0)" />
                         <path fill="currentColor" d="M30 70 L32 75 L37 77 L32 79 L30 84 L28 79 L23 77 L28 75 Z" opacity="0.6" transform="scale(0.4) translate(30, 80)" />
                     </svg>

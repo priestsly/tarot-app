@@ -365,19 +365,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         });
     }, [maxZIndex, roomId]);
 
-    const handleDragEnd = useCallback((id: string, screenX: number, screenY: number) => {
-        if (!tableRef.current) return;
-        const rect = tableRef.current.getBoundingClientRect();
-
-        // Convert screen pixels to relative percentage based on the table's dimensions
-        let percentX = (screenX / rect.width) * 100;
-        let percentY = (screenY / rect.height) * 100;
-
-        // Clamp percentages to avoid going totally out of bounds (approximate card dimensions 144x224)
-        // 144px width is roughly 10-15% of screen, so clamping just enough to keep it visible
-        percentX = Math.max(5, Math.min(95, percentX));
-        percentY = Math.max(5, Math.min(95, percentY));
-
+    const handleDragEnd = useCallback((id: string, percentX: number, percentY: number) => {
         setCards(prev => {
             const next = prev.map(c => c.id === id ? { ...c, x: percentX, y: percentY } : c);
             const updatedCard = next.find(c => c.id === id);
