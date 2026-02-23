@@ -37,7 +37,33 @@ const getCardName = (index: number) => {
         "Judgement", "The World"
     ];
     if (index < majorArcana.length) return majorArcana[index];
-    return `Minor Arcana ${index}`;
+
+    const minorIndex = index - 22;
+    const suit = Math.floor(minorIndex / 14);
+    const rank = (minorIndex % 14) + 1;
+    const suits = ["Cups", "Pentacles", "Swords", "Wands"];
+    const ranks = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Page", "Knight", "Queen", "King"];
+    return `${ranks[rank - 1]} of ${suits[suit]}`;
+};
+
+const getCardImage = (index: number): string => {
+    // Major Arcana: 0-21
+    const majorFiles = [
+        "00-TheFool", "01-TheMagician", "02-TheHighPriestess", "03-TheEmpress", "04-TheEmperor",
+        "05-TheHierophant", "06-TheLovers", "07-TheChariot", "08-Strength", "09-TheHermit",
+        "10-WheelOfFortune", "11-Justice", "12-TheHangedMan", "13-Death", "14-Temperance",
+        "15-TheDevil", "16-TheTower", "17-TheStar", "18-TheMoon", "19-TheSun",
+        "20-Judgement", "21-TheWorld"
+    ];
+    if (index < 22) return `/Cards/${majorFiles[index]}.jpg`;
+
+    // Minor Arcana: 22-77 (4 suits × 14 cards)
+    const minorIndex = index - 22;
+    const suit = Math.floor(minorIndex / 14);
+    const rank = (minorIndex % 14) + 1; // 1-14
+    const suitNames = ["Cups", "Pentacles", "Swords", "Wands"];
+    const paddedRank = rank.toString().padStart(2, '0');
+    return `/Cards/${suitNames[suit]}${paddedRank}.jpg`;
 };
 
 // Card dimensions
@@ -195,24 +221,27 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         >
             {/* Front of card (shown when flipped) */}
             <div
-                className={cn(
-                    "absolute inset-0 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#030712] flex flex-col items-center justify-center p-3 shadow-2xl backface-hidden border border-teal-500/20",
-                    "before:absolute before:inset-0 before:rounded-xl before:bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] before:opacity-30 before:pointer-events-none before:mix-blend-overlay"
-                )}
+                className="absolute inset-0 rounded-xl shadow-2xl backface-hidden border border-teal-500/20 overflow-hidden"
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
-                <div className="absolute inset-1 rounded-lg border border-teal-300/15 flex flex-col items-center justify-center bg-black/60 shadow-inner p-2 z-10 overflow-hidden backdrop-blur-sm">
-                    <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-teal-200/8 to-transparent pointer-events-none" />
+                {/* Full-bleed card image */}
+                <img
+                    src={getCardImage(card.cardIndex)}
+                    alt={getCardName(card.cardIndex)}
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                    draggable={false}
+                />
 
-                    <span className="text-center font-cinzel text-slate-100 font-bold leading-tight text-lg drop-shadow-[0_0_12px_rgba(20,184,166,0.6)] px-1">
+                {/* Bottom gradient overlay for name + badge */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
+                    <span className="text-center font-cinzel text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
                         {getCardName(card.cardIndex)}
                     </span>
-
                     <div className={cn(
-                        "absolute bottom-4 text-[8px] font-inter tracking-[0.2em] uppercase font-bold px-3 py-1 rounded-full border",
+                        "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
                         card.isReversed
-                            ? "text-amber-300 border-amber-400/40 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.4)]"
-                            : "text-teal-300 border-teal-400/40 bg-teal-500/10 shadow-[0_0_12px_rgba(20,184,166,0.4)]"
+                            ? "text-amber-300 border-amber-400/50 bg-amber-500/20"
+                            : "text-teal-300 border-teal-400/50 bg-teal-500/20"
                     )}>
                         {card.isReversed ? "Reversed" : "Upright"}
                     </div>
