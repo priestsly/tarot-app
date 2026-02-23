@@ -4,30 +4,35 @@
   --font-inter: var(--font-inter), ui-sans-serif, system-ui;
   --font-cinzel: var(--font-cinzel), ui-serif, Georgia;
 
-  /* Obsidian & Gold Premium Palette */
-  --color-obsidian: #050505;
-  --color-charcoal: #0a0a0c;
+  /* Aurora Midnight Palette */
+  --color-midnight: #030712;
+  --color-void: #0a1628;
+  --color-teal: #14b8a6;
+  --color-cyan: #06b6d4;
+  --color-amber: #f59e0b;
+  --color-rose-glow: #f43f5e;
   --color-gold: #D4AF37;
   --color-gold-light: #F3E5AB;
   --color-crimson: #800000;
   --color-emerald: #097969;
+  --color-obsidian: #030712;
 
   /* Custom Animations */
   --animate-float: float 8s ease-in-out infinite;
   --animate-float-delayed: float 8s ease-in-out 4s infinite;
   --animate-pulse-slow: pulse-slow 5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-glow-gold: glow-gold 3s ease-in-out infinite alternate;
+  --animate-aurora: aurora 15s ease-in-out infinite;
+  --animate-shimmer: shimmer 3s ease-in-out infinite;
 }
 
 @layer base {
   body {
-    background-color: var(--color-obsidian);
-    color: #f8fafc;
+    background-color: var(--color-midnight);
+    color: #f1f5f9;
     font-family: var(--font-inter);
-    /* Very subtle noise/dust overlay for texture */
     background-image:
-      radial-gradient(circle at 10% 20%, rgba(212, 175, 55, 0.03), transparent 30%),
-      radial-gradient(circle at 90% 80%, rgba(212, 175, 55, 0.02), transparent 40%);
+      radial-gradient(ellipse at 20% 50%, rgba(20, 184, 166, 0.04), transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(6, 182, 212, 0.03), transparent 50%);
     background-attachment: fixed;
   }
 
@@ -68,19 +73,36 @@
   }
 }
 
-@keyframes glow-gold {
-  from {
-    box-shadow: 0 0 15px -10px rgba(212, 175, 55, 0.4);
+@keyframes aurora {
+  0% {
+    transform: translateX(-25%) rotate(0deg);
+    opacity: 0.5;
   }
 
-  to {
-    box-shadow: 0 0 30px 5px rgba(212, 175, 55, 0.15);
+  50% {
+    transform: translateX(25%) rotate(3deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateX(-25%) rotate(0deg);
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
   }
 }
 
 /* Premium Frosted Glass Panel */
 .glass-panel {
-  @apply bg-[#0a0a0c]/60 backdrop-blur-2xl border border-white/5 shadow-2xl;
+  @apply bg-[#0a1628]/60 backdrop-blur-2xl border border-teal/10 shadow-2xl;
 }
 
 /* Hide Scrollbar but keep functionality */
