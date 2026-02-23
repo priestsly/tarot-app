@@ -48,7 +48,8 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
     // Local drag offset in pixels (resets to 0 when not dragging)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const isDragging = useRef(false);
-    const dragStart = useRef({ px: 0, py: 0 }); // pointer start position in screen pixels
+    const dragStart = useRef({ px: 0, py: 0 });
+    const lastTap = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         // Only left mouse button or touch
@@ -133,17 +134,39 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         onDragEnd(card.id, newPercentX, newPercentY);
     }, [card.id, card.x, card.y, constraintsRef, dragOffset, onDragEnd]);
 
-    const handleDoubleClick = useCallback(() => {
-        const newReversed = card.isFlipped ? card.isReversed : Math.random() > 0.5;
-        onFlipEnd(card.id, newReversed, !card.isFlipped);
+    // Detect taps (pointerUp with minimal movement) and double-tap to flip
+    const handleTapDetection = useCallback((e: React.PointerEvent) => {
+        // Only count as a "tap" if the finger/mouse barely moved (< 15px)
+        const dx = Math.abs(e.clientX - dragStart.current.px);
+        const dy = Math.abs(e.clientY - dragStart.current.py);
+        if (dx > 15 || dy > 15) return; // was a drag, not a tap
+
+        const now = Date.now();
+        const prev = lastTap.current;
+
+        // Check if this is a double-tap (second tap within 400ms and nearby)
+        if (
+            now - prev.time < 400 &&
+            Math.abs(e.clientX - prev.x) < 30 &&
+            Math.abs(e.clientY - prev.y) < 30
+        ) {
+            // Double-tap detected → flip card
+            const newReversed = card.isFlipped ? card.isReversed : Math.random() > 0.5;
+            onFlipEnd(card.id, newReversed, !card.isFlipped);
+            lastTap.current = { time: 0, x: 0, y: 0 }; // reset to prevent triple-tap
+        } else {
+            lastTap.current = { time: now, x: e.clientX, y: e.clientY };
+        }
     }, [card.id, card.isFlipped, card.isReversed, onFlipEnd]);
 
     return (
         <motion.div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onDoubleClick={handleDoubleClick}
+            onPointerUp={(e) => {
+                handlePointerUp(e);
+                handleTapDetection(e);
+            }}
             initial={{ scale: 0, opacity: 0 }}
             animate={{
                 scale: 1,
