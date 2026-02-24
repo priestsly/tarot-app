@@ -2,22 +2,71 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn, Sparkles, Eye } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Layers } from "lucide-react";
 import { motion } from "framer-motion";
+
+// Soul Card calculation from the PDFs
+function calculateSoulCard(date: Date): { number: number; name: string } {
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  const y = date.getFullYear();
+  const digits = `${d}${m}${y}`.split('').map(Number);
+  let sum = digits.reduce((a, b) => a + b, 0);
+  while (sum > 21) {
+    sum = String(sum).split('').map(Number).reduce((a, b) => a + b, 0);
+  }
+  if (sum === 1) sum = 10; // Soul card can't be 1 (Magician) per the PDFs
+  const majorArcana = [
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
+    "Judgement", "The World"
+  ];
+  return { number: sum, name: majorArcana[sum] };
+}
+
+function calculatePersonalityCard(day: number): { number: number; name: string } {
+  let num = day;
+  while (num > 21) {
+    num = String(num).split('').map(Number).reduce((a, b) => a + b, 0);
+  }
+  const majorArcana = [
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
+    "Judgement", "The World"
+  ];
+  return { number: num, name: majorArcana[num] };
+}
+
+const CARD_COUNTS = [1, 3, 5, 7, 10, 12];
 
 export default function Home() {
   const router = useRouter();
   const [roomIdInput, setRoomIdInput] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [cardCount, setCardCount] = useState(3);
+
+  const soulCard = birthDate ? calculateSoulCard(new Date(birthDate)) : null;
+  const personalityCard = birthDate ? calculatePersonalityCard(new Date(birthDate).getDate()) : null;
 
   const handleCreateRoom = () => {
     const id = "tarot-" + Math.random().toString(36).substring(2, 6);
-    router.push(`/room/${id}`);
+    const params = new URLSearchParams();
+    if (birthDate) params.set("birth", birthDate);
+    params.set("cards", String(cardCount));
+    router.push(`/room/${id}?${params.toString()}`);
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (roomIdInput.trim()) {
-      router.push(`/room/${roomIdInput.trim()}`);
+      const params = new URLSearchParams();
+      if (birthDate) params.set("birth", birthDate);
+      params.set("cards", String(cardCount));
+      router.push(`/room/${roomIdInput.trim()}?${params.toString()}`);
     }
   };
 
@@ -26,26 +75,22 @@ export default function Home() {
 
       {/* ═══ AURORA BACKGROUND ═══ */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Aurora band 1 - Teal */}
         <motion.div
           animate={{ x: ['-10%', '10%', '-10%'], rotate: [0, 2, 0] }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-[10%] -left-[20%] w-[140%] h-[300px] bg-gradient-to-r from-transparent via-teal-500/8 to-transparent rounded-full blur-[100px] skew-y-[-6deg]"
         />
-        {/* Aurora band 2 - Cyan */}
         <motion.div
           animate={{ x: ['10%', '-10%', '10%'], rotate: [0, -1.5, 0] }}
           transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 3 }}
           className="absolute top-[30%] -left-[10%] w-[120%] h-[250px] bg-gradient-to-r from-transparent via-cyan-400/6 to-transparent rounded-full blur-[120px] skew-y-[3deg]"
         />
-        {/* Aurora band 3 - Rose (subtle) */}
         <motion.div
           animate={{ x: ['-5%', '15%', '-5%'], opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 6 }}
           className="absolute bottom-[15%] -right-[20%] w-[100%] h-[200px] bg-gradient-to-r from-transparent via-rose-500/5 to-transparent rounded-full blur-[130px] skew-y-[-4deg]"
         />
 
-        {/* Star particles */}
         {[...Array(40)].map((_, i) => (
           <motion.div
             key={i}
@@ -77,10 +122,10 @@ export default function Home() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="z-10 w-full max-w-md space-y-10 relative"
+        className="z-10 w-full max-w-md space-y-8 relative"
       >
         {/* Header */}
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-5">
           <motion.div
             whileHover={{ scale: 1.08, rotate: 3 }}
             className="mx-auto w-20 h-20 relative flex items-center justify-center"
@@ -91,21 +136,77 @@ export default function Home() {
             </div>
           </motion.div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <h1 className="text-4xl md:text-5xl font-black tracking-widest font-heading text-transparent bg-clip-text bg-gradient-to-r from-teal-200 via-cyan-100 to-white">
               Mystic Tarot
             </h1>
-            <p className="text-slate-400 text-base md:text-lg font-light tracking-wide max-w-xs mx-auto leading-relaxed">
+            <p className="text-slate-400 text-sm md:text-base font-light tracking-wide max-w-xs mx-auto leading-relaxed">
               Real-time tarot readings with video, chat, and shared cards.
             </p>
           </div>
         </div>
 
         {/* Action Panel */}
-        <div className="rounded-2xl p-7 md:p-8 space-y-6 relative overflow-hidden border border-teal-500/10 bg-[#0a1628]/50 backdrop-blur-xl shadow-[0_0_60px_rgba(20,184,166,0.06)]">
-          {/* Shimmer line on top */}
+        <div className="rounded-2xl p-6 md:p-7 space-y-5 relative overflow-hidden border border-teal-500/10 bg-[#0a1628]/50 backdrop-blur-xl shadow-[0_0_60px_rgba(20,184,166,0.06)]">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/40 to-transparent" />
 
+          {/* ── Birth Date Picker ── */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[10px] font-bold text-teal-400/80 uppercase tracking-[0.2em]">
+              <Calendar className="w-3.5 h-3.5" />
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full bg-[#030712]/80 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/40 transition-all font-mono [color-scheme:dark]"
+            />
+          </div>
+
+          {/* ── Soul & Personality Card Display ── */}
+          {soulCard && personalityCard && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="flex gap-3"
+            >
+              <div className="flex-1 bg-teal-500/10 border border-teal-500/20 rounded-xl p-3 text-center">
+                <p className="text-[9px] text-teal-400/70 uppercase tracking-[0.15em] font-bold mb-1">Soul Card</p>
+                <p className="text-lg font-heading font-bold text-teal-200">{soulCard.number}</p>
+                <p className="text-[10px] text-teal-300/80 font-medium">{soulCard.name}</p>
+              </div>
+              <div className="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
+                <p className="text-[9px] text-amber-400/70 uppercase tracking-[0.15em] font-bold mb-1">Personality Card</p>
+                <p className="text-lg font-heading font-bold text-amber-200">{personalityCard.number}</p>
+                <p className="text-[10px] text-amber-300/80 font-medium">{personalityCard.name}</p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Card Count Selector ── */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[10px] font-bold text-teal-400/80 uppercase tracking-[0.2em]">
+              <Layers className="w-3.5 h-3.5" />
+              Number of Cards
+            </label>
+            <div className="grid grid-cols-6 gap-2">
+              {CARD_COUNTS.map(count => (
+                <button
+                  key={count}
+                  onClick={() => setCardCount(count)}
+                  className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${cardCount === count
+                      ? "bg-teal-500/20 text-teal-200 border-teal-400/40 shadow-[0_0_12px_rgba(20,184,166,0.2)]"
+                      : "bg-[#030712]/60 text-slate-400 border-slate-700/30 hover:border-slate-600/50 hover:text-slate-300"
+                    }`}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Begin Reading Button ── */}
           <button
             onClick={handleCreateRoom}
             className="w-full relative flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600/90 to-cyan-600/90 text-white rounded-xl font-semibold tracking-wide transition-all shadow-[0_0_20px_rgba(20,184,166,0.25)] hover:shadow-[0_0_35px_rgba(20,184,166,0.4)] hover:scale-[1.02] active:scale-[0.98] overflow-hidden group"
@@ -123,18 +224,14 @@ export default function Home() {
             <div className="flex-grow border-t border-slate-700/50" />
           </div>
 
-          <form onSubmit={handleJoinRoom} className="space-y-4">
-            <div className="relative group/input">
-              <input
-                id="roomId"
-                type="text"
-                value={roomIdInput}
-                onChange={(e) => setRoomIdInput(e.target.value)}
-                placeholder="Paste Room ID here..."
-                className="w-full bg-[#030712]/80 border border-slate-700/50 rounded-xl px-5 py-3.5 text-center placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/40 transition-all font-mono text-base shadow-inner text-slate-200"
-              />
-            </div>
-
+          <form onSubmit={handleJoinRoom} className="space-y-3">
+            <input
+              type="text"
+              value={roomIdInput}
+              onChange={(e) => setRoomIdInput(e.target.value)}
+              placeholder="Paste Room ID here..."
+              className="w-full bg-[#030712]/80 border border-slate-700/50 rounded-xl px-5 py-3.5 text-center placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/40 transition-all font-mono text-base shadow-inner text-slate-200"
+            />
             <button
               type="submit"
               disabled={!roomIdInput.trim()}

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, useRef, useCallback } from "react";
 import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
 import TarotCard, { CardState } from "@/components/TarotCard";
@@ -17,7 +17,11 @@ let socket: Socket;
 
 export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const roomId = use(params).roomId;
+    const initialCardCount = Number(searchParams.get('cards')) || 3;
+    const birthDate = searchParams.get('birth') || '';
+    const hasAutoDrawn = useRef(false);
 
     const [copied, setCopied] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -354,6 +358,43 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         socket.emit("sync-all-cards", roomId, newCards);
     };
 
+    // Auto-draw cards on room entry based on URL params
+    const handleAutoDrawCards = useCallback((count: number) => {
+        const usedIndices = new Set<number>();
+        const spread: CardState[] = [];
+        for (let i = 0; i < count; i++) {
+            // Ensure unique cards
+            let idx: number;
+            do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+            usedIndices.add(idx);
+
+            // Spread positions evenly across the table
+            const xPercent = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+            spread.push({
+                id: Math.random().toString(36).substring(2, 9),
+                cardIndex: idx,
+                x: xPercent,
+                y: 45 + (Math.random() * 10 - 5), // slight vertical jitter
+                isFlipped: false,
+                isReversed: Math.random() > 0.5,
+                zIndex: maxZIndex + i + 1
+            });
+        }
+        setMaxZIndex(prev => prev + count);
+        setCards(prev => [...prev, ...spread]);
+        spread.forEach(c => socket?.emit("add-card", roomId, c));
+        appendLog(`Auto-drew ${count} cards from the cosmos`);
+    }, [maxZIndex, roomId, appendLog]);
+
+    // Trigger auto-draw once after room connects
+    useEffect(() => {
+        if (!hasAutoDrawn.current && initialCardCount > 0 && socket?.connected) {
+            hasAutoDrawn.current = true;
+            // Small delay so the connection is fully established
+            setTimeout(() => handleAutoDrawCards(initialCardCount), 800);
+        }
+    }, [initialCardCount, handleAutoDrawCards]);
+
     const handlePointerDown = useCallback((id: string) => {
         const newZ = maxZIndex + 1;
         setMaxZIndex(newZ);
@@ -468,7 +509,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
                 {/* Compact Floating Chat Panel */}
                 {isChatOpen && (
-                    <div className="fixed bottom-4 right-4 z-50 w-80 max-h-[320px] bg-[#0a1628]/95 backdrop-blur-2xl border border-teal-500/15 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden">
+                    <div className="fixed bottom-24 md:bottom-4 right-4 z-50 w-80 max-h-[320px] bg-[#0a1628]/95 backdrop-blur-2xl border border-teal-500/15 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden">
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-2.5 border-b border-teal-500/10">
                             <span className="text-xs text-slate-300 font-semibold tracking-widest uppercase flex items-center gap-1.5">
