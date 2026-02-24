@@ -250,15 +250,15 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
             {/* Back of Card (shown initially) */}
             <div
-                className="absolute inset-0 rounded-xl bg-gradient-to-b from-[#030008] to-royal shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-center p-1.5 border border-gold/30 backface-hidden overflow-hidden"
+                className="absolute inset-0 rounded-xl bg-gradient-to-b from-purple-900 to-indigo-950 shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center justify-center p-1.5 border-2 border-amber-500/30 backface-hidden overflow-hidden"
                 style={{ backfaceVisibility: "hidden" }}
             >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay pointer-events-none" />
 
-                <div className="w-full h-full border border-gold/20 rounded-lg flex items-center justify-center relative bg-gradient-to-br from-black to-royal/20 overflow-hidden shadow-inner">
-                    <div className="w-24 h-24 bg-gold/10 rounded-full blur-2xl absolute animate-pulse-slow pointer-events-none" />
+                <div className="w-full h-full border border-amber-500/20 rounded-lg flex items-center justify-center relative bg-gradient-to-br from-purple-950 to-midnight overflow-hidden shadow-inner">
+                    <div className="w-24 h-24 bg-gradient-to-tr from-amber-500/20 to-purple-500/30 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
 
-                    <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-gold opacity-80 relative z-10 drop-shadow-[0_0_15px_rgba(197,160,89,0.3)]">
+                    <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-amber-300 opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
                         <path fill="currentColor" opacity="0.9" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
@@ -271,7 +271,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                         <path fill="currentColor" d="M30 70 L32 75 L37 77 L32 79 L30 84 L28 79 L23 77 L28 75 Z" opacity="0.6" transform="scale(0.4) translate(30, 80)" />
                     </svg>
 
-                    <div className="absolute inset-1.5 border border-gold/10 rounded-md pointer-events-none" />
+                    <div className="absolute inset-1.5 border border-amber-400/10 rounded-md pointer-events-none" />
                 </div>
             </div>
         </motion.div>

@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 // ─── TYPES & DATA ───────────────────────────────────────────────
 
@@ -22,13 +16,12 @@ type ReadingPackage = {
 };
 
 const PACKAGES: ReadingPackage[] = [
-  { id: "standard", name: "Standart Açılım", cards: 3, icon: <Sparkles className="w-5 h-5 text-purple-400" />, desc: "Geçmiş, Şimdi ve Gelecek üzerine genel bir bakış." },
-  { id: "synastry", name: "İlişki / Sinastri", cards: 7, icon: <Heart className="w-5 h-5 text-rose-400" />, desc: "İki kişi arasındaki dinamiği ve uyumu analiz eder." },
-  { id: "celtic", name: "Kelt Haçı", cards: 10, icon: <Star className="w-5 h-5 text-amber-400" />, desc: "Derinlemesine ve kapsamlı bir durum analizi." },
-  { id: "astrological", name: "Astrolojik 12 Ev", cards: 12, icon: <Moon className="w-5 h-5 text-indigo-400" />, desc: "Yılın 12 ayına veya hayatın 12 alanına detaylı bakış." },
+  { id: "standard", name: "Standart Açılım", cards: 3, icon: <Sparkles className="w-5 h-5" />, desc: "Geçmiş, Şimdi ve Gelecek üzerine genel bir bakış." },
+  { id: "synastry", name: "İlişki / Sinastri", cards: 7, icon: <Heart className="w-5 h-5" />, desc: "İki kişi arasındaki dinamiği ve uyumu analiz eder." },
+  { id: "celtic", name: "Kelt Haçı", cards: 10, icon: <Star className="w-5 h-5" />, desc: "Derinlemesine ve kapsamlı bir durum analizi." },
+  { id: "astrological", name: "Astrolojik 12 Ev", cards: 12, icon: <Moon className="w-5 h-5" />, desc: "Yılın 12 ayına veya hayatın 12 alanına detaylı bakış." },
 ];
 
-// Soul Card calculation from the PDFs
 function calculateSoulCard(date: Date): { number: number; name: string } {
   const d = date.getDate();
   const m = date.getMonth() + 1;
@@ -38,7 +31,7 @@ function calculateSoulCard(date: Date): { number: number; name: string } {
   while (sum > 21) {
     sum = String(sum).split('').map(Number).reduce((a, b) => a + b, 0);
   }
-  if (sum === 1) sum = 10; // Soul card can't be 1 (Magician) per the PDFs
+  if (sum === 1) sum = 10;
   const majorArcana = [
     "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
     "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
@@ -64,16 +57,47 @@ function calculatePersonalityCard(day: number): { number: number; name: string }
   return { number: num, name: majorArcana[num] };
 }
 
+// ─── FLOATING PARTICLES ─────────────────────────────────────────
+function Particles() {
+  const dots = useMemo(() => Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 3 + 1,
+    delay: Math.random() * 5,
+    duration: Math.random() * 8 + 10,
+  })), []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {dots.map(dot => (
+        <motion.div
+          key={dot.id}
+          className="absolute rounded-full bg-accent/30"
+          style={{ left: `${dot.x}%`, top: `${dot.y}%`, width: dot.size, height: dot.size }}
+          animate={{
+            y: [0, -60, 0],
+            opacity: [0.2, 0.6, 0.2],
+          }}
+          transition={{
+            duration: dot.duration,
+            delay: dot.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── MAIN CONTENT ───────────────────────────────────────────────
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialRoom = searchParams.get('room');
 
-  // Flow State
-  // "welcome" | "room_input" | "client_step1_name" | "client_step2_birth" | "client_step3_package"
   const [step, setStep] = useState<string>(initialRoom ? "client_step1_name" : "welcome");
-
-  // Form Data
   const [roomId, setRoomId] = useState(initialRoom || "");
   const [clientName, setClientName] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -87,8 +111,6 @@ function HomeContent() {
     }
   }, [initialRoom]);
 
-  // ─── HANDLERS ───────────────────────────────────────────────────
-
   const handleConsultantLogin = () => {
     const newRoomId = "tarot-" + Math.random().toString(36).substring(2, 6);
     router.push(`/room/${newRoomId}?role=consultant`);
@@ -101,11 +123,8 @@ function HomeContent() {
 
   const submitClientForm = () => {
     if (!roomId || !clientName || !birthDate || !selectedPackage) return;
-
-    // Find the number of cards for the selected package
     const pkg = PACKAGES.find(p => p.id === selectedPackage);
     const cardCount = pkg ? pkg.cards : 3;
-
     const params = new URLSearchParams();
     params.set("role", "client");
     params.set("name", clientName);
@@ -113,200 +132,187 @@ function HomeContent() {
     if (birthTime) params.set("time", birthTime);
     params.set("pkgId", selectedPackage);
     params.set("cards", String(cardCount));
-
     router.push(`/room/${roomId}?${params.toString()}`);
   };
 
-  // ─── RENDERERS ──────────────────────────────────────────────────
+  // Total steps for the progress dots (client flow)
+  const stepIndex = step === "room_input" ? 0
+    : step === "client_step1_name" ? 1
+      : step === "client_step2_birth" ? 2
+        : step === "client_step3_package" ? 3 : -1;
 
+  // ─── INPUT STYLE ────────────────────────────────────────────────
+  const inputClass = "w-full bg-surface border border-border rounded-xl px-5 py-4 text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 transition-all text-base";
+  const btnPrimary = "w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold tracking-wide transition-all hover:brightness-110 hover:shadow-lg hover:shadow-purple-600/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none";
+  const backBtn = "text-text-muted hover:text-accent transition-colors flex items-center gap-2 text-xs uppercase tracking-[0.15em] font-semibold mb-6";
+
+  // ─── WELCOME ────────────────────────────────────────────────────
   const renderWelcome = () => (
-    <motion.div key="welcome" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} className="space-y-8">
-      <div className="text-center space-y-4">
-        <h2 className="text-3xl font-black tracking-widest text-white uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">Gate of Insight</h2>
-        <p className="text-sm text-ethereal/60 font-medium tracking-wide">Choose your path into the unknown.</p>
+    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
+      <div className="text-center space-y-2 mb-8">
+        <p className="text-sm text-text-muted">Nasıl devam etmek istersiniz?</p>
       </div>
 
-      <div className="grid gap-4">
-        <button
-          onClick={handleConsultantLogin}
-          className="group relative w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-royal/40 to-black border border-white/10 rounded-3xl overflow-hidden hover:border-gold/50 transition-all duration-500 shadow-2xl"
-        >
-          <div className="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
-            <Eye className="w-8 h-8 text-gold drop-shadow-glow" />
-          </div>
-          <span className="text-xl font-black text-white tracking-[0.2em] uppercase">The Oracle</span>
-          <span className="text-[10px] text-gold-light/40 font-bold uppercase tracking-widest mt-2 group-hover:text-gold transition-colors">Start Reading</span>
-        </button>
+      <button
+        onClick={handleConsultantLogin}
+        className="group w-full relative overflow-hidden rounded-xl border border-accent/20 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/40 hover:bg-accent-dim"
+      >
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shrink-0 shadow-lg shadow-purple-600/20">
+          <Shield className="w-5 h-5 text-white" />
+        </div>
+        <div className="text-left flex-1">
+          <h3 className="text-base font-semibold text-text">Danışman Girişi</h3>
+          <p className="text-xs text-text-muted mt-0.5">Yeni bir fal odası oluştur ve okumaya başla.</p>
+        </div>
+        <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-accent transition-colors" />
+      </button>
 
-        <button
-          onClick={() => setStep("room_input")}
-          className="group relative w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-black to-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-ethereal/50 transition-all duration-500 shadow-xl"
-        >
-          <div className="absolute inset-0 bg-ethereal/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
-            <User className="w-8 h-8 text-ethereal drop-shadow-glow" />
-          </div>
-          <span className="text-xl font-black text-white tracking-[0.2em] uppercase">The Seeker</span>
-          <span className="text-[10px] text-ethereal/40 font-bold uppercase tracking-widest mt-2 group-hover:text-ethereal transition-colors">Enter a Room</span>
-        </button>
-      </div>
+      <button
+        onClick={() => setStep("room_input")}
+        className="group w-full relative overflow-hidden rounded-xl border border-gold/20 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/40 hover:bg-gold-dim"
+      >
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600 to-yellow-600 flex items-center justify-center shrink-0 shadow-lg shadow-amber-600/20">
+          <User className="w-5 h-5 text-white" />
+        </div>
+        <div className="text-left flex-1">
+          <h3 className="text-base font-semibold text-text">Müşteri Girişi</h3>
+          <p className="text-xs text-text-muted mt-0.5">Oda kodunu girerek danışmanına bağlan.</p>
+        </div>
+        <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-gold transition-colors" />
+      </button>
     </motion.div>
   );
 
+  // ─── ROOM INPUT ─────────────────────────────────────────────────
   const renderRoomInput = () => (
-    <motion.div key="room_input" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
-      <button onClick={() => setStep("welcome")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-        <ArrowLeft className="w-4 h-4" /> Go Back
+    <motion.div key="room_input" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+      <button onClick={() => setStep("welcome")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
       </button>
-      <div className="text-center space-y-3">
-        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Summon Table</h2>
-        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Speak the Secret ID of your Oracle.</p>
+      <div className="text-center space-y-2 mb-8">
+        <h2 className="text-2xl font-heading text-text">Odaya Katıl</h2>
+        <p className="text-sm text-text-muted">Danışmanınızın paylaştığı oda kodunu girin.</p>
       </div>
-      <form onSubmit={submitRoomInput} className="space-y-8">
+      <form onSubmit={submitRoomInput} className="space-y-4">
         <input
           type="text"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          placeholder="TAROT-XXXX"
-          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-6 text-center placeholder:text-white/20 focus:outline-none focus:border-gold/50 transition-all font-mono text-2xl text-gold tracking-[0.2em] shadow-inner"
+          placeholder="Oda ID (Örn: tarot-a1b2)"
+          className={inputClass + " text-center font-mono text-lg"}
           required
         />
-        <button
-          type="submit"
-          className="w-full flex items-center justify-center gap-4 px-8 py-5 bg-gradient-to-r from-gold to-gold-light text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-gold/20 hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          Invoke Presence
-          <ArrowRight className="w-5 h-5" />
+        <button type="submit" disabled={!roomId.trim()} className={btnPrimary}>
+          Devam Et <ArrowRight className="w-4 h-4" />
         </button>
       </form>
     </motion.div>
   );
 
+  // ─── STEP 1: NAME ───────────────────────────────────────────────
   const renderClientStep1 = () => (
-    <motion.div key="client_step1" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
+    <motion.div key="client_step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
       {!initialRoom && (
-        <button onClick={() => setStep("room_input")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-          <ArrowLeft className="w-4 h-4" /> Go Back
+        <button onClick={() => setStep("room_input")} className={backBtn}>
+          <ArrowLeft className="w-4 h-4" /> Geri
         </button>
       )}
-      <div className="text-center space-y-3">
-        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Your Identity</h2>
-        <p className="text-xs text-ethereal/50 font-medium tracking-wide">The cards must know who they speak for.</p>
+      <div className="text-center space-y-2 mb-8">
+        <h2 className="text-2xl font-heading text-text">Sizi Tanıyalım</h2>
+        <p className="text-sm text-text-muted">Danışmanınıza nasıl hitap edeceğini bildirin.</p>
       </div>
-      <div className="space-y-8">
+      <div className="space-y-4">
         <input
           type="text"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
-          placeholder="FULL NAME"
-          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-center placeholder:text-white/20 focus:outline-none focus:border-ethereal/50 transition-all text-xl text-white tracking-widest uppercase"
+          placeholder="Adınız Soyadınız"
+          className={inputClass}
         />
-        <button
-          onClick={() => setStep("client_step2_birth")}
-          disabled={!clientName.trim()}
-          className="w-full flex items-center justify-center gap-4 px-8 py-5 bg-ethereal text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-ethereal/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
-        >
-          Reveal More
-          <ArrowRight className="w-5 h-5" />
+        <button onClick={() => setStep("client_step2_birth")} disabled={!clientName.trim()} className={btnPrimary}>
+          İleri <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </motion.div>
   );
 
+  // ─── STEP 2: BIRTH ──────────────────────────────────────────────
   const renderClientStep2 = () => (
-    <motion.div key="client_step2" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
-      <button onClick={() => setStep("client_step1_name")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-        <ArrowLeft className="w-4 h-4" /> Go Back
+    <motion.div key="client_step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+      <button onClick={() => setStep("client_step1_name")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
       </button>
-      <div className="text-center space-y-3">
-        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Stellar Alignment</h2>
-        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Sync your temporal origin with the stars.</p>
+      <div className="text-center space-y-2 mb-8">
+        <h2 className="text-2xl font-heading text-text">Doğum Bilgileri</h2>
+        <p className="text-sm text-text-muted">Evrensel enerjinizi hesaplamak için.</p>
       </div>
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gold uppercase ml-1">
-            <Calendar className="w-4 h-4" /> Birth Date
+      <div className="space-y-4">
+        <div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-text-muted mb-2 ml-1">
+            <Calendar className="w-3.5 h-3.5 text-accent" /> Doğum Tarihi
           </label>
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-lg text-white appearance-none focus:outline-none focus:border-gold/40 transition-all uppercase tracking-widest"
-          />
+          <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inputClass} />
         </div>
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gold uppercase ml-1">
-            <Clock className="w-4 h-4" /> Birth Time (Optional)
+        <div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-text-muted mb-2 ml-1">
+            <Clock className="w-3.5 h-3.5 text-accent" /> Doğum Saati <span className="text-text-muted/50 font-normal">(İsteğe bağlı)</span>
           </label>
-          <input
-            type="time"
-            value={birthTime}
-            onChange={(e) => setBirthTime(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-lg text-white appearance-none focus:outline-none focus:border-gold/40 transition-all"
-          />
+          <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)} className={inputClass} />
         </div>
 
         {birthDate && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-4 pt-4">
-            <div className="bg-royal/30 border border-royal/50 rounded-2xl p-4 text-center">
-              <p className="text-[9px] text-ethereal font-black tracking-widest uppercase mb-1">Soul Card</p>
-              <p className="text-xs font-heading font-bold text-white tracking-widest">{calculateSoulCard(new Date(birthDate)).name}</p>
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-2 gap-3 pt-2">
+            <div className="bg-accent-dim border border-accent/15 rounded-xl p-4 text-center">
+              <p className="text-[10px] text-accent uppercase tracking-[0.15em] font-bold mb-1.5">Ruh Kartı</p>
+              <p className="text-sm font-heading font-bold text-text">{calculateSoulCard(new Date(birthDate)).name}</p>
             </div>
-            <div className="bg-crimson/10 border border-crimson/20 rounded-2xl p-4 text-center">
-              <p className="text-[9px] text-rose-400 font-black tracking-widest uppercase mb-1">Personality</p>
-              <p className="text-xs font-heading font-bold text-white tracking-widest">{calculatePersonalityCard(new Date(birthDate).getDate()).name}</p>
+            <div className="bg-gold-dim border border-gold/15 rounded-xl p-4 text-center">
+              <p className="text-[10px] text-gold uppercase tracking-[0.15em] font-bold mb-1.5">Kişilik Kartı</p>
+              <p className="text-sm font-heading font-bold text-text">{calculatePersonalityCard(new Date(birthDate).getDate()).name}</p>
             </div>
           </motion.div>
         )}
 
-        <button
-          onClick={() => setStep("client_step3_package")}
-          disabled={!birthDate}
-          className="w-full flex items-center justify-center gap-4 px-8 py-5 mt-4 bg-ethereal text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-ethereal/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20"
-        >
-          Proceed to Draw
-          <ArrowRight className="w-5 h-5" />
+        <button onClick={() => setStep("client_step3_package")} disabled={!birthDate} className={btnPrimary + " mt-2"}>
+          İleri <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </motion.div>
   );
 
+  // ─── STEP 3: PACKAGE ────────────────────────────────────────────
   const renderClientStep3 = () => (
-    <motion.div key="client_step3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} className="space-y-8">
-      <button onClick={() => setStep("client_step2_birth")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-        <ArrowLeft className="w-4 h-4" /> Go Back
+    <motion.div key="client_step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+      <button onClick={() => setStep("client_step2_birth")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
       </button>
-      <div className="text-center space-y-3">
-        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Fate Chosen</h2>
-        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Select the complexity of your revelation.</p>
+      <div className="text-center space-y-2 mb-6">
+        <h2 className="text-2xl font-heading text-text">Fal Paketi</h2>
+        <p className="text-sm text-text-muted">İhtiyacınıza uygun açılımı seçin.</p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="space-y-3">
         {PACKAGES.map((pkg) => (
           <button
             key={pkg.id}
             onClick={() => setSelectedPackage(pkg.id)}
-            className={`w-full text-left p-6 rounded-3xl border transition-all flex gap-5 items-center group relative overflow-hidden
+            className={`w-full text-left p-4 rounded-xl border transition-all flex gap-4 items-center group
               ${selectedPackage === pkg.id
-                ? "bg-royal/30 border-gold shadow-[0_0_20px_rgba(197,160,89,0.2)]"
-                : "bg-white/5 border-white/10 hover:border-white/30"
+                ? "bg-accent-dim border-accent/40 ring-1 ring-accent/30"
+                : "bg-surface border-border hover:border-accent/25 hover:bg-accent-dim/50"
               }`}
           >
-            {selectedPackage === pkg.id && (
-              <div className="absolute inset-0 bg-gradient-to-r from-gold/10 to-transparent" />
-            )}
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${selectedPackage === pkg.id ? "bg-gold/20" : "bg-white/5"}`}>
+            <div className={`p-2.5 rounded-lg transition-colors ${selectedPackage === pkg.id ? "bg-accent/20 text-accent" : "bg-card text-text-muted group-hover:text-accent"}`}>
               {pkg.icon}
             </div>
-            <div className="flex-1 relative z-10">
-              <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center justify-between">
-                {pkg.name}
-                <span className="text-[9px] font-sans font-black px-2.5 py-1 rounded-full border border-white/10 text-gold-light bg-black/40">
-                  {pkg.cards} CARDS
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-text flex items-center justify-between gap-2">
+                <span className="truncate">{pkg.name}</span>
+                <span className="text-[10px] font-mono bg-card px-2 py-0.5 rounded-md border border-border text-text-muted shrink-0">
+                  {pkg.cards} Kart
                 </span>
               </h3>
-              <p className="text-[10px] text-ethereal/60 mt-2 leading-relaxed tracking-wide font-medium">{pkg.desc}</p>
+              <p className="text-[11px] text-text-muted mt-1 leading-relaxed">{pkg.desc}</p>
             </div>
           </button>
         ))}
@@ -315,86 +321,125 @@ function HomeContent() {
       <button
         onClick={submitClientForm}
         disabled={!selectedPackage}
-        className="group w-full flex items-center justify-center gap-4 px-8 py-6 mt-6 bg-gradient-to-r from-crimson to-royal text-white rounded-full font-black tracking-[0.3em] uppercase text-sm shadow-2xl shadow-royal/40 hover:scale-[1.05] active:scale-95 transition-all outline-none disabled:opacity-20"
+        className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-6 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold rounded-xl tracking-wide transition-all hover:brightness-110 hover:shadow-lg hover:shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
       >
-        <span>Begin Ceremony</span>
-        <Sparkles className="w-5 h-5 group-hover:animate-spin" />
+        Fal Başlasın <Sparkles className="w-5 h-5" />
       </button>
     </motion.div>
   );
 
+  // ─── PROGRESS DOTS ──────────────────────────────────────────────
+  const renderProgress = () => {
+    if (stepIndex < 0) return null;
+    return (
+      <div className="flex justify-center gap-2 mt-8">
+        {[0, 1, 2, 3].map(i => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full transition-all duration-500 ${i === stepIndex ? "w-8 bg-accent" : i < stepIndex ? "w-3 bg-accent/50" : "w-3 bg-border"
+              }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  // ─── LAYOUT ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 selection:bg-gold/30 relative overflow-hidden font-inter">
+    <div className="min-h-screen bg-bg text-text flex relative overflow-hidden font-inter">
+      {/* Background Effects */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/8 rounded-full blur-[180px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[160px]" />
+      </div>
+      <Particles />
 
-      {/* ─── IMMERSIVE ELEMENTS ─── */}
-      <div className="nebula-bg" />
-      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-royal/10 rounded-full blur-[150px] animate-pulse-slow" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-crimson/10 rounded-full blur-[150px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+      {/* LEFT: Decorative Hero Panel (hidden on mobile) */}
+      <div className="hidden lg:flex flex-col justify-center items-center flex-1 relative z-10 p-12">
+        {/* Floating tarot card visuals */}
+        <motion.div
+          animate={{ y: [0, -15, 0], rotate: [-3, 3, -3] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="relative w-48 h-72 rounded-2xl bg-gradient-to-br from-purple-900 to-indigo-950 border-2 border-amber-500/30 shadow-2xl shadow-purple-900/40 mb-8 overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay" />
+          <div className="absolute inset-2 border border-amber-500/20 rounded-xl flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-3/4 h-3/4 text-amber-300/80">
+              <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
+              <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
+              <path fill="currentColor" opacity="0.8" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
+              <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.7" transform="scale(0.5) translate(70, 0)" />
+            </svg>
+          </div>
+        </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.5 }}
-        className="relative z-10 w-full max-w-lg"
-      >
-        {/* Header Logo Area */}
-        {step === "welcome" && (
-          <div className="text-center mb-16">
-            <motion.div
-              initial={{ scale: 0.5, rotate: -45, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 100, damping: 20 }}
-              className="w-24 h-24 mx-auto mb-8 relative"
-            >
-              <div className="absolute inset-0 bg-gold blur-3xl opacity-20 animate-pulse" />
-              <div className="relative w-full h-full bg-gradient-to-tr from-royal to-black border-2 border-gold/50 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(197,160,89,0.3)]">
-                <Sparkles className="w-12 h-12 text-gold animate-aurora" />
-              </div>
-            </motion.div>
-            <h1 className="text-5xl font-black tracking-[0.3em] uppercase drop-shadow-2xl">
-              Mystic Port
-            </h1>
-            <div className="flex items-center justify-center gap-4 mt-6">
-              <div className="h-px w-12 bg-gradient-to-r from-transparent to-gold/30" />
-              <p className="text-[10px] tracking-[0.5em] uppercase text-gold/60 font-black">Divine Intervention</p>
-              <div className="h-px w-12 bg-gradient-to-l from-transparent to-gold/30" />
+        {/* Second floating card behind */}
+        <motion.div
+          animate={{ y: [0, 10, 0], rotate: [6, 0, 6] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-1/3 left-[15%] w-32 h-48 rounded-xl bg-gradient-to-br from-violet-800 to-purple-950 border border-violet-500/20 shadow-xl opacity-40 -rotate-12"
+        />
+        <motion.div
+          animate={{ y: [0, -10, 0], rotate: [-4, 2, -4] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-1/4 right-[12%] w-36 h-52 rounded-xl bg-gradient-to-br from-amber-900/40 to-purple-950 border border-amber-500/15 shadow-xl opacity-30 rotate-6"
+        />
+
+        <div className="text-center relative z-10">
+          <h1 className="text-5xl font-heading font-semibold text-text leading-tight">
+            Mystic<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-purple-300">Tarot</span>
+          </h1>
+          <p className="text-text-muted text-sm mt-4 max-w-xs mx-auto leading-relaxed">
+            Profesyonel tarot danışmanlık platformu. Gerçek zamanlı okuma, video görüşme ve interaktif kart masası.
+          </p>
+          <div className="flex items-center justify-center gap-6 mt-8 text-text-muted/60 text-[10px] uppercase tracking-[0.2em]">
+            <span>WebRTC</span>
+            <span className="w-1 h-1 rounded-full bg-accent/40" />
+            <span>Socket.io</span>
+            <span className="w-1 h-1 rounded-full bg-accent/40" />
+            <span>Canlı</span>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT: Form Panel */}
+      <div className="w-full lg:w-[480px] lg:min-w-[480px] flex flex-col justify-center items-center p-6 sm:p-10 relative z-10">
+        {/* Mobile logo */}
+        <div className="lg:hidden text-center mb-10">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shadow-xl shadow-purple-600/30">
+            <Sparkles className="w-7 h-7 text-white" />
+          </div>
+          <h1 className="text-3xl font-heading text-text">Mystic Tarot</h1>
+          <p className="text-xs text-text-muted mt-1">Profesyonel Danışmanlık</p>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="glass rounded-2xl p-7 sm:p-8 relative overflow-hidden noise animate-glow">
+            <div className="relative z-10">
+              <AnimatePresence mode="wait">
+                {step === "welcome" && renderWelcome()}
+                {step === "room_input" && renderRoomInput()}
+                {step === "client_step1_name" && renderClientStep1()}
+                {step === "client_step2_birth" && renderClientStep2()}
+                {step === "client_step3_package" && renderClientStep3()}
+              </AnimatePresence>
             </div>
           </div>
-        )}
 
-        {/* Main Card Container */}
-        <div className={cn(
-          "transition-all duration-700",
-          step === "welcome" ? "" : "bg-white/5 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/10 shadow-2xl"
-        )}>
-          <AnimatePresence mode="wait">
-            {step === "welcome" && renderWelcome()}
-            {step === "room_input" && renderRoomInput()}
-            {step === "client_step1_name" && renderClientStep1()}
-            {step === "client_step2_birth" && renderClientStep2()}
-            {step === "client_step3_package" && renderClientStep3()}
-          </AnimatePresence>
-        </div>
+          {renderProgress()}
 
-        {/* Footer */}
-        <div className="mt-16 text-center space-y-4">
-          <p className="text-[9px] text-white/20 font-black tracking-[0.4em] uppercase">
-            Hyper-Real Encryption · 2026 Edition
+          <p className="text-center text-[10px] text-text-muted/40 tracking-[0.15em] uppercase mt-8">
+            Şifreli Bağlantı · Gerçek Zamanlı
           </p>
-          <div className="flex justify-center gap-6 opacity-20">
-            <Moon className="w-4 h-4" />
-            <Star className="w-4 h-4" />
-            <Heart className="w-4 h-4" />
-          </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-midnight flex items-center justify-center"><div className="w-8 h-8 rounded-full border-t-2 border-purple-500 animate-spin"></div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><div className="w-8 h-8 rounded-full border-t-2 border-accent animate-spin" /></div>}>
       <HomeContent />
     </Suspense>
   );
