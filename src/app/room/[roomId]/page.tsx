@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useRef, useCallback } from "react";
+import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
@@ -15,13 +15,17 @@ function cn(...inputs: ClassValue[]) {
 
 let socket: Socket;
 
-export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
+function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const roomId = use(params).roomId;
-    const initialCardCount = Number(searchParams.get('cards')) || 3;
-    const birthDate = searchParams.get('birth') || '';
-    const hasAutoDrawn = useRef(false);
+
+    // Role & Client Form Data
+    const role = searchParams.get('role') || 'consultant'; // default to consultant
+    const isConsultant = role === 'consultant';
+
+    // Store remote client profile (for the Consultant)
+    const [clientProfile, setClientProfile] = useState<any>(null);
 
     const [copied, setCopied] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -244,6 +248,15 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
             ));
         });
 
+        // ========== CLIENT PROFILE SYNC ==========
+        socket.on("sync-client-profile", (profile: any) => {
+            if (profile) setClientProfile(profile);
+        });
+
+        socket.on("client-profile-updated", (profile: any) => {
+            setClientProfile(profile);
+        });
+
         return () => {
             socket.disconnect();
             peerRef.current?.destroy();
@@ -358,23 +371,25 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         socket.emit("sync-all-cards", roomId, newCards);
     };
 
-    // Auto-draw cards on room entry based on URL params
-    const handleAutoDrawCards = useCallback((count: number) => {
+    // Deal the package selected by the client (Consultant only)
+    const handleDealPackage = useCallback(() => {
+        if (!isConsultant) return;
+        const count = clientProfile?.cards || 3;
+        appendLog(`Dealt the ${count}-card package for ${clientProfile?.name || 'the Client'}`);
+
         const usedIndices = new Set<number>();
         const spread: CardState[] = [];
         for (let i = 0; i < count; i++) {
-            // Ensure unique cards
             let idx: number;
             do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
             usedIndices.add(idx);
 
-            // Spread positions evenly across the table
             const xPercent = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
             spread.push({
                 id: Math.random().toString(36).substring(2, 9),
                 cardIndex: idx,
                 x: xPercent,
-                y: 45 + (Math.random() * 10 - 5), // slight vertical jitter
+                y: 45 + (Math.random() * 10 - 5),
                 isFlipped: false,
                 isReversed: Math.random() > 0.5,
                 zIndex: maxZIndex + i + 1
@@ -383,17 +398,30 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         setMaxZIndex(prev => prev + count);
         setCards(prev => [...prev, ...spread]);
         spread.forEach(c => socket?.emit("add-card", roomId, c));
-        appendLog(`Auto-drew ${count} cards from the cosmos`);
-    }, [maxZIndex, roomId, appendLog]);
+    }, [isConsultant, clientProfile, maxZIndex, roomId, appendLog]);
 
-    // Trigger auto-draw once after room connects
+    // Role-based Profile Syncing
     useEffect(() => {
-        if (!hasAutoDrawn.current && initialCardCount > 0 && socket?.connected) {
-            hasAutoDrawn.current = true;
-            // Small delay so the connection is fully established
-            setTimeout(() => handleAutoDrawCards(initialCardCount), 800);
-        }
-    }, [initialCardCount, handleAutoDrawCards]);
+        if (!socket) return;
+
+        const syncProfile = () => {
+            if (!isConsultant && searchParams.get('name')) {
+                const data = {
+                    name: searchParams.get('name') || '',
+                    birth: searchParams.get('birth') || '',
+                    time: searchParams.get('time') || '',
+                    pkgId: searchParams.get('pkgId') || '',
+                    cards: Number(searchParams.get('cards')) || 0,
+                };
+                socket.emit("update-client-profile", roomId, data);
+            }
+        };
+
+        if (socket.connected) syncProfile();
+        else socket.on('connect', syncProfile);
+
+        return () => { socket.off('connect', syncProfile); };
+    }, [isConsultant, searchParams, roomId]);
 
     const handlePointerDown = useCallback((id: string) => {
         const newZ = maxZIndex + 1;
@@ -582,31 +610,58 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Buttons & Client Profile */}
                     <div className="relative z-10 flex flex-col gap-3">
-                        <button
-                            onClick={handleThreeCardSpread}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/15 text-teal-200 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-teal-500/30 hover:bg-teal-500/25 shadow-[0_0_15px_rgba(20,184,166,0.1)]"
-                        >
-                            <Sparkles className="w-4 h-4 text-teal-400" />
-                            3-Card Spread
-                        </button>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleDrawCard}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-neutral-300 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10 hover:text-white"
-                            >
-                                <PlusSquare className="w-4 h-4 text-cyan-400" />
-                                Draw
-                            </button>
-                            <button
-                                onClick={handleClearTable}
-                                title="Clear Table"
-                                className="flex items-center justify-center px-4 py-3 bg-rose-500/10 text-rose-400 rounded-xl transition-all active:scale-[0.98] border border-rose-500/25 hover:bg-rose-500/20"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
+                        {isConsultant && clientProfile && (
+                            <div className="bg-[#030712]/80 border border-teal-500/20 rounded-xl p-4 space-y-2 relative overflow-hidden shadow-inner">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-teal-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                                <h3 className="text-[10px] font-heading text-teal-400 tracking-[0.2em] uppercase font-bold">Müşteri Profili</h3>
+                                <p className="text-sm font-semibold text-white">{clientProfile.name}</p>
+                                {(clientProfile.birth || clientProfile.time) && (
+                                    <p className="text-[10px] text-slate-400 font-mono">{clientProfile.birth} {clientProfile.time}</p>
+                                )}
+                                <div className="pt-2 border-t border-teal-500/10 mt-2">
+                                    <p className="text-[10px] text-teal-300">Talep: <span className="text-white font-semibold">{clientProfile.cards} Kartlık Paket</span></p>
+                                </div>
+                            </div>
+                        )}
+
+                        {isConsultant && (
+                            <>
+                                <button
+                                    onClick={handleDealPackage}
+                                    disabled={!clientProfile}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-teal-600/80 to-cyan-600/80 text-white rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(20,184,166,0.2)] disabled:opacity-50 disabled:grayscale active:scale-[0.98]"
+                                >
+                                    <Sparkles className="w-4 h-4 text-teal-100" />
+                                    Paketi Dağıt
+                                </button>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleDrawCard}
+                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-neutral-300 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10 hover:text-white"
+                                        title="Ekstra kart çek"
+                                    >
+                                        <PlusSquare className="w-4 h-4 text-cyan-400" />
+                                        Draw
+                                    </button>
+                                    <button
+                                        onClick={handleClearTable}
+                                        title="Masayı Temizle"
+                                        className="flex items-center justify-center px-4 py-3 bg-rose-500/10 text-rose-400 rounded-xl transition-all active:scale-[0.98] border border-rose-500/25 hover:bg-rose-500/20"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {!isConsultant && (
+                            <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 text-center mt-2">
+                                <p className="text-xs text-teal-200 font-heading">Danışmanınızın kartları dağıtmasını bekleyin...</p>
+                            </div>
+                        )}
+
                         <button
                             onClick={() => setIsChatOpen(prev => !prev)}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/10 text-amber-200 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-amber-500/25 hover:bg-amber-500/15"
@@ -688,20 +743,26 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
 
             {/* ═══════════════ BOTTOM: MOBILE FLOATING BAR ═══════════════ */}
             <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-[#0a1628]/90 backdrop-blur-2xl border border-teal-500/15 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-                <button
-                    onClick={handleDrawCard}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-[#030712]/50 active:bg-[#0a1628] rounded-xl transition-all border border-slate-700/30"
-                >
-                    <PlusSquare className="w-5 h-5 text-cyan-400" />
-                    <span className="text-[7px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Draw</span>
-                </button>
-                <button
-                    onClick={handleThreeCardSpread}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-teal-500/15 active:bg-teal-500/25 rounded-xl transition-all border border-teal-400/25 shadow-[0_0_10px_rgba(20,184,166,0.08)]"
-                >
-                    <Sparkles className="w-5 h-5 text-teal-300" />
-                    <span className="text-[7px] font-bold text-teal-200 uppercase mt-1 tracking-widest">Spread</span>
-                </button>
+                {isConsultant && (
+                    <>
+                        <button
+                            onClick={handleDealPackage}
+                            disabled={!clientProfile}
+                            className="flex flex-col items-center justify-center p-2 w-16 h-12 bg-teal-500/20 active:bg-teal-500/30 rounded-xl transition-all border border-teal-400/30 shadow-[0_0_15px_rgba(20,184,166,0.15)] disabled:opacity-50"
+                        >
+                            <Sparkles className="w-5 h-5 text-teal-300" />
+                            <span className="text-[7px] font-bold text-teal-100 uppercase mt-1 tracking-widest">Dağıt</span>
+                        </button>
+                        <button
+                            onClick={handleDrawCard}
+                            className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-[#030712]/50 active:bg-[#0a1628] rounded-xl transition-all border border-slate-700/30"
+                        >
+                            <PlusSquare className="w-5 h-5 text-cyan-400" />
+                            <span className="text-[7px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Draw</span>
+                        </button>
+                    </>
+                )}
+
                 <button
                     onClick={() => setIsChatOpen(!isChatOpen)}
                     className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-amber-500/10 active:bg-amber-500/20 rounded-xl transition-all relative border border-amber-500/25"
@@ -710,16 +771,26 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     <span className="text-[7px] font-bold text-amber-300 uppercase mt-1 tracking-widest">Chat</span>
                     {messages.length > 0 && <div className="absolute top-1 right-1.5 w-2 h-2 bg-amber-400 rounded-full shadow-[0_0_5px_#f59e0b]" />}
                 </button>
-                <button
-                    onClick={handleClearTable}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-rose-500/10 active:bg-rose-500/20 rounded-xl transition-all border border-rose-500/25"
-                >
-                    <Trash2 className="w-5 h-5 text-rose-500" />
-                    <span className="text-[7px] font-bold text-rose-400 uppercase mt-1 tracking-widest">Clear</span>
-                </button>
-            </div>
 
-        </div >
+                {isConsultant && (
+                    <button
+                        onClick={handleClearTable}
+                        className="flex flex-col items-center justify-center p-2 w-14 h-12 bg-rose-500/10 active:bg-rose-500/20 rounded-xl transition-all border border-rose-500/25"
+                    >
+                        <Trash2 className="w-5 h-5 text-rose-500" />
+                        <span className="text-[7px] font-bold text-rose-400 uppercase mt-1 tracking-widest">Clear</span>
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
+export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
+    return (
+        <Suspense fallback={<div className="h-screen w-full bg-[#030712] flex items-center justify-center"><div className="w-12 h-12 rounded-full border-t-2 border-teal-500 animate-spin"></div></div>}>
+            <RoomContent params={params} />
+        </Suspense>
     );
 }
 

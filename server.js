@@ -39,7 +39,7 @@ app.prepare().then(() => {
       console.log(`User ${userId} (socket ${socket.id}) joined room ${roomId}`);
 
       if (!rooms.has(roomId)) {
-        rooms.set(roomId, { users: new Set(), cards: [], logs: [], messages: [] });
+        rooms.set(roomId, { users: new Set(), cards: [], logs: [], messages: [], clientProfile: null });
       }
       rooms.get(roomId).users.add(userId);
 
@@ -47,6 +47,7 @@ app.prepare().then(() => {
       socket.emit("sync-state", rooms.get(roomId).cards);
       socket.emit("sync-logs", rooms.get(roomId).logs);
       socket.emit("sync-messages", rooms.get(roomId).messages);
+      socket.emit("sync-client-profile", rooms.get(roomId).clientProfile);
 
       // Notify others in room
       socket.to(roomId).emit("user-connected", userId);
@@ -134,6 +135,15 @@ app.prepare().then(() => {
       if (room) {
         room.cards = [];
         io.to(roomId).emit("sync-state", []);
+      }
+    });
+
+    // Client Profile Sync
+    socket.on("update-client-profile", (roomId, profile) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.clientProfile = profile;
+        io.to(roomId).emit("client-profile-updated", profile);
       }
     });
   });
