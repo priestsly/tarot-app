@@ -462,337 +462,249 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     }, [roomId, appendLog]);
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50 text-slate-800 overflow-hidden font-inter relative">
+        <div className="h-screen w-screen bg-black overflow-hidden relative font-inter select-none">
 
-            {/* ═══════════════ LIGHT BACKGROUND GLOW ═══════════════ */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-[5%] -left-[20%] w-[140%] h-[250px] bg-gradient-to-r from-transparent via-purple-300/20 to-transparent rounded-full blur-[100px] skew-y-[-4deg] animate-aurora" />
-                <div className="absolute top-[40%] -right-[10%] w-[120%] h-[200px] bg-gradient-to-r from-transparent via-fuchsia-300/10 to-transparent rounded-full blur-[120px] skew-y-[3deg] animate-aurora" style={{ animationDelay: '5s' }} />
+            {/* ═══════════════ IMMERSIVE BACKGROUND ═══════════════ */}
+            <div className="nebula-bg" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-royal/20 to-transparent pointer-events-none" />
+
+            {/* ═══════════════ TOP HUD: BRAND & STATUS ═══════════════ */}
+            <div className="absolute top-6 left-8 z-50 flex items-center gap-6">
+                <div className="flex flex-col">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gold to-royal flex items-center justify-center shadow-lg shadow-gold/20">
+                            <Sparkles className="w-5 h-5 text-white" />
+                        </div>
+                        <h1 className="text-xl font-black tracking-[0.2em] text-white uppercase drop-shadow-lg">Mystic Port</h1>
+                    </div>
+                </div>
+
+                <div className="h-10 w-[1px] bg-white/10 mx-2" />
+
+                <div className="flex items-center gap-4">
+                    <div className="px-4 py-1.5 glass-card rounded-full border-gold/20 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                        <span className="text-[10px] text-gold-light font-bold tracking-widest uppercase">Room: {roomId}</span>
+                        <button onClick={copyRoomId} className="ml-2 hover:text-white text-gold/60 transition-colors">
+                            <Copy className="w-3 h-3" />
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => router.push("/")}
+                        className="px-4 py-1.5 glass-card rounded-full border-rose-500/20 text-rose-400 hover:text-rose-300 text-[10px] font-bold tracking-widest uppercase transition-all flex items-center gap-2"
+                    >
+                        <ArrowLeft className="w-3 h-3" /> Leave
+                    </button>
+                </div>
             </div>
 
-            {/* ═══════════════ TOP: VIDEO STRIP ═══════════════ */}
-            <div className="relative z-30 flex-shrink-0 bg-white/95 border-b border-purple-100 backdrop-blur-xl shadow-lg shadow-purple-900/5 transition-all duration-500 ease-in-out">
-                {/* Video Bar Content */}
-                <div className={cn(
-                    "transition-all duration-500 ease-out overflow-hidden flex",
-                    isVideoBarVisible ? "max-h-[220px] opacity-100 p-3" : "max-h-0 opacity-0 p-0"
-                )}>
-                    <div className="flex flex-1 max-w-4xl mx-auto gap-4 items-stretch justify-center h-full">
-                        {/* Remote Video */}
-                        <div className="flex-1 relative group overflow-hidden rounded-2xl border border-purple-100 bg-slate-100 aspect-video shadow-sm">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-400/20 to-fuchsia-400/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none" />
-                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover relative z-10" />
-                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                                <span className="text-xs text-purple-400/70 font-mono tracking-widest animate-pulse">Awaiting connection...</span>
+            {/* ═══════════════ VISION HUD (TOP RIGHT) ═══════════════ */}
+            <div className="absolute top-6 right-8 z-50 flex flex-col gap-4 items-end">
+                <div className="flex gap-4">
+                    {/* Remote Vision */}
+                    <div className="w-56 aspect-video glass-card rounded-2xl overflow-hidden border-royal/30 group relative">
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        {!remoteVideoRef.current && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <span className="text-[9px] text-ethereal/50 font-bold uppercase tracking-widest animate-pulse">Awaiting Soul...</span>
                             </div>
-                            <div className="absolute bottom-2 left-3 z-20 px-3 py-1 bg-white/80 rounded-lg text-[10px] text-purple-700 font-bold tracking-widest uppercase backdrop-blur-md shadow-sm">
-                                Remote
-                            </div>
-                        </div>
+                        )}
+                        <div className="absolute bottom-2 left-3 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[8px] text-ethereal font-bold tracking-widest uppercase border border-ethereal/20">Remote</div>
+                    </div>
 
-                        {/* Local Video */}
-                        <div className="flex-1 relative group overflow-hidden rounded-2xl border border-purple-100 bg-slate-100 aspect-video shadow-sm">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-fuchsia-400/20 to-amber-400/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none" />
-                            <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] relative z-10" />
-                            <div className="absolute bottom-2 left-3 z-20 px-3 py-1 bg-white/80 rounded-lg text-[10px] text-fuchsia-700 font-bold tracking-widest uppercase backdrop-blur-md shadow-sm">
-                                You
-                            </div>
-                        </div>
+                    {/* Local Vision */}
+                    <div className="w-40 aspect-video glass-card rounded-2xl overflow-hidden border-gold/30 group relative">
+                        <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                        <div className="absolute bottom-2 left-3 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[8px] text-gold-light font-bold tracking-widest uppercase border border-gold/20">Oracle</div>
 
-                        {/* Controls Column */}
-                        <div className="flex flex-col justify-center gap-3 pl-4 border-l border-purple-100">
-                            <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all border shadow-sm", isMuted ? "bg-rose-50 text-rose-500 border-rose-200" : "bg-white text-purple-600 border-purple-100 hover:bg-purple-50 hover:border-purple-200")} title={isMuted ? 'Unmute' : 'Mute'}>
-                                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        {/* Stream Controls Overlay */}
+                        <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={toggleMute} className={cn("p-1.5 rounded-lg backdrop-blur-md border transition-all", isMuted ? "bg-rose-500/20 border-rose-500/40 text-rose-400" : "bg-white/10 border-white/20 text-white")}>
+                                {isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                             </button>
-                            <button onClick={toggleVideo} className={cn("p-3 rounded-xl transition-all border shadow-sm", isVideoOff ? "bg-rose-50 text-rose-500 border-rose-200" : "bg-white text-purple-600 border-purple-100 hover:bg-purple-50 hover:border-purple-200")} title={isVideoOff ? 'Enable Camera' : 'Disable Camera'}>
-                                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                            <button onClick={toggleVideo} className={cn("p-1.5 rounded-lg backdrop-blur-md border transition-all", isVideoOff ? "bg-rose-500/20 border-rose-500/40 text-rose-400" : "bg-white/10 border-white/20 text-white")}>
+                                {isVideoOff ? <VideoOff className="w-3 h-3" /> : <Video className="w-3 h-3" />}
                             </button>
                         </div>
                     </div>
                 </div>
-
-                {/* Video Toggle Button */}
-                <button
-                    onClick={() => setIsVideoBarVisible(!isVideoBarVisible)}
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full z-40 px-6 py-1.5 bg-white backdrop-blur-xl border border-t-0 border-purple-100 rounded-b-xl text-purple-500 hover:text-purple-700 transition-all flex items-center gap-2 text-[10px] uppercase tracking-widest shadow-md shadow-purple-900/5 font-bold"
-                >
-                    {isVideoBarVisible ? <><ChevronUp className="w-3 h-3" />Görüşmeyi Gizle</> : <><ChevronDown className="w-3 h-3" />Görüşmeyi Göster</>}
-                </button>
             </div>
 
-            {/* ═══════════════ MIDDLE: MAIN CONTENT ═══════════════ */}
-            <div className="flex flex-1 min-h-0 relative z-10 w-full overflow-hidden">
+            {/* ═══════════════ CLIENT PROFILE HUD (MIDDLE LEFT) ═══════════════ */}
+            {isConsultant && clientProfile && (
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 z-50 w-64">
+                    <div className="glass-card rounded-3xl p-6 border-gold/20 relative overflow-hidden group hover:border-gold/40 transition-all duration-500">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-gold/10 to-transparent rounded-bl-full" />
 
-                {/* Mobile Menu Toggle */}
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="md:hidden absolute top-4 left-4 z-50 p-3 bg-white/90 backdrop-blur-md rounded-xl text-purple-900 shadow-md border border-purple-100"
-                >
-                    {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
+                        <h3 className="text-[10px] text-gold font-black tracking-[0.2em] uppercase mb-4 opacity-60">Client Profile</h3>
+                        <p className="text-2xl font-black text-white mb-2">{clientProfile.name}</p>
 
-                {/* Card Counter Badge */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-5 py-2 bg-white/90 backdrop-blur-md border border-purple-100 rounded-full flex items-center gap-2 shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                    <span className="text-[10px] text-purple-900 font-bold tracking-widest uppercase">Cards: {cards.length}</span>
-                </div>
-
-                {/* Mobile Sidebar Overlay */}
-                {isSidebarOpen && (
-                    <div
-                        className="md:hidden fixed inset-0 bg-purple-950/20 z-40 backdrop-blur-sm"
-                        onClick={() => setIsSidebarOpen(false)}
-                    />
-                )}
-
-                {/* Compact Floating Chat Panel */}
-                {isChatOpen && (
-                    <div className="fixed bottom-24 md:bottom-6 right-6 z-50 w-80 max-h-[350px] bg-white border border-purple-100 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-purple-50 bg-purple-50/50">
-                            <span className="text-xs text-purple-900 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                                <MessageCircle className="w-4 h-4 text-purple-500" />
-                                Sohbet
-                            </span>
-                            <button onClick={() => setIsChatOpen(false)} className="text-purple-400 hover:text-purple-600 transition-colors p-1">
-                                <X className="w-4 h-4" />
-                            </button>
+                        <div className="space-y-3 pt-2">
+                            <div className="flex items-center gap-2 text-ethereal/80">
+                                <Activity className="w-3 h-3" />
+                                <span className="text-[10px] font-bold tracking-widest uppercase">{clientProfile.birth || 'Unknown Date'}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-ethereal/60">
+                                <Video className="w-3 h-3" />
+                                <span className="text-[10px] font-bold tracking-widest uppercase">{clientProfile.time || 'Unknown Time'}</span>
+                            </div>
                         </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[220px] custom-scrollbar">
-                            {messages.length === 0 && (
-                                <p className="text-[10px] text-purple-300 text-center py-4 tracking-widest uppercase font-semibold">Henüz mesaj yok...</p>
-                            )}
-                            {messages.slice(-15).map(msg => (
-                                <div key={msg.id} className={`flex flex-col ${msg.sender === "Seeker" ? "items-end" : "items-start"}`}>
-                                    <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider mb-0.5 ml-1">{msg.sender === "Seeker" ? "Sen" : "Danışman"}</span>
-                                    <div className={`px-3 py-2 rounded-2xl max-w-[85%] ${msg.sender === "Seeker" ? "bg-purple-600 text-white rounded-tr-sm" : "bg-purple-50 text-purple-900 border border-purple-100 rounded-tl-sm"}`}>
-                                        <p className="text-xs leading-relaxed">{msg.text}</p>
+                        <div className="mt-6 pt-4 border-t border-white/5">
+                            <div className="px-3 py-2 bg-royal/30 rounded-xl border border-royal/50 text-center">
+                                <p className="text-[9px] text-ethereal font-bold tracking-[0.1em] uppercase">Package Request</p>
+                                <p className="text-xl font-heading text-gold tracking-widest mt-1">{clientProfile.cards} Cards</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════ MAIN TABLE (CENTRAL STAGE) ═══════════════ */}
+            <main
+                className="absolute inset-0 z-10 cursor-default"
+                onPointerMove={(e) => {
+                    if (e.pointerType === 'touch') return;
+                    const now = Date.now();
+                    if (now - lastCursorEmit.current > 50) {
+                        lastCursorEmit.current = now;
+                        socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
+                    }
+                }}
+            >
+                {/* Table Mat / Texture */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                    <div className="w-[80vh] h-[80vh] border-[0.5px] border-gold/50 rounded-full animate-pulse-slow" />
+                    <div className="absolute w-[60vh] h-[60vh] border-[0.5px] border-gold/30 rounded-full flex items-center justify-center">
+                        <div className="w-1 h-1 bg-gold rounded-full" />
+                    </div>
+                </div>
+
+                {/* Cards Container */}
+                <div ref={tableRef} className="absolute inset-0 z-20 w-full h-full perspective-[2000px] overflow-hidden" id="tarot-table">
+                    {cards.map(card => (
+                        <TarotCard
+                            key={card.id}
+                            card={card}
+                            onDragEnd={handleDragEnd}
+                            onFlipEnd={handleFlipEnd}
+                            onPointerDown={handlePointerDown}
+                            isLocal={true}
+                            constraintsRef={tableRef}
+                        />
+                    ))}
+                </div>
+
+                {/* External Cursors */}
+                {Object.entries(cursors).map(([userId, pos]) => (
+                    <div
+                        key={userId}
+                        className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear"
+                        style={{ left: pos.x, top: pos.y }}
+                    >
+                        <div className="w-3 h-3 bg-gold rounded-full shadow-[0_0_15px_rgba(197,160,89,0.8)] animate-ping" />
+                        <div className="w-1.5 h-1.5 bg-white rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    </div>
+                ))}
+            </main>
+
+            {/* ═══════════════ CHAT HUD (BOTTOM RIGHT) ═══════════════ */}
+            <div className="absolute bottom-8 right-8 z-50">
+                {!isChatOpen ? (
+                    <button
+                        onClick={() => setIsChatOpen(true)}
+                        className="w-14 h-14 glass-card rounded-2xl flex items-center justify-center hover:scale-110 transition-all border-gold/30 group relative"
+                    >
+                        <MessageCircle className="w-6 h-6 text-gold group-hover:text-white" />
+                        {messages.length > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 bg-crimson rounded-full text-[8px] flex items-center justify-center font-bold text-white border-2 border-black">!</div>}
+                    </button>
+                ) : (
+                    <div className="w-80 h-[400px] glass-card rounded-3xl overflow-hidden flex flex-col border-gold/20 shadow-2xl">
+                        <div className="p-4 bg-white/5 border-b border-white/5 flex items-center justify-between">
+                            <span className="text-[10px] font-black tracking-widest uppercase text-gold">Whispers</span>
+                            <button onClick={() => setIsChatOpen(false)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                            {messages.map(msg => (
+                                <div key={msg.id} className={cn("flex flex-col", msg.sender === "Seeker" ? "items-end" : "items-start")}>
+                                    <div className={cn(
+                                        "px-3 py-2 rounded-2xl text-[11px] max-w-[85%] leading-relaxed",
+                                        msg.sender === "Seeker" ? "bg-royal/50 text-white rounded-br-sm border border-royal/30" : "bg-white/5 text-gold-light rounded-bl-sm border border-white/10"
+                                    )}>
+                                        {msg.text}
                                     </div>
                                 </div>
                             ))}
                             <div ref={messagesEndRef} />
                         </div>
-
-                        {/* Input */}
-                        <form onSubmit={handleSendMessage} className="flex items-center gap-2 p-3 bg-white border-t border-purple-50">
+                        <form onSubmit={handleSendMessage} className="p-3 bg-black/40 border-t border-white/5 flex gap-2">
                             <input
-                                type="text"
                                 value={chatInput}
                                 onChange={e => setChatInput(e.target.value)}
-                                placeholder="Mesaj yazın..."
-                                autoFocus
-                                className="flex-1 bg-purple-50/50 border border-purple-100 rounded-xl px-4 py-2 text-sm text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all placeholder:text-purple-300"
+                                placeholder="Divine silence..."
+                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-gold/50 transition-all"
                             />
-                            <button
-                                type="submit"
-                                disabled={!chatInput.trim()}
-                                className="p-2.5 rounded-xl bg-purple-600 text-white shadow-md shadow-purple-600/20 hover:bg-purple-700 disabled:opacity-50 transition-all hover:-translate-y-0.5 active:translate-y-0"
-                            >
-                                <Send className="w-4 h-4 ml-0.5" />
+                            <button className="p-2.5 rounded-xl bg-gold text-black hover:bg-gold-light transition-all">
+                                <Send className="w-4 h-4" />
                             </button>
                         </form>
                     </div>
                 )}
-
-                {/* ── SIDEBAR (LEFT PANEL) ── */}
-                <aside className={cn(
-                    "fixed md:relative inset-y-0 left-0 w-72 bg-white/95 backdrop-blur-2xl flex flex-col p-6 space-y-6 z-50 transition-transform duration-500 ease-out border-r border-purple-100 shadow-xl",
-                    isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-                )}>
-                    {/* Brand / Title Component */}
-                    <div className="space-y-4 pt-10 md:pt-0 relative z-10 flex flex-col items-center">
-                        <button
-                            onClick={() => router.push("/")}
-                            className="absolute top-0 left-0 flex items-center gap-1 text-purple-400 hover:text-purple-600 transition-colors text-[10px] font-bold tracking-widest uppercase"
-                        >
-                            <ArrowLeft className="w-3.5 h-3.5" />
-                            Ayrıl
-                        </button>
-                        <div className="w-12 h-12 bg-gradient-to-tr from-purple-800 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-900/20 mb-2">
-                            <Sparkles className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="text-center w-full">
-                            <h2 className="text-2xl font-black font-heading tracking-widest text-purple-950">Mystic Tarot</h2>
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-xl group transition-all relative overflow-hidden justify-center hover:bg-purple-100/50 cursor-pointer" onClick={copyRoomId} title="Oda IDsini Kopyala">
-                                <span className="text-[10px] text-purple-600 font-bold flex-1 tracking-widest uppercase text-center">Oda: <span className="text-purple-900">{roomId}</span></span>
-                                <Copy className="w-3.5 h-3.5 text-purple-400" />
-                            </div>
-                            {copied && <p className="text-[10px] text-purple-500 mt-2 font-bold tracking-widest uppercase">Kopyalandı!</p>}
-                        </div>
-                    </div>
-
-                    {/* Action Buttons & Client Profile */}
-                    <div className="relative z-10 flex flex-col gap-4">
-                        {isConsultant && clientProfile && (
-                            <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-2xl p-5 space-y-3 relative shadow-sm">
-                                <h3 className="text-[10px] font-heading text-purple-400 tracking-widest uppercase font-bold border-b border-purple-100 pb-2">Müşteri Profili</h3>
-                                <div className="space-y-1 pt-1">
-                                    <p className="text-base font-bold text-purple-950">{clientProfile.name}</p>
-                                    {(clientProfile.birth || clientProfile.time) && (
-                                        <p className="text-xs text-purple-600 font-medium">{clientProfile.birth} {clientProfile.time}</p>
-                                    )}
-                                </div>
-                                <div className="pt-3 border-t border-purple-100 mt-2">
-                                    <p className="text-xs text-purple-700 font-medium">Talep: <span className="text-purple-900 font-bold">{clientProfile.cards} Kart</span></p>
-                                </div>
-                            </div>
-                        )}
-
-                        {isConsultant && (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handleDealPackage}
-                                    disabled={!clientProfile}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-gradient-to-r from-purple-800 to-purple-600 text-white rounded-xl tracking-widest uppercase font-bold text-[11px] shadow-lg shadow-purple-900/20 disabled:opacity-50 disabled:grayscale transition-all hover:-translate-y-0.5"
-                                >
-                                    <Sparkles className="w-4 h-4 text-amber-300" />
-                                    Paketi Dağıt
-                                </button>
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={handleDrawCard}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white text-purple-700 rounded-xl tracking-widest uppercase font-bold text-[11px] border border-purple-200 shadow-sm hover:bg-purple-50 transition-all hover:-translate-y-0.5"
-                                        title="Ekstra kart çek"
-                                    >
-                                        <PlusSquare className="w-4 h-4 text-purple-500" />
-                                        Draw
-                                    </button>
-                                    <button
-                                        onClick={handleClearTable}
-                                        title="Masayı Temizle"
-                                        className="flex items-center justify-center px-4 py-3 bg-rose-50 text-rose-600 rounded-xl border border-rose-200 hover:bg-rose-100 transition-all hover:-translate-y-0.5"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {!isConsultant && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center mt-2 shadow-sm">
-                                <Sparkles className="w-6 h-6 text-amber-500 mx-auto mb-2 animate-pulse" />
-                                <p className="text-sm text-amber-900 font-medium">Danışmanınızın kartları dağıtmasını bekleyin...</p>
-                            </div>
-                        )}
-
-                        <button
-                            onClick={() => setIsChatOpen(prev => !prev)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl tracking-widest uppercase font-bold text-[11px] shadow-sm hover:bg-amber-100 transition-all hover:-translate-y-0.5"
-                        >
-                            <MessageCircle className="w-4 h-4 text-amber-500" />
-                            Sohbeti Aç
-                            {messages.length > 0 && <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-sm" />}
-                        </button>
-                    </div>
-
-                    {/* Chronicle (Activity Log) */}
-                    <div className="flex-1 min-h-0 pt-6 border-t border-purple-100 relative z-10 flex flex-col">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Activity className="w-4 h-4 text-purple-400" />
-                            <p className="text-[10px] text-purple-400 font-bold tracking-widest uppercase">Akış</p>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                            {logs.slice().reverse().map(log => (
-                                <div key={log.id} className="text-[10px] leading-relaxed border-l-[3px] border-purple-200 pl-3">
-                                    <span className="text-purple-300 block font-mono tracking-widest uppercase mb-0.5">{log.timestamp}</span>
-                                    <span className="text-purple-800 font-medium">{log.message}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </aside>
-
-                {/* ── TAROT TABLE (BOUNDED AREA) ── */}
-                <main
-                    className="flex-1 relative overflow-hidden bg-gradient-to-b from-purple-950 to-midnight"
-                    onPointerMove={(e) => {
-                        if (e.pointerType === 'touch') return;
-                        const now = Date.now();
-                        if (now - lastCursorEmit.current > 50) {
-                            lastCursorEmit.current = now;
-                            socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
-                        }
-                    }}
-                >
-                    {/* Velvet Table texture */}
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay pointer-events-none" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,theme(colors.midnight)_90%)] pointer-events-none" />
-                    {/* Center warm glow for cards */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none" />
-
-                    {/* Live Cursors (Desktop only) */}
-                    <div className="hidden md:block">
-                        {Object.entries(cursors).map(([userId, pos]) => (
-                            <div
-                                key={userId}
-                                className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear flex flex-col items-center"
-                                style={{ left: pos.x, top: pos.y }}
-                            >
-                                <MousePointer2 className="w-6 h-6 text-white fill-purple-400 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] -rotate-12" />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Cards */}
-                    <div ref={tableRef} className="absolute inset-0 z-10 w-full h-full perspective-[1000px] overflow-hidden" id="tarot-table">
-                        {cards.map(card => (
-                            <TarotCard
-                                key={card.id}
-                                card={card}
-                                onDragEnd={handleDragEnd}
-                                onFlipEnd={handleFlipEnd}
-                                onPointerDown={handlePointerDown}
-                                isLocal={true}
-                                constraintsRef={tableRef}
-                            />
-                        ))}
-                    </div>
-                </main>
             </div>
 
-            {/* ═══════════════ BOTTOM: MOBILE FLOATING BAR ═══════════════ */}
-            <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-white/95 backdrop-blur-2xl border border-purple-100 rounded-3xl shadow-xl shadow-purple-900/10">
-                {isConsultant && (
-                    <>
+            {/* ═══════════════ ACTION DOCK (BOTTOM CENTER) ═══════════════ */}
+            {isConsultant && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50">
+                    <div className="glass-card rounded-[2.5rem] p-3 flex items-center gap-3 border-gold/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                         <button
                             onClick={handleDealPackage}
                             disabled={!clientProfile}
-                            className="flex flex-col items-center justify-center p-2 w-16 h-14 bg-gradient-to-r from-purple-700 to-purple-600 active:scale-[0.98] rounded-2xl transition-all shadow-md shadow-purple-600/30 disabled:opacity-50"
+                            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold to-gold-light text-black rounded-full font-black tracking-[0.2em] uppercase text-xs shadow-lg shadow-gold/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
                         >
-                            <Sparkles className="w-5 h-5 text-amber-300" />
-                            <span className="text-[8px] font-bold text-white uppercase mt-1 tracking-widest">Dağıt</span>
+                            <Sparkles className="w-4 h-4" />
+                            Cast Spread
                         </button>
-                        <button
-                            onClick={handleDrawCard}
-                            className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-purple-50 hover:bg-purple-100 active:scale-[0.98] rounded-2xl transition-all border border-purple-100"
-                        >
-                            <PlusSquare className="w-5 h-5 text-purple-600" />
-                            <span className="text-[8px] font-bold text-purple-700 uppercase mt-1 tracking-widest">Draw</span>
-                        </button>
-                    </>
-                )}
 
-                <button
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                    className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-amber-50 active:scale-[0.98] rounded-2xl transition-all relative border border-amber-200"
-                >
-                    <MessageCircle className="w-5 h-5 text-amber-500" />
-                    <span className="text-[8px] font-bold text-amber-700 uppercase mt-1 tracking-widest">Chat</span>
-                    {messages.length > 0 && <div className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-amber-500 border-2 border-white rounded-full shadow-sm animate-pulse" />}
-                </button>
+                        <div className="w-[1px] h-8 bg-white/10 mx-2" />
 
-                {isConsultant && (
-                    <button
-                        onClick={handleClearTable}
-                        className="flex flex-col items-center justify-center p-2 w-14 h-14 bg-rose-50 active:scale-[0.98] rounded-2xl transition-all border border-rose-200"
-                    >
-                        <Trash2 className="w-5 h-5 text-rose-500" />
-                        <span className="text-[8px] font-bold text-rose-700 uppercase mt-1 tracking-widest">Clear</span>
-                    </button>
-                )}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleDrawCard}
+                                className="w-12 h-12 glass-card rounded-full flex items-center justify-center hover:bg-white/10 transition-all group"
+                                title="Single Draw"
+                            >
+                                <PlusSquare className="w-5 h-5 text-gold group-hover:text-white" />
+                            </button>
+                            <button
+                                onClick={handleClearTable}
+                                className="w-12 h-12 glass-card rounded-full flex items-center justify-center hover:bg-crimson/20 border-rose-500/10 transition-all group"
+                                title="Purge Table"
+                            >
+                                <Trash2 className="w-5 h-5 text-rose-500 group-hover:text-rose-400" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════ LOGS PANEL (BOTTOM LEFT) ═══════════════ */}
+            <div className="absolute bottom-8 left-8 z-50 w-56">
+                <div className="glass-card rounded-2xl p-4 border-gold/10 group h-32 hover:h-64 transition-all duration-700 flex flex-col overflow-hidden">
+                    <div className="flex items-center gap-2 mb-3 opacity-40 group-hover:opacity-100 transition-opacity">
+                        <Activity className="w-3.5 h-3.5 text-gold" />
+                        <span className="text-[9px] font-black tracking-widest uppercase text-gold">Mystic Ledger</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                        {logs.slice().reverse().map(log => (
+                            <div key={log.id} className="text-[10px] text-ethereal/60 leading-tight pb-2 border-b border-white/5 last:border-0">
+                                <span className="text-gold/40 text-[8px] font-mono mr-2">{log.timestamp}</span>
+                                {log.message}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
+
         </div>
     );
 }

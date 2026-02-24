@@ -4,36 +4,34 @@
   --font-inter: var(--font-inter), ui-sans-serif, system-ui;
   --font-heading: var(--font-heading), ui-serif, Georgia;
 
-  /* Elegant Mystic Theme */
-  --color-midnight: #1a0b2e;
-  --color-void: #0d0415;
-  --color-teal: #9d4edd; /* repurposed teal to purple */
-  --color-cyan: #e0aaff; /* repurposed cyan to light purple */
-  --color-amber: #d4af37; /* gold */
-  --color-rose-glow: #ff758f;
-  --color-gold: #d4af37;
-  --color-gold-light: #fae17d;
-  --color-crimson: #7209b7;
-  --color-emerald: #5a189a;
-  --color-obsidian: #0d0415;
+  /* Deep Obsidian & Ornate Gold Theme */
+  --color-midnight: #030008;
+  --color-void: #0d0a15;
+  --color-obsidian: #030008;
+  --color-gold: #c5a059;
+  --color-gold-light: #f3e5ab;
+  --color-royal: #310e68;
+  --color-ethereal: #b388ff;
+  --color-crimson: #900d0d;
 
   /* Custom Animations */
   --animate-float: float 8s ease-in-out infinite;
   --animate-float-delayed: float 8s ease-in-out 4s infinite;
   --animate-pulse-slow: pulse-slow 5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-aurora: aurora 15s ease-in-out infinite;
+  --animate-aurora: aurora 20s linear infinite;
   --animate-shimmer: shimmer 3s ease-in-out infinite;
+  --animate-nebula: nebula 30s ease-in-out infinite;
 }
 
 @layer base {
   body {
-    background-color: var(--color-midnight);
-    color: #f1f5f9;
+    background-color: #030008;
+    color: #e2e8f0;
     font-family: var(--font-inter);
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(20, 184, 166, 0.04), transparent 50%),
-      radial-gradient(ellipse at 80% 50%, rgba(6, 182, 212, 0.03), transparent 50%);
+      radial-gradient(circle at 50% 50%, #1a0b2e 0%, #030008 100%);
     background-attachment: fixed;
+    overflow-x: hidden;
   }
 
   h1,
@@ -43,8 +41,32 @@
   h5,
   h6 {
     font-family: var(--font-heading);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.1em;
   }
+}
+
+.glass-card {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0, 0, 0, 0.37)];
+}
+
+.gold-border {
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(197, 160, 89, 0.15);
+}
+
+.nebula-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: radial-gradient(circle at 30% 30%, rgba(49, 14, 104, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(144, 13, 13, 0.1) 0%, transparent 40%);
+  filter: blur(80px);
 }
 
 @keyframes float {

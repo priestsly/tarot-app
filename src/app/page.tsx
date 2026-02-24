@@ -4,6 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // ─── TYPES & DATA ───────────────────────────────────────────────
 
@@ -114,139 +120,142 @@ function HomeContent() {
   // ─── RENDERERS ──────────────────────────────────────────────────
 
   const renderWelcome = () => (
-    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
-      <div className="text-center space-y-3 mb-8">
-        <h2 className="text-3xl font-heading text-purple-950">Hoş Geldiniz</h2>
-        <p className="text-sm text-purple-700/80 font-light max-w-xs mx-auto">Lütfen devam etmek istediğiniz portalı seçin.</p>
+    <motion.div key="welcome" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} className="space-y-8">
+      <div className="text-center space-y-4">
+        <h2 className="text-3xl font-black tracking-widest text-white uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">Gate of Insight</h2>
+        <p className="text-sm text-ethereal/60 font-medium tracking-wide">Choose your path into the unknown.</p>
       </div>
 
-      <button
-        onClick={handleConsultantLogin}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-purple-900 text-white rounded-2xl shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 transition-all duration-300 border border-purple-800"
-      >
-        <Eye className="w-5 h-5 text-amber-300" />
-        <span className="text-base font-heading tracking-widest">Danışman Girişi</span>
-      </button>
+      <div className="grid gap-4">
+        <button
+          onClick={handleConsultantLogin}
+          className="group relative w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-royal/40 to-black border border-white/10 rounded-3xl overflow-hidden hover:border-gold/50 transition-all duration-500 shadow-2xl"
+        >
+          <div className="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
+            <Eye className="w-8 h-8 text-gold drop-shadow-glow" />
+          </div>
+          <span className="text-xl font-black text-white tracking-[0.2em] uppercase">The Oracle</span>
+          <span className="text-[10px] text-gold-light/40 font-bold uppercase tracking-widest mt-2 group-hover:text-gold transition-colors">Start Reading</span>
+        </button>
 
-      <div className="relative flex items-center">
-        <div className="flex-grow border-t border-purple-200" />
-        <span className="flex-shrink-0 mx-4 text-xs font-medium uppercase tracking-widest text-purple-400">veya</span>
-        <div className="flex-grow border-t border-purple-200" />
+        <button
+          onClick={() => setStep("room_input")}
+          className="group relative w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-black to-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-ethereal/50 transition-all duration-500 shadow-xl"
+        >
+          <div className="absolute inset-0 bg-ethereal/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
+            <User className="w-8 h-8 text-ethereal drop-shadow-glow" />
+          </div>
+          <span className="text-xl font-black text-white tracking-[0.2em] uppercase">The Seeker</span>
+          <span className="text-[10px] text-ethereal/40 font-bold uppercase tracking-widest mt-2 group-hover:text-ethereal transition-colors">Enter a Room</span>
+        </button>
       </div>
-
-      <button
-        onClick={() => setStep("room_input")}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white text-purple-900 rounded-2xl shadow-md hover:shadow-lg transition-all border border-purple-100 hover:border-purple-300"
-      >
-        <User className="w-5 h-5 text-purple-500" />
-        <span className="text-base font-heading tracking-widest">Müşteri Girişi</span>
-      </button>
     </motion.div>
   );
 
   const renderRoomInput = () => (
-    <motion.div key="room_input" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
-      <button onClick={() => setStep("welcome")} className="text-purple-400 hover:text-purple-700 transition-colors flex items-center gap-2 text-xs uppercase tracking-widest mb-4">
-        <ArrowLeft className="w-4 h-4" /> Geri
+    <motion.div key="room_input" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
+      <button onClick={() => setStep("welcome")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+        <ArrowLeft className="w-4 h-4" /> Go Back
       </button>
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-3xl font-heading text-purple-950">Odaya Katıl</h2>
-        <p className="text-xs text-purple-600/80">Danışmanınızın size verdiği Oda ID'sini girin.</p>
+      <div className="text-center space-y-3">
+        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Summon Table</h2>
+        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Speak the Secret ID of your Oracle.</p>
       </div>
-      <form onSubmit={submitRoomInput} className="space-y-4">
+      <form onSubmit={submitRoomInput} className="space-y-8">
         <input
           type="text"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          placeholder="Oda ID (Örn: tarot-a1b2)"
-          className="w-full bg-white/60 backdrop-blur-sm border border-purple-200 rounded-2xl px-5 py-4 text-center placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all font-mono text-lg text-purple-900 shadow-inner"
+          placeholder="TAROT-XXXX"
+          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-6 text-center placeholder:text-white/20 focus:outline-none focus:border-gold/50 transition-all font-mono text-2xl text-gold tracking-[0.2em] shadow-inner"
           required
         />
         <button
           type="submit"
-          disabled={!roomId.trim()}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-800 to-purple-600 text-white rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none"
+          className="w-full flex items-center justify-center gap-4 px-8 py-5 bg-gradient-to-r from-gold to-gold-light text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-gold/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
-          <span className="text-base font-heading tracking-widest">Devam Et</span>
-          <ArrowRight className="w-4 h-4" />
+          Invoke Presence
+          <ArrowRight className="w-5 h-5" />
         </button>
       </form>
     </motion.div>
   );
 
   const renderClientStep1 = () => (
-    <motion.div key="client_step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
+    <motion.div key="client_step1" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
       {!initialRoom && (
-        <button onClick={() => setStep("room_input")} className="text-purple-400 hover:text-purple-700 transition-colors flex items-center gap-2 text-xs uppercase tracking-widest mb-4">
-          <ArrowLeft className="w-4 h-4" /> Geri
+        <button onClick={() => setStep("room_input")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+          <ArrowLeft className="w-4 h-4" /> Go Back
         </button>
       )}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-3xl font-heading text-purple-950">Sizi Tanıyalım</h2>
-        <p className="text-xs text-purple-600/80">Danışmanınızın size hitap edebilmesi için adınızı girin.</p>
+      <div className="text-center space-y-3">
+        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Your Identity</h2>
+        <p className="text-xs text-ethereal/50 font-medium tracking-wide">The cards must know who they speak for.</p>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-8">
         <input
           type="text"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
-          placeholder="Adınız Soyadınız"
-          className="w-full bg-white/60 backdrop-blur-sm border border-purple-200 rounded-2xl px-5 py-4 text-center placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all text-base text-purple-900 shadow-inner"
+          placeholder="FULL NAME"
+          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-center placeholder:text-white/20 focus:outline-none focus:border-ethereal/50 transition-all text-xl text-white tracking-widest uppercase"
         />
         <button
           onClick={() => setStep("client_step2_birth")}
           disabled={!clientName.trim()}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-800 to-purple-600 text-white rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none"
+          className="w-full flex items-center justify-center gap-4 px-8 py-5 bg-ethereal text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-ethereal/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
         >
-          <span className="text-base font-heading tracking-widest">İleri</span>
-          <ArrowRight className="w-4 h-4" />
+          Reveal More
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </motion.div>
   );
 
   const renderClientStep2 = () => (
-    <motion.div key="client_step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
-      <button onClick={() => setStep("client_step1_name")} className="text-purple-400 hover:text-purple-700 transition-colors flex items-center gap-2 text-xs uppercase tracking-widest mb-4">
-        <ArrowLeft className="w-4 h-4" /> Geri
+    <motion.div key="client_step2" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-10">
+      <button onClick={() => setStep("client_step1_name")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+        <ArrowLeft className="w-4 h-4" /> Go Back
       </button>
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-3xl font-heading text-purple-950">Astroloji Profiliniz</h2>
-        <p className="text-xs text-purple-600/80">Evrensel enerjinizi hizalamak için doğum bilgilerinizi girin.</p>
+      <div className="text-center space-y-3">
+        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Stellar Alignment</h2>
+        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Sync your temporal origin with the stars.</p>
       </div>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-purple-800 ml-1">
-            <Calendar className="w-4 h-4 text-amber-500" /> Doğum Tarihi
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gold uppercase ml-1">
+            <Calendar className="w-4 h-4" /> Birth Date
           </label>
           <input
             type="date"
             value={birthDate}
             onChange={(e) => setBirthDate(e.target.value)}
-            className="w-full bg-white/60 border border-purple-200 rounded-2xl px-4 py-3.5 text-base text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-lg text-white appearance-none focus:outline-none focus:border-gold/40 transition-all uppercase tracking-widest"
           />
         </div>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-purple-800 ml-1">
-            <Clock className="w-4 h-4 text-amber-500" /> Doğum Saati (İsteğe Bağlı)
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gold uppercase ml-1">
+            <Clock className="w-4 h-4" /> Birth Time (Optional)
           </label>
           <input
             type="time"
             value={birthTime}
             onChange={(e) => setBirthTime(e.target.value)}
-            className="w-full bg-white/60 border border-purple-200 rounded-2xl px-4 py-3.5 text-base text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-lg text-white appearance-none focus:outline-none focus:border-gold/40 transition-all"
           />
         </div>
 
         {birthDate && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex gap-3 pt-3">
-            <div className="flex-1 bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-xl p-3 text-center shadow-sm">
-              <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold mb-1">Ruh Kartı</p>
-              <p className="text-sm font-heading font-bold text-purple-900">{calculateSoulCard(new Date(birthDate)).name}</p>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-4 pt-4">
+            <div className="bg-royal/30 border border-royal/50 rounded-2xl p-4 text-center">
+              <p className="text-[9px] text-ethereal font-black tracking-widest uppercase mb-1">Soul Card</p>
+              <p className="text-xs font-heading font-bold text-white tracking-widest">{calculateSoulCard(new Date(birthDate)).name}</p>
             </div>
-            <div className="flex-1 bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-xl p-3 text-center shadow-sm">
-              <p className="text-[10px] text-amber-500 uppercase tracking-widest font-bold mb-1">Kişilik Kartı</p>
-              <p className="text-sm font-heading font-bold text-amber-900">{calculatePersonalityCard(new Date(birthDate).getDate()).name}</p>
+            <div className="bg-crimson/10 border border-crimson/20 rounded-2xl p-4 text-center">
+              <p className="text-[9px] text-rose-400 font-black tracking-widest uppercase mb-1">Personality</p>
+              <p className="text-xs font-heading font-bold text-white tracking-widest">{calculatePersonalityCard(new Date(birthDate).getDate()).name}</p>
             </div>
           </motion.div>
         )}
@@ -254,47 +263,50 @@ function HomeContent() {
         <button
           onClick={() => setStep("client_step3_package")}
           disabled={!birthDate}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-2 bg-gradient-to-r from-purple-800 to-purple-600 text-white rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none"
+          className="w-full flex items-center justify-center gap-4 px-8 py-5 mt-4 bg-ethereal text-black rounded-full font-black tracking-[0.2em] uppercase text-sm shadow-xl shadow-ethereal/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20"
         >
-          <span className="text-base font-heading tracking-widest">İleri</span>
-          <ArrowRight className="w-4 h-4" />
+          Proceed to Draw
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </motion.div>
   );
 
   const renderClientStep3 = () => (
-    <motion.div key="client_step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
-      <button onClick={() => setStep("client_step2_birth")} className="text-purple-400 hover:text-purple-700 transition-colors flex items-center gap-2 text-xs uppercase tracking-widest mb-4">
-        <ArrowLeft className="w-4 h-4" /> Geri
+    <motion.div key="client_step3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} className="space-y-8">
+      <button onClick={() => setStep("client_step2_birth")} className="text-ethereal/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+        <ArrowLeft className="w-4 h-4" /> Go Back
       </button>
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-3xl font-heading text-purple-950">Fal Paketi</h2>
-        <p className="text-xs text-purple-600/80">Sizin için en uygun açılımı seçin.</p>
+      <div className="text-center space-y-3">
+        <h2 className="text-4xl font-black tracking-widest text-white uppercase">Fate Chosen</h2>
+        <p className="text-xs text-ethereal/50 font-medium tracking-wide">Select the complexity of your revelation.</p>
       </div>
 
-      <div className="space-y-3">
+      <div className="grid gap-4">
         {PACKAGES.map((pkg) => (
           <button
             key={pkg.id}
             onClick={() => setSelectedPackage(pkg.id)}
-            className={`w-full text-left p-4 rounded-2xl border transition-all flex gap-4 items-center group
+            className={`w-full text-left p-6 rounded-3xl border transition-all flex gap-5 items-center group relative overflow-hidden
               ${selectedPackage === pkg.id
-                ? "bg-purple-50 border-purple-400 shadow-md ring-1 ring-purple-400"
-                : "bg-white border-purple-100 hover:border-purple-300 hover:shadow-sm"
+                ? "bg-royal/30 border-gold shadow-[0_0_20px_rgba(197,160,89,0.2)]"
+                : "bg-white/5 border-white/10 hover:border-white/30"
               }`}
           >
-            <div className={`p-3 rounded-xl ${selectedPackage === pkg.id ? "bg-purple-100" : "bg-purple-50 group-hover:bg-purple-100/50"} transition-colors`}>
+            {selectedPackage === pkg.id && (
+              <div className="absolute inset-0 bg-gradient-to-r from-gold/10 to-transparent" />
+            )}
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${selectedPackage === pkg.id ? "bg-gold/20" : "bg-white/5"}`}>
               {pkg.icon}
             </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-heading font-bold text-purple-950 flex items-center justify-between">
+            <div className="flex-1 relative z-10">
+              <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center justify-between">
                 {pkg.name}
-                <span className="text-[10px] font-sans font-medium bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-600">
-                  {pkg.cards} Kart
+                <span className="text-[9px] font-sans font-black px-2.5 py-1 rounded-full border border-white/10 text-gold-light bg-black/40">
+                  {pkg.cards} CARDS
                 </span>
               </h3>
-              <p className="text-[11px] text-purple-600/80 mt-1 leading-relaxed">{pkg.desc}</p>
+              <p className="text-[10px] text-ethereal/60 mt-2 leading-relaxed tracking-wide font-medium">{pkg.desc}</p>
             </div>
           </button>
         ))}
@@ -303,48 +315,58 @@ function HomeContent() {
       <button
         onClick={submitClientForm}
         disabled={!selectedPackage}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-6 bg-amber-500 hover:bg-amber-400 text-white rounded-2xl shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 hover:-translate-y-0.5 transition-all outline-none font-bold"
+        className="group w-full flex items-center justify-center gap-4 px-8 py-6 mt-6 bg-gradient-to-r from-crimson to-royal text-white rounded-full font-black tracking-[0.3em] uppercase text-sm shadow-2xl shadow-royal/40 hover:scale-[1.05] active:scale-95 transition-all outline-none disabled:opacity-20"
       >
-        <span className="text-base font-heading tracking-widest text-white drop-shadow-sm uppercase">Fal Başlasın</span>
-        <Sparkles className="w-5 h-5 text-white" />
+        <span>Begin Ceremony</span>
+        <Sparkles className="w-5 h-5 group-hover:animate-spin" />
       </button>
     </motion.div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-4 selection:bg-purple-200 relative overflow-hidden font-inter">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 selection:bg-gold/30 relative overflow-hidden font-inter">
 
-      {/* Soft Elegant Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-200/40 rounded-full blur-[120px] mix-blend-multiply pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-amber-100/50 rounded-full blur-[150px] mix-blend-multiply pointer-events-none" />
+      {/* ─── IMMERSIVE ELEMENTS ─── */}
+      <div className="nebula-bg" />
+      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-royal/10 rounded-full blur-[150px] animate-pulse-slow" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-crimson/10 rounded-full blur-[150px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5 }}
+        className="relative z-10 w-full max-w-lg"
       >
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ delay: 0.2, type: "spring" }}
-            className="w-20 h-20 mx-auto mb-4 bg-gradient-to-tr from-purple-800 to-fuchsia-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-900/40"
-          >
-            <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center">
-              <Sparkles className="w-10 h-10 text-purple-600" />
+        {/* Header Logo Area */}
+        {step === "welcome" && (
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ scale: 0.5, rotate: -45, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 20 }}
+              className="w-24 h-24 mx-auto mb-8 relative"
+            >
+              <div className="absolute inset-0 bg-gold blur-3xl opacity-20 animate-pulse" />
+              <div className="relative w-full h-full bg-gradient-to-tr from-royal to-black border-2 border-gold/50 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(197,160,89,0.3)]">
+                <Sparkles className="w-12 h-12 text-gold animate-aurora" />
+              </div>
+            </motion.div>
+            <h1 className="text-5xl font-black tracking-[0.3em] uppercase drop-shadow-2xl">
+              Mystic Port
+            </h1>
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-gold/30" />
+              <p className="text-[10px] tracking-[0.5em] uppercase text-gold/60 font-black">Divine Intervention</p>
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-gold/30" />
             </div>
-          </motion.div>
-          <h1 className="text-4xl font-heading font-medium tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-950 to-purple-800 drop-shadow-sm">
-            Mystic Tarot
-          </h1>
-          <p className="text-xs tracking-widest uppercase mt-2 text-purple-500/80 font-semibold">Premium Danışmanlık Ağı</p>
-        </div>
+          </div>
+        )}
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-xl shadow-purple-900/5 border border-white relative overflow-hidden">
-          {/* Subtle inner reflection */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
-
+        {/* Main Card Container */}
+        <div className={cn(
+          "transition-all duration-700",
+          step === "welcome" ? "" : "bg-white/5 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/10 shadow-2xl"
+        )}>
           <AnimatePresence mode="wait">
             {step === "welcome" && renderWelcome()}
             {step === "room_input" && renderRoomInput()}
@@ -353,9 +375,18 @@ function HomeContent() {
             {step === "client_step3_package" && renderClientStep3()}
           </AnimatePresence>
         </div>
-        <p className="text-center text-[10px] text-slate-600 font-mono tracking-[0.15em] uppercase mt-8">
-          WebRTC · Socket.io · Binnaz Abla Style
-        </p>
+
+        {/* Footer */}
+        <div className="mt-16 text-center space-y-4">
+          <p className="text-[9px] text-white/20 font-black tracking-[0.4em] uppercase">
+            Hyper-Real Encryption · 2026 Edition
+          </p>
+          <div className="flex justify-center gap-6 opacity-20">
+            <Moon className="w-4 h-4" />
+            <Star className="w-4 h-4" />
+            <Heart className="w-4 h-4" />
+          </div>
+        </div>
       </motion.div>
     </div>
   );
