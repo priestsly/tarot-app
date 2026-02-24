@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -79,6 +79,65 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
 
     const tableRef = useRef<HTMLDivElement>(null);
+
+    // ── Session Timer ──
+    const [sessionStart] = useState(() => Date.now());
+    const [elapsed, setElapsed] = useState("00:00");
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const diff = Math.floor((Date.now() - sessionStart) / 1000);
+            const m = String(Math.floor(diff / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            setElapsed(`${m}:${s}`);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [sessionStart]);
+
+    // ── Card Info Panel ──
+    const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+    const selectedCard = cards.find(c => c.id === selectedCardId);
+
+    // ── Share Link ──
+    const [linkCopied, setLinkCopied] = useState(false);
+    const copyShareLink = () => {
+        const url = `${window.location.origin}/?room=${roomId}`;
+        navigator.clipboard.writeText(url);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2500);
+    };
+
+    // ── Major Arcana Meanings ──
+    const CARD_MEANINGS: Record<number, { upright: string; reversed: string }> = {
+        0: { upright: "Yeni başlangıçlar, spontanlık, özgür ruh", reversed: "Dikkatsizlik, risk almaktan kaçınma" },
+        1: { upright: "İrade gücü, yaratıcılık, beceri", reversed: "Manipülasyon, beceriksizlik" },
+        2: { upright: "Sezgi, gizem, bilinçaltı bilgelik", reversed: "Bastırılmış duygular, gizli gündem" },
+        3: { upright: "Bereket, annelik, doğa ile bağ", reversed: "Bağımlılık, yaratıcı tıkanıklık" },
+        4: { upright: "Otorite, yapı, liderlik", reversed: "Tiranlık, katılık, kontrol kaybı" },
+        5: { upright: "Gelenek, ruhani rehberlik, ahlak", reversed: "İsyankarlık, dogmaya meydan okuma" },
+        6: { upright: "Aşk, uyum, ilişkiler, seçimler", reversed: "Dengesizlik, yanlış hizalanma" },
+        7: { upright: "Azim, zafer, irade gücü", reversed: "Yön kaybı, saldırganlık" },
+        8: { upright: "Cesaret, sabır, içsel güç", reversed: "Öz şüphe, zayıflık" },
+        9: { upright: "İçsel arayış, yalnızlık, bilgelik", reversed: "İzolasyon, yalnızlık korkusu" },
+        10: { upright: "Kader, dönüm noktası, şans", reversed: "Kötü şans, direniş, değişim korkusu" },
+        11: { upright: "Adalet, denge, doğruluk", reversed: "Adaletsizlik, dürüst olmayan davranış" },
+        12: { upright: "Fedakarlık, yeni bakış açısı, bırakma", reversed: "Erteleme, gereksiz fedakarlık" },
+        13: { upright: "Dönüşüm, son ve başlangıç", reversed: "Değişime direnç, durgunluk" },
+        14: { upright: "Denge, ölçülülük, sabır", reversed: "Aşırılık, dengesizlik, sabırsızlık" },
+        15: { upright: "Bağımlılık, maddecilik, gölge ben", reversed: "Özgürleşme, bağlardan kurtulma" },
+        16: { upright: "Ani değişim, yıkım ve yeniden yapılanma", reversed: "Kaçınma, değişim korkusu" },
+        17: { upright: "Umut, ilham, huzur", reversed: "Umutsuzluk, kopukluk" },
+        18: { upright: "İllüzyon, korku, bilinçaltı", reversed: "Korkuların üstesinden gelme, netlik" },
+        19: { upright: "Mutluluk, başarı, canlılık", reversed: "Geçici mutsuzluk, aşırı iyimserlik" },
+        20: { upright: "Yargı, uyanış, iç çağrı", reversed: "Öz eleştiri, fırsatları kaçırma" },
+        21: { upright: "Tamamlanma, bütünlük, başarı", reversed: "Tamamlanmamışlık, kapanış eksikliği" },
+    };
+    const getCardMeaning = (cardIndex: number, isReversed: boolean) => {
+        const majorIndex = cardIndex < 22 ? cardIndex : null;
+        if (majorIndex !== null && CARD_MEANINGS[majorIndex]) {
+            return isReversed ? CARD_MEANINGS[majorIndex].reversed : CARD_MEANINGS[majorIndex].upright;
+        }
+        return isReversed ? "Bu kart ters konumda. Enerjisi bloke veya gecikmiş olabilir." : "Bu kart düz konumda. Enerjisi doğrudan etkili.";
+    };
 
     useEffect(() => {
         // 1. Initialize Socket
@@ -456,10 +515,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     }, [roomId]);
 
     const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
-        if (isFlipped) appendLog("Revealed a card's destiny");
+        if (isFlipped) {
+            appendLog("Revealed a card's destiny");
+            setSelectedCardId(id); // show meaning panel
+        } else {
+            if (selectedCardId === id) setSelectedCardId(null);
+        }
         setCards(prev => prev.map(c => c.id === id ? { ...c, isReversed, isFlipped } : c));
         socket.emit("flip-card", roomId, id, isReversed, isFlipped);
-    }, [roomId, appendLog]);
+    }, [roomId, appendLog, selectedCardId]);
 
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
@@ -529,8 +593,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         {copied && <span className="text-[10px] text-accent font-semibold animate-pulse">Kopyalandı!</span>}
                     </div>
 
-                    {/* Center: Card counter + connection status */}
+                    {/* Center: Timer + Status + Card count */}
                     <div className="glass rounded-full px-5 py-2 flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-text-muted/50" />
+                            <span className="text-[10px] text-text-muted font-mono tracking-wider">{elapsed}</span>
+                        </div>
+                        <div className="w-px h-3 bg-border" />
                         <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full ${remotePeerId ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
                             <span className="text-[9px] text-text-muted font-mono tracking-wider uppercase">{remotePeerId ? 'Bağlı' : 'Bekliyor'}</span>
@@ -539,8 +608,18 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         <span className="text-[10px] text-text font-bold tracking-widest uppercase">{cards.length} Kart</span>
                     </div>
 
-                    {/* Right: Video toggle + Mobile menu */}
+                    {/* Right: Share + Video toggle + Panel toggle */}
                     <div className="flex items-center gap-2">
+                        {isConsultant && (
+                            <button
+                                onClick={copyShareLink}
+                                className="glass rounded-xl px-3 py-2 flex items-center gap-1.5 text-text-muted hover:text-accent transition-colors"
+                                title="Müşteri davet linki kopyala"
+                            >
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span className="text-[9px] font-semibold tracking-wider uppercase hidden sm:inline">{linkCopied ? 'Kopyalandı!' : 'Davet'}</span>
+                            </button>
+                        )}
                         <button
                             onClick={() => setIsVideoBarVisible(!isVideoBarVisible)}
                             className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors"
@@ -704,6 +783,28 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     </div>
                 )}
 
+                {/* ═══ CARD INFO PANEL (when a flipped card is selected) ═══ */}
+                {selectedCard && selectedCard.isFlipped && (
+                    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 glass rounded-2xl p-4 w-80 max-w-[calc(100vw-2rem)] shadow-xl shadow-black/20">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Info className="w-3.5 h-3.5 text-accent shrink-0" />
+                                    <span className="text-[10px] text-accent font-bold tracking-[0.15em] uppercase">
+                                        {selectedCard.isReversed ? 'Ters' : 'Düz'} Konum
+                                    </span>
+                                </div>
+                                <p className="text-sm text-text leading-relaxed">
+                                    {getCardMeaning(selectedCard.cardIndex, selectedCard.isReversed)}
+                                </p>
+                            </div>
+                            <button onClick={() => setSelectedCardId(null)} className="text-text-muted hover:text-text transition-colors shrink-0 mt-0.5">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* ═══ BOTTOM TOOLBAR ═══ */}
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 p-1.5 glass rounded-2xl">
                     {isConsultant && (
@@ -736,6 +837,10 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     {isConsultant && (
                         <>
                             <div className="w-px h-6 bg-border mx-0.5" />
+                            <button onClick={copyShareLink} className="p-2.5 rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all relative" title="Davet Linki">
+                                <Share2 className="w-4 h-4" />
+                                {linkCopied && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full" />}
+                            </button>
                             <button onClick={handleClearTable} className="p-2.5 rounded-xl text-text-muted hover:text-danger hover:bg-danger/10 transition-all" title="Temizle">
                                 <Trash2 className="w-4 h-4" />
                             </button>
