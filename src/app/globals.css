@@ -46,7 +46,10 @@
 }
 
 .glass-card {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0, 0, 0, 0.37)];
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .gold-border {
@@ -120,11 +123,6 @@
   100% {
     background-position: 200% center;
   }
-}
-
-/* Premium Frosted Glass Panel */
-.glass-panel {
-  @apply bg-[#0a1628]/60 backdrop-blur-2xl border border-teal/10 shadow-2xl;
 }
 
 /* Hide Scrollbar but keep functionality */
