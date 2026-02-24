@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2 } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Maximize, Minimize, Camera, Layout, Volume2, VolumeX } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -137,6 +137,158 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
             return isReversed ? CARD_MEANINGS[majorIndex].reversed : CARD_MEANINGS[majorIndex].upright;
         }
         return isReversed ? "Bu kart ters konumda. Enerjisi bloke veya gecikmiş olabilir." : "Bu kart düz konumda. Enerjisi doğrudan etkili.";
+    };
+
+    // ── Spread Templates ──
+    type SpreadPosition = { x: number; y: number; label: string };
+    type SpreadTemplate = { id: string; name: string; cards: number; positions: SpreadPosition[] };
+
+    const SPREAD_TEMPLATES: SpreadTemplate[] = [
+        {
+            id: "three-card", name: "3 Kart", cards: 3,
+            positions: [
+                { x: 25, y: 50, label: "Geçmiş" },
+                { x: 50, y: 50, label: "Şimdi" },
+                { x: 75, y: 50, label: "Gelecek" },
+            ]
+        },
+        {
+            id: "celtic-cross", name: "Kelt Haçı", cards: 10,
+            positions: [
+                { x: 40, y: 50, label: "Durum" },
+                { x: 40, y: 50, label: "Engel" },
+                { x: 40, y: 18, label: "Bilinçüstü" },
+                { x: 40, y: 82, label: "Bilinçaltı" },
+                { x: 18, y: 50, label: "Geçmiş" },
+                { x: 62, y: 50, label: "Gelecek" },
+                { x: 82, y: 82, label: "Kendin" },
+                { x: 82, y: 62, label: "Çevre" },
+                { x: 82, y: 40, label: "Umutlar" },
+                { x: 82, y: 18, label: "Sonuç" },
+            ]
+        },
+        {
+            id: "horseshoe", name: "At Nalı", cards: 7,
+            positions: [
+                { x: 12, y: 60, label: "Geçmiş" },
+                { x: 22, y: 30, label: "Şimdi" },
+                { x: 37, y: 15, label: "Gizli" },
+                { x: 50, y: 10, label: "Engel" },
+                { x: 63, y: 15, label: "Çevre" },
+                { x: 78, y: 30, label: "Tavsiye" },
+                { x: 88, y: 60, label: "Sonuç" },
+            ]
+        },
+        {
+            id: "relationship", name: "İlişki", cards: 5,
+            positions: [
+                { x: 25, y: 35, label: "Sen" },
+                { x: 75, y: 35, label: "Partner" },
+                { x: 50, y: 50, label: "Bağ" },
+                { x: 25, y: 70, label: "Beklenti" },
+                { x: 75, y: 70, label: "Sonuç" },
+            ]
+        },
+    ];
+
+    const [showSpreadMenu, setShowSpreadMenu] = useState(false);
+    const [activeSpread, setActiveSpread] = useState<SpreadTemplate | null>(null);
+
+    const handleApplySpread = useCallback((template: SpreadTemplate) => {
+        if (!isConsultant) return;
+        // Clear table first, then deal exactly the template's card count
+        const usedIndices = new Set<number>();
+        const spread: CardState[] = [];
+        for (let i = 0; i < template.cards; i++) {
+            let idx: number;
+            do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+            usedIndices.add(idx);
+            spread.push({
+                id: Math.random().toString(36).substring(2, 9),
+                cardIndex: idx,
+                x: template.positions[i].x,
+                y: template.positions[i].y,
+                isFlipped: false,
+                isReversed: Math.random() > 0.5,
+                zIndex: maxZIndex + i + 1
+            });
+        }
+        setMaxZIndex(prev => prev + template.cards);
+        setCards(spread);
+        setActiveSpread(template);
+        setShowSpreadMenu(false);
+        appendLog(`${template.name} açılımı uygulandı (${template.cards} kart)`);
+        socket?.emit("sync-all-cards", roomId, spread);
+    }, [isConsultant, maxZIndex, roomId, appendLog]);
+
+    // ── Screenshot ──
+    const captureScreenshot = async () => {
+        const el = document.getElementById("tarot-table");
+        if (!el) return;
+        try {
+            const html2canvas = (await import("html2canvas")).default;
+            const canvas = await html2canvas(el, { backgroundColor: "#0C0B14", scale: 2 });
+            const link = document.createElement("a");
+            link.download = `tarot-${roomId}-${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            appendLog("Masa ekran görüntüsü kaydedildi");
+        } catch { appendLog("Ekran görüntüsü alınamadı"); }
+    };
+
+    // ── Fullscreen ──
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    // ── Ambient Sound ──
+    const [isAmbientOn, setIsAmbientOn] = useState(false);
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const oscillatorsRef = useRef<OscillatorNode[]>([]);
+
+    const toggleAmbient = () => {
+        if (isAmbientOn) {
+            oscillatorsRef.current.forEach(o => { try { o.stop(); } catch { } });
+            oscillatorsRef.current = [];
+            audioCtxRef.current?.close();
+            audioCtxRef.current = null;
+            setIsAmbientOn(false);
+        } else {
+            const ctx = new AudioContext();
+            audioCtxRef.current = ctx;
+
+            // Create a warm ambient drone
+            const freqs = [65.41, 98.0, 130.81, 196.0]; // C2, G2, C3, G3
+            const oscs: OscillatorNode[] = [];
+            freqs.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = i < 2 ? "sine" : "triangle";
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.03 / (i + 1), ctx.currentTime);
+                // Slow LFO for movement
+                const lfo = ctx.createOscillator();
+                const lfoGain = ctx.createGain();
+                lfo.frequency.setValueAtTime(0.1 + i * 0.05, ctx.currentTime);
+                lfoGain.gain.setValueAtTime(0.01, ctx.currentTime);
+                lfo.connect(lfoGain);
+                lfoGain.connect(gain.gain);
+                lfo.start();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                oscs.push(osc);
+            });
+            oscillatorsRef.current = oscs;
+            setIsAmbientOn(true);
+        }
     };
 
     useEffect(() => {
@@ -608,8 +760,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         <span className="text-[10px] text-text font-bold tracking-widest uppercase">{cards.length} Kart</span>
                     </div>
 
-                    {/* Right: Share + Video toggle + Panel toggle */}
-                    <div className="flex items-center gap-2">
+                    {/* Right: Tools */}
+                    <div className="flex items-center gap-1.5">
                         {isConsultant && (
                             <button
                                 onClick={copyShareLink}
@@ -620,6 +772,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 <span className="text-[9px] font-semibold tracking-wider uppercase hidden sm:inline">{linkCopied ? 'Kopyalandı!' : 'Davet'}</span>
                             </button>
                         )}
+                        <button onClick={toggleAmbient} className={cn("glass rounded-xl p-2.5 transition-colors", isAmbientOn ? "text-accent" : "text-text-muted hover:text-accent")} title={isAmbientOn ? "Sesi Kapat" : "Ortam Sesi"}>
+                            {isAmbientOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                        </button>
+                        <button onClick={captureScreenshot} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Ekran Görüntüsü">
+                            <Camera className="w-4 h-4" />
+                        </button>
+                        <button onClick={toggleFullscreen} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Tam Ekran">
+                            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                        </button>
                         <button
                             onClick={() => setIsVideoBarVisible(!isVideoBarVisible)}
                             className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors"
@@ -706,7 +867,37 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </div>
                         )}
 
-                        {/* Client waiting */}
+                        {/* Spread Templates */}
+                        {isConsultant && (
+                            <div className="pt-3 border-t border-border">
+                                <button
+                                    onClick={() => setShowSpreadMenu(!showSpreadMenu)}
+                                    className="w-full flex items-center justify-between px-3 py-2.5 glass rounded-xl text-text-muted hover:text-accent text-xs font-semibold tracking-wide transition-all"
+                                >
+                                    <span className="flex items-center gap-1.5"><Layout className="w-3.5 h-3.5" /> Açılım Şablonları</span>
+                                    <span className="text-[10px] text-accent/50">{activeSpread?.name || ''}</span>
+                                </button>
+                                {showSpreadMenu && (
+                                    <div className="mt-2 space-y-1.5">
+                                        {SPREAD_TEMPLATES.map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => handleApplySpread(t)}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all",
+                                                    activeSpread?.id === t.id
+                                                        ? "bg-accent/15 text-accent border border-accent/20"
+                                                        : "text-text-muted hover:text-text hover:bg-surface"
+                                                )}
+                                            >
+                                                <span>{t.name}</span>
+                                                <span className="text-[10px] text-text-muted/50">{t.cards} kart</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {!isConsultant && (
                             <div className="bg-gold-dim border border-gold/15 rounded-xl p-4 text-center">
                                 <Sparkles className="w-5 h-5 text-gold mx-auto mb-2 animate-pulse" />
@@ -820,6 +1011,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </button>
                             <button onClick={handleDrawCard} className="p-2.5 rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Kart Çek">
                                 <PlusSquare className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => { setIsSidebarOpen(true); setShowSpreadMenu(true); }} className="p-2.5 rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Açılım Şablonları">
+                                <Layout className="w-4 h-4" />
                             </button>
                             <div className="w-px h-6 bg-border mx-0.5" />
                         </>
