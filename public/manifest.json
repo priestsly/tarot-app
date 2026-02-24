@@ -1,0 +1,31 @@
+{
+    "name": "Mystic Tarot",
+    "short_name": "Tarot",
+    "description": "Profesyonel tarot danışmanlık platformu. Gerçek zamanlı okuma, video görüşme ve interaktif kart masası.",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0C0B14",
+    "theme_color": "#0C0B14",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "lifestyle",
+        "entertainment"
+    ],
+    "lang": "tr",
+    "dir": "ltr"
+}
