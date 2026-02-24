@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const body = Plus_Jakarta_Sans({
   variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
-const heading = Cormorant_Garamond({
+const heading = Playfair_Display({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${heading.variable} antialiased bg-[#05050A] text-neutral-50`}>
+      <body className={`${body.variable} ${heading.variable} antialiased bg-[#07060D] text-neutral-50`}>
         {children}
       </body>
     </html>
