@@ -221,7 +221,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         >
             {/* Front of card (shown when flipped) */}
             <div
-                className="absolute inset-0 rounded-xl shadow-2xl backface-hidden border border-teal-500/20 overflow-hidden"
+                className="absolute inset-0 rounded-xl shadow-2xl backface-hidden border border-purple-500/20 overflow-hidden"
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
                 {/* Full-bleed card image */}
@@ -241,7 +241,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                         "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
                         card.isReversed
                             ? "text-amber-300 border-amber-400/50 bg-amber-500/20"
-                            : "text-teal-300 border-teal-400/50 bg-teal-500/20"
+                            : "text-purple-300 border-purple-400/50 bg-purple-500/20"
                     )}>
                         {card.isReversed ? "Reversed" : "Upright"}
                     </div>
@@ -250,15 +250,15 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
             {/* Back of Card (shown initially) */}
             <div
-                className="absolute inset-0 rounded-xl bg-gradient-to-b from-[#0d1b2a] to-[#030712] shadow-[0_15px_40px_rgba(0,0,0,0.9)] flex items-center justify-center p-1.5 border border-teal-500/25 backface-hidden overflow-hidden"
+                className="absolute inset-0 rounded-xl bg-gradient-to-b from-purple-900 to-indigo-950 shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center justify-center p-1.5 border-2 border-amber-500/30 backface-hidden overflow-hidden"
                 style={{ backfaceVisibility: "hidden" }}
             >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay pointer-events-none" />
 
-                <div className="w-full h-full border border-teal-500/20 rounded-lg flex items-center justify-center relative bg-[#040c1a] overflow-hidden">
-                    <div className="w-24 h-24 bg-gradient-to-tr from-teal-500/15 to-cyan-500/15 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
+                <div className="w-full h-full border border-amber-500/20 rounded-lg flex items-center justify-center relative bg-gradient-to-br from-purple-950 to-midnight overflow-hidden shadow-inner">
+                    <div className="w-24 h-24 bg-gradient-to-tr from-amber-500/20 to-purple-500/30 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
 
-                    <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-teal-300 opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(20,184,166,0.5)]">
+                    <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-amber-300 opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
                         <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
                         <path fill="currentColor" opacity="0.9" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
@@ -271,7 +271,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                         <path fill="currentColor" d="M30 70 L32 75 L37 77 L32 79 L30 84 L28 79 L23 77 L28 75 Z" opacity="0.6" transform="scale(0.4) translate(30, 80)" />
                     </svg>
 
-                    <div className="absolute inset-1.5 border border-teal-400/8 rounded-md pointer-events-none" />
+                    <div className="absolute inset-1.5 border border-amber-400/10 rounded-md pointer-events-none" />
                 </div>
             </div>
         </motion.div>

@@ -4,18 +4,18 @@
   --font-inter: var(--font-inter), ui-sans-serif, system-ui;
   --font-heading: var(--font-heading), ui-serif, Georgia;
 
-  /* Aurora Midnight Palette */
-  --color-midnight: #030712;
-  --color-void: #0a1628;
-  --color-teal: #14b8a6;
-  --color-cyan: #06b6d4;
-  --color-amber: #f59e0b;
-  --color-rose-glow: #f43f5e;
-  --color-gold: #D4AF37;
-  --color-gold-light: #F3E5AB;
-  --color-crimson: #800000;
-  --color-emerald: #097969;
-  --color-obsidian: #030712;
+  /* Elegant Mystic Theme */
+  --color-midnight: #1a0b2e;
+  --color-void: #0d0415;
+  --color-teal: #9d4edd; /* repurposed teal to purple */
+  --color-cyan: #e0aaff; /* repurposed cyan to light purple */
+  --color-amber: #d4af37; /* gold */
+  --color-rose-glow: #ff758f;
+  --color-gold: #d4af37;
+  --color-gold-light: #fae17d;
+  --color-crimson: #7209b7;
+  --color-emerald: #5a189a;
+  --color-obsidian: #0d0415;
 
   /* Custom Animations */
   --animate-float: float 8s ease-in-out infinite;
