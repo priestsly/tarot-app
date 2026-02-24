@@ -92,7 +92,7 @@ export default function Home() {
           </motion.div>
 
           <div className="space-y-3">
-            <h1 className="text-4xl md:text-5xl font-black tracking-widest font-cinzel text-transparent bg-clip-text bg-gradient-to-r from-teal-200 via-cyan-100 to-white">
+            <h1 className="text-4xl md:text-5xl font-black tracking-widest font-heading text-transparent bg-clip-text bg-gradient-to-r from-teal-200 via-cyan-100 to-white">
               Mystic Tarot
             </h1>
             <p className="text-slate-400 text-base md:text-lg font-light tracking-wide max-w-xs mx-auto leading-relaxed">
@@ -112,7 +112,7 @@ export default function Home() {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-teal-400/0 via-white/10 to-teal-400/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
             <Sparkles className="w-5 h-5 relative z-10" />
-            <span className="relative z-10 text-base font-cinzel tracking-widest uppercase">Begin Reading</span>
+            <span className="relative z-10 text-base font-heading tracking-widest uppercase">Begin Reading</span>
           </button>
 
           <div className="relative flex items-center">
@@ -141,7 +141,7 @@ export default function Home() {
               className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-500/10 text-amber-200 rounded-xl font-medium tracking-wide transition-all border border-amber-500/25 hover:bg-amber-500/20 hover:border-amber-400/40 hover:text-amber-100 disabled:opacity-25 disabled:cursor-not-allowed backdrop-blur-sm"
             >
               <LogIn className="w-5 h-5" />
-              <span className="text-base font-cinzel uppercase tracking-widest">Join Room</span>
+              <span className="text-base font-heading uppercase tracking-widest">Join Room</span>
             </button>
           </form>
         </div>

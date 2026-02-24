@@ -234,7 +234,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
                 {/* Bottom gradient overlay for name + badge */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
-                    <span className="text-center font-cinzel text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                    <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
                         {getCardName(card.cardIndex)}
                     </span>
                     <div className={cn(

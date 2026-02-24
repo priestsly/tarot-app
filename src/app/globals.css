@@ -2,7 +2,7 @@
 
 @theme {
   --font-inter: var(--font-inter), ui-sans-serif, system-ui;
-  --font-cinzel: var(--font-cinzel), ui-serif, Georgia;
+  --font-heading: var(--font-heading), ui-serif, Georgia;
 
   /* Aurora Midnight Palette */
   --color-midnight: #030712;
@@ -42,7 +42,7 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-cinzel);
+    font-family: var(--font-heading);
     letter-spacing: 0.05em;
   }
 }

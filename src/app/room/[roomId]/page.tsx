@@ -466,60 +466,54 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     />
                 )}
 
-                {/* Chat Drawer */}
-                <aside className={cn(
-                    "fixed inset-y-0 right-0 w-80 bg-[#0a1628]/95 backdrop-blur-3xl border-l border-teal-500/15 flex flex-col z-50 shadow-[0_0_40px_rgba(20,184,166,0.08)] transition-transform duration-500 ease-out",
-                    isChatOpen ? "translate-x-0" : "translate-x-full"
-                )}>
-                    <div className="flex items-center justify-between p-5 border-b border-teal-500/10">
-                        <h3 className="font-cinzel text-lg text-slate-200 font-bold flex items-center gap-2 tracking-widest uppercase shadow-sm">
-                            <MessageCircle className="w-4 h-4 text-teal-400" />
-                            Whispers
-                        </h3>
-                        <button onClick={() => setIsChatOpen(false)} className="text-slate-500 hover:text-slate-200 transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-full opacity-40">
-                                <MessageCircle className="w-10 h-10 text-slate-500 mb-3" />
-                                <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">No whispers yet...</p>
-                            </div>
-                        )}
-                        {messages.map(msg => (
-                            <div key={msg.id} className="flex flex-col gap-1">
-                                <div className="flex items-baseline justify-between">
-                                    <span className={cn("text-xs font-bold font-cinzel tracking-widest", msg.sender === "Seeker" ? "text-teal-300" : "text-amber-300")}>{msg.sender}</span>
-                                    <span className="text-[9px] text-slate-500 font-mono">{msg.timestamp}</span>
+                {/* Compact Floating Chat Panel */}
+                {isChatOpen && (
+                    <div className="fixed bottom-4 right-4 z-50 w-80 max-h-[320px] bg-[#0a1628]/95 backdrop-blur-2xl border border-teal-500/15 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-teal-500/10">
+                            <span className="text-xs text-slate-300 font-semibold tracking-widest uppercase flex items-center gap-1.5">
+                                <MessageCircle className="w-3.5 h-3.5 text-teal-400" />
+                                Whispers
+                            </span>
+                            <button onClick={() => setIsChatOpen(false)} className="text-slate-500 hover:text-slate-200 transition-colors p-0.5">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Messages (compact, show last few) */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[180px] scrollbar-hide">
+                            {messages.length === 0 && (
+                                <p className="text-[10px] text-slate-500 text-center py-4 font-mono tracking-widest uppercase">No whispers yet...</p>
+                            )}
+                            {messages.slice(-10).map(msg => (
+                                <div key={msg.id} className="flex gap-2 items-start">
+                                    <span className={cn("text-[10px] font-bold shrink-0 mt-0.5", msg.sender === "Seeker" ? "text-teal-400" : "text-amber-400")}>{msg.sender === "Seeker" ? "You" : "Them"}</span>
+                                    <p className="text-xs text-slate-300 leading-relaxed">{msg.text}</p>
                                 </div>
-                                <div className={cn(
-                                    "p-3 rounded-xl text-sm leading-relaxed border backdrop-blur-md",
-                                    msg.sender === "Seeker" ? "bg-teal-900/20 text-slate-200 rounded-tr-sm border-teal-500/15" : "bg-amber-900/20 text-slate-200 rounded-tl-sm border-amber-500/15"
-                                )}>
-                                    {msg.text}
-                                </div>
-                            </div>
-                        ))}
-                        <div ref={messagesEndRef} />
+                            ))}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <form onSubmit={handleSendMessage} className="flex items-center gap-2 p-2.5 border-t border-teal-500/10 bg-black/30">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                placeholder="Type a whisper..."
+                                autoFocus
+                                className="flex-1 bg-[#030712]/80 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-teal-500/40 transition-colors placeholder:text-slate-500"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!chatInput.trim()}
+                                className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <Send className="w-3.5 h-3.5" />
+                            </button>
+                        </form>
                     </div>
-                    <form onSubmit={handleSendMessage} className="p-3 border-t border-teal-500/15 bg-black/40 flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={chatInput}
-                            onChange={e => setChatInput(e.target.value)}
-                            placeholder="Send a whisper..."
-                            className="flex-1 bg-[#030712]/80 border border-slate-700/40 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-teal-500/40 transition-colors placeholder:text-slate-500"
-                        />
-                        <button
-                            type="submit"
-                            disabled={!chatInput.trim()}
-                            className="p-2.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[0_0_10px_rgba(20,184,166,0.1)]"
-                        >
-                            <Send className="w-4 h-4" />
-                        </button>
-                    </form>
-                </aside>
+                )}
 
                 {/* ── SIDEBAR (LEFT PANEL) ── */}
                 <aside className={cn(
@@ -535,7 +529,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                             Leave Room
                         </button>
                         <div>
-                            <h2 className="text-2xl font-black font-cinzel tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-cyan-300">Mystic Tarot</h2>
+                            <h2 className="text-2xl font-black font-heading tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-cyan-300">Mystic Tarot</h2>
                             <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-[#030712] border border-slate-700/40 rounded-lg group hover:border-teal-400/40 transition-colors relative overflow-hidden">
                                 <div className="absolute inset-0 bg-teal-500/5 blur opacity-0 group-hover:opacity-100 transition duration-500" />
                                 <span className="text-[10px] text-slate-500 font-mono truncate flex-1 tracking-wider uppercase relative z-10">ID: <span className="text-slate-300">{roomId}</span></span>
@@ -551,7 +545,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     <div className="relative z-10 flex flex-col gap-3">
                         <button
                             onClick={handleThreeCardSpread}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/15 text-teal-200 rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-teal-500/30 hover:bg-teal-500/25 shadow-[0_0_15px_rgba(20,184,166,0.1)]"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/15 text-teal-200 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-teal-500/30 hover:bg-teal-500/25 shadow-[0_0_15px_rgba(20,184,166,0.1)]"
                         >
                             <Sparkles className="w-4 h-4 text-teal-400" />
                             3-Card Spread
@@ -559,7 +553,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                         <div className="flex gap-3">
                             <button
                                 onClick={handleDrawCard}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-neutral-300 rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10 hover:text-white"
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-white/5 text-neutral-300 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-white/10 hover:bg-white/10 hover:text-white"
                             >
                                 <PlusSquare className="w-4 h-4 text-cyan-400" />
                                 Draw
@@ -573,8 +567,8 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                             </button>
                         </div>
                         <button
-                            onClick={() => setIsChatOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/10 text-amber-200 rounded-xl font-cinzel tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-amber-500/25 hover:bg-amber-500/15"
+                            onClick={() => setIsChatOpen(prev => !prev)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/10 text-amber-200 rounded-xl font-heading tracking-widest uppercase font-bold text-[11px] transition-all active:scale-[0.98] border border-amber-500/25 hover:bg-amber-500/15"
                         >
                             <MessageCircle className="w-4 h-4 text-amber-400" />
                             Whispers
@@ -586,7 +580,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                     <div className="flex-1 min-h-0 pt-5 border-t border-teal-500/10 relative z-10 flex flex-col">
                         <div className="flex items-center gap-2 mb-3">
                             <Activity className="w-3.5 h-3.5 text-teal-400/80" />
-                            <p className="text-[10px] text-teal-400/80 font-cinzel font-bold tracking-[0.2em] uppercase">Chronicle</p>
+                            <p className="text-[10px] text-teal-400/80 font-heading font-bold tracking-[0.2em] uppercase">Chronicle</p>
                         </div>
                         <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-hide">
                             {logs.slice().reverse().map(log => (
