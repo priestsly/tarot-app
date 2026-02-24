@@ -142,8 +142,8 @@ function HomeContent() {
         : step === "client_step3_package" ? 3 : -1;
 
   // ─── INPUT STYLE ────────────────────────────────────────────────
-  const inputClass = "w-full bg-surface border border-border rounded-xl px-5 py-4 text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 transition-all text-base";
-  const btnPrimary = "w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold tracking-wide transition-all hover:brightness-110 hover:shadow-lg hover:shadow-purple-600/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none";
+  const inputClass = "w-full bg-surface border border-border rounded-xl px-5 py-4 text-text placeholder:text-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/20 transition-all text-base";
+  const btnPrimary = "w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-500/80 to-indigo-500/70 text-white/90 rounded-xl font-semibold tracking-wide transition-all hover:brightness-105 hover:shadow-lg hover:shadow-purple-500/10 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none";
   const backBtn = "text-text-muted hover:text-accent transition-colors flex items-center gap-2 text-xs uppercase tracking-[0.15em] font-semibold mb-6";
 
   // ─── WELCOME ────────────────────────────────────────────────────
@@ -155,10 +155,10 @@ function HomeContent() {
 
       <button
         onClick={handleConsultantLogin}
-        className="group w-full relative overflow-hidden rounded-xl border border-accent/20 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/40 hover:bg-accent-dim"
+        className="group w-full relative overflow-hidden rounded-xl border border-accent/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/25 hover:bg-accent-dim/60"
       >
-        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shrink-0 shadow-lg shadow-purple-600/20">
-          <Shield className="w-5 h-5 text-white" />
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-400/60 to-indigo-500/50 flex items-center justify-center shrink-0 shadow-md shadow-purple-400/10">
+          <Shield className="w-5 h-5 text-white/80" />
         </div>
         <div className="text-left flex-1">
           <h3 className="text-base font-semibold text-text">Danışman Girişi</h3>
@@ -169,10 +169,10 @@ function HomeContent() {
 
       <button
         onClick={() => setStep("room_input")}
-        className="group w-full relative overflow-hidden rounded-xl border border-gold/20 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/40 hover:bg-gold-dim"
+        className="group w-full relative overflow-hidden rounded-xl border border-gold/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/25 hover:bg-gold-dim/60"
       >
-        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600 to-yellow-600 flex items-center justify-center shrink-0 shadow-lg shadow-amber-600/20">
-          <User className="w-5 h-5 text-white" />
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-400/50 to-yellow-500/40 flex items-center justify-center shrink-0 shadow-md shadow-amber-400/10">
+          <User className="w-5 h-5 text-white/80" />
         </div>
         <div className="text-left flex-1">
           <h3 className="text-base font-semibold text-text">Müşteri Girişi</h3>
@@ -321,7 +321,7 @@ function HomeContent() {
       <button
         onClick={submitClientForm}
         disabled={!selectedPackage}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-6 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold rounded-xl tracking-wide transition-all hover:brightness-110 hover:shadow-lg hover:shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+        className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-6 bg-gradient-to-r from-gold/80 to-amber-400/70 text-black/80 font-bold rounded-xl tracking-wide transition-all hover:brightness-105 hover:shadow-lg hover:shadow-gold/10 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
       >
         Fal Başlasın <Sparkles className="w-5 h-5" />
       </button>
@@ -347,10 +347,11 @@ function HomeContent() {
   // ─── LAYOUT ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-bg text-text flex relative overflow-hidden font-inter">
-      {/* Background Effects */}
+      {/* Background Effects — soft, diffused */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/8 rounded-full blur-[180px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[160px]" />
+        <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-400/4 rounded-full blur-[200px]" />
+        <div className="absolute bottom-[-5%] right-[20%] w-[500px] h-[500px] bg-amber-300/3 rounded-full blur-[180px]" />
+        <div className="absolute top-[40%] right-[40%] w-[400px] h-[400px] bg-indigo-400/3 rounded-full blur-[200px]" />
       </div>
       <Particles />
 
@@ -358,46 +359,46 @@ function HomeContent() {
       <div className="hidden lg:flex flex-col justify-center items-center flex-1 relative z-10 p-12">
         {/* Floating tarot card visuals */}
         <motion.div
-          animate={{ y: [0, -15, 0], rotate: [-3, 3, -3] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="relative w-48 h-72 rounded-2xl bg-gradient-to-br from-purple-900 to-indigo-950 border-2 border-amber-500/30 shadow-2xl shadow-purple-900/40 mb-8 overflow-hidden"
+          animate={{ y: [0, -12, 0], rotate: [-2, 2, -2] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="relative w-48 h-72 rounded-2xl bg-gradient-to-br from-purple-800/60 to-indigo-900/50 border border-accent/15 shadow-xl shadow-purple-800/15 mb-8 overflow-hidden"
         >
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay" />
-          <div className="absolute inset-2 border border-amber-500/20 rounded-xl flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-3/4 h-3/4 text-amber-300/80">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay" />
+          <div className="absolute inset-2 border border-gold/15 rounded-xl flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-3/4 h-3/4 text-gold/60">
               <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
-              <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
-              <path fill="currentColor" opacity="0.8" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
-              <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.7" transform="scale(0.5) translate(70, 0)" />
+              <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.4" />
+              <path fill="currentColor" opacity="0.6" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
+              <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.5" transform="scale(0.5) translate(70, 0)" />
             </svg>
           </div>
         </motion.div>
 
         {/* Second floating card behind */}
         <motion.div
-          animate={{ y: [0, 10, 0], rotate: [6, 0, 6] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute top-1/3 left-[15%] w-32 h-48 rounded-xl bg-gradient-to-br from-violet-800 to-purple-950 border border-violet-500/20 shadow-xl opacity-40 -rotate-12"
+          animate={{ y: [0, 8, 0], rotate: [5, 0, 5] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-1/3 left-[15%] w-32 h-48 rounded-xl bg-gradient-to-br from-purple-700/25 to-indigo-800/20 border border-accent/8 shadow-lg opacity-50 -rotate-12"
         />
         <motion.div
-          animate={{ y: [0, -10, 0], rotate: [-4, 2, -4] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-1/4 right-[12%] w-36 h-52 rounded-xl bg-gradient-to-br from-amber-900/40 to-purple-950 border border-amber-500/15 shadow-xl opacity-30 rotate-6"
+          animate={{ y: [0, -8, 0], rotate: [-3, 1, -3] }}
+          transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          className="absolute bottom-1/4 right-[12%] w-36 h-52 rounded-xl bg-gradient-to-br from-amber-700/15 to-purple-900/15 border border-gold/8 shadow-lg opacity-35 rotate-6"
         />
 
         <div className="text-center relative z-10">
           <h1 className="text-5xl font-heading font-semibold text-text leading-tight">
-            Mystic<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-purple-300">Tarot</span>
+            Mystic<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-purple-300/80">Tarot</span>
           </h1>
           <p className="text-text-muted text-sm mt-4 max-w-xs mx-auto leading-relaxed">
             Profesyonel tarot danışmanlık platformu. Gerçek zamanlı okuma, video görüşme ve interaktif kart masası.
           </p>
-          <div className="flex items-center justify-center gap-6 mt-8 text-text-muted/60 text-[10px] uppercase tracking-[0.2em]">
-            <span>WebRTC</span>
-            <span className="w-1 h-1 rounded-full bg-accent/40" />
-            <span>Socket.io</span>
-            <span className="w-1 h-1 rounded-full bg-accent/40" />
-            <span>Canlı</span>
+          <div className="flex items-center justify-center gap-6 mt-8 text-text-muted/40 text-[10px] uppercase tracking-[0.2em]">
+            <span>Video Görüşme</span>
+            <span className="w-1 h-1 rounded-full bg-accent/20" />
+            <span>Gerçek Zamanlı</span>
+            <span className="w-1 h-1 rounded-full bg-accent/20" />
+            <span>Güvenli</span>
           </div>
         </div>
       </div>
@@ -406,8 +407,8 @@ function HomeContent() {
       <div className="w-full lg:w-[480px] lg:min-w-[480px] flex flex-col justify-center items-center p-6 sm:p-10 relative z-10">
         {/* Mobile logo */}
         <div className="lg:hidden text-center mb-10">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shadow-xl shadow-purple-600/30">
-            <Sparkles className="w-7 h-7 text-white" />
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-400/50 to-indigo-500/40 flex items-center justify-center shadow-lg shadow-purple-400/10">
+            <Sparkles className="w-7 h-7 text-white/70" />
           </div>
           <h1 className="text-3xl font-heading text-text">Mystic Tarot</h1>
           <p className="text-xs text-text-muted mt-1">Profesyonel Danışmanlık</p>

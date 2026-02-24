@@ -476,16 +476,16 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     }
                 }}
             >
-                {/* Ambient table glows */}
+                {/* Ambient table glows — soft, diffused */}
                 <div className="absolute inset-0 pointer-events-none z-0">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] bg-violet-600/6 rounded-full blur-[200px]" />
-                    <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-purple-500/4 rounded-full blur-[120px]" />
-                    <div className="absolute bottom-[15%] right-[15%] w-[250px] h-[250px] bg-amber-500/3 rounded-full blur-[100px]" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] bg-purple-400/3 rounded-full blur-[220px]" />
+                    <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-indigo-400/3 rounded-full blur-[140px]" />
+                    <div className="absolute bottom-[15%] right-[15%] w-[250px] h-[250px] bg-amber-300/2 rounded-full blur-[120px]" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-bg)_80%)]" />
                 </div>
 
                 {/* Table grid texture */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(167,139,250,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(167,139,250,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(184,164,232,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(184,164,232,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
 
                 {/* Live Cursors */}
                 <div className="hidden md:block">
@@ -529,9 +529,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         {copied && <span className="text-[10px] text-accent font-semibold animate-pulse">Kopyalandı!</span>}
                     </div>
 
-                    {/* Center: Card counter */}
-                    <div className="glass rounded-full px-5 py-2 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                    {/* Center: Card counter + connection status */}
+                    <div className="glass rounded-full px-5 py-2 flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${remotePeerId ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                            <span className="text-[9px] text-text-muted font-mono tracking-wider uppercase">{remotePeerId ? 'Bağlı' : 'Bekliyor'}</span>
+                        </div>
+                        <div className="w-px h-3 bg-border" />
                         <span className="text-[10px] text-text font-bold tracking-widest uppercase">{cards.length} Kart</span>
                     </div>
 
@@ -607,7 +611,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 <button
                                     onClick={handleDealPackage}
                                     disabled={!clientProfile}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold text-xs tracking-wide transition-all hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-xl font-semibold text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
                                 >
                                     <Sparkles className="w-4 h-4 text-amber-300" />
                                     Paketi Dağıt
@@ -707,7 +711,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <button
                                 onClick={handleDealPackage}
                                 disabled={!clientProfile}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold text-xs tracking-wide transition-all hover:brightness-110 disabled:opacity-40 active:scale-[0.98]"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-xl font-semibold text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]"
                             >
                                 <Sparkles className="w-4 h-4 text-amber-300" />
                                 <span className="hidden sm:inline">Paketi Dağıt</span>
