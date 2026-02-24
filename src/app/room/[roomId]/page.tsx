@@ -708,33 +708,26 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     </div>
                 </div>
 
-                {/* ═══ PiP VIDEO (floating, top-right) ═══ */}
-                {isVideoBarVisible && (
-                    <div className="absolute top-14 sm:top-16 right-2 sm:right-4 z-30 flex flex-col gap-1.5 sm:gap-2">
-                        {/* Remote */}
-                        <div className="w-32 sm:w-52 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative group">
-                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-[8px] sm:text-[10px] text-text-muted/40 font-mono tracking-widest animate-pulse">Bağlantı bekleniyor...</span>
-                            </div>
-                            <div className="absolute bottom-1 left-1.5 px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[8px] sm:text-[9px] text-accent font-semibold tracking-wider uppercase">Karşı</div>
+                {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
+                <div className={cn(
+                    "absolute top-14 sm:top-16 right-2 sm:right-4 z-30 flex flex-col gap-1.5 sm:gap-2 transition-all duration-300",
+                    isVideoBarVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
+                )}>
+                    {/* Remote */}
+                    <div className="w-28 sm:w-44 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative">
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-[7px] sm:text-[9px] text-text-muted/40 font-mono tracking-widest animate-pulse">Bekleniyor...</span>
                         </div>
-                        {/* Local */}
-                        <div className="w-32 sm:w-52 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative group">
-                            <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                            <div className="absolute bottom-1 left-1.5 px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[8px] sm:text-[9px] text-gold font-semibold tracking-wider uppercase">Sen</div>
-                        </div>
-                        {/* Controls */}
-                        <div className="flex gap-1 sm:gap-1.5 justify-center">
-                            <button onClick={toggleMute} className={cn("p-2 rounded-lg transition-all text-sm", isMuted ? "bg-danger/20 text-danger" : "glass text-text-muted hover:text-accent")} title={isMuted ? 'Ses Aç' : 'Sessize Al'}>
-                                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                            </button>
-                            <button onClick={toggleVideo} className={cn("p-2 rounded-lg transition-all text-sm", isVideoOff ? "bg-danger/20 text-danger" : "glass text-text-muted hover:text-accent")} title={isVideoOff ? 'Kamera Aç' : 'Kamera Kapat'}>
-                                {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                            </button>
-                        </div>
+                        <div className="absolute bottom-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-accent font-semibold tracking-wider uppercase">Karşı</div>
                     </div>
-                )}
+                    {/* Local */}
+                    <div className={cn("w-28 sm:w-44 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative", isVideoOff && "bg-surface")}>
+                        <video ref={myVideoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover scale-x-[-1]", isVideoOff && "opacity-0")} />
+                        {isVideoOff && <div className="absolute inset-0 flex items-center justify-center"><VideoOff className="w-5 h-5 text-text-muted/30" /></div>}
+                        <div className="absolute bottom-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-gold font-semibold tracking-wider uppercase">Sen</div>
+                    </div>
+                </div>
 
                 {/* ═══ RIGHT DRAWER (Client Profile + Actions + Logs) ═══ */}
                 <div className={cn(
@@ -878,49 +871,44 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 )}
 
                 {/* ═══ BOTTOM TOOLBAR ═══ */}
-                <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 glass rounded-xl sm:rounded-2xl">
+                <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 glass rounded-xl sm:rounded-2xl">
+
+                    {/* === UNIVERSAL CONTROLS (everyone sees these) === */}
+                    <button onClick={toggleMute} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isMuted ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isMuted ? 'Ses Aç' : 'Sessize Al'}>
+                        {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
+                    <button onClick={toggleVideo} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoOff ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isVideoOff ? 'Kamera Aç' : 'Kamera Kapat'}>
+                        {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title="Kamera Görüntüsü">
+                        {isVideoBarVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => setIsChatOpen(!isChatOpen)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all relative", isChatOpen ? "text-gold bg-gold-dim" : "text-text-muted hover:text-gold hover:bg-gold-dim")} title="Sohbet">
+                        <MessageCircle className="w-4 h-4" />
+                        {messages.length > 0 && !isChatOpen && <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-gold rounded-full animate-pulse" />}
+                    </button>
+                    <button onClick={toggleFullscreen} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Tam Ekran">
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </button>
+
+                    {/* === CONSULTANT ACTIONS === */}
                     {isConsultant && (
                         <>
+                            <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
                             <button
                                 onClick={handleDealPackage}
                                 disabled={!clientProfile}
-                                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]"
+                                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]"
                             >
-                                <Sparkles className="w-4 h-4 text-amber-300" />
-                                <span className="hidden sm:inline">Paketi Dağıt</span>
-                                <span className="sm:hidden">Dağıt</span>
+                                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                <span className="hidden sm:inline">Dağıt</span>
                             </button>
                             <button onClick={handleDrawCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Kart Çek">
                                 <PlusSquare className="w-4 h-4" />
                             </button>
-                            <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
-                        </>
-                    )}
-
-                    <button
-                        onClick={() => setIsChatOpen(!isChatOpen)}
-                        className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-gold hover:bg-gold-dim transition-all relative"
-                        title="Sohbet"
-                    >
-                        <MessageCircle className="w-4 h-4" />
-                        {messages.length > 0 && <div className="absolute top-1 right-1 w-2 h-2 bg-gold rounded-full animate-pulse" />}
-                    </button>
-
-                    {isConsultant && (
-                        <>
-                            <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
-                            {/* Mobile-only extra tools */}
-                            <div className="flex md:hidden items-center gap-0.5">
-                                <button onClick={toggleAmbient} className={cn("p-2 rounded-lg transition-colors", isAmbientOn ? "text-accent" : "text-text-muted hover:text-accent")} title="Ortam Sesi">
-                                    {isAmbientOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                                </button>
-                                <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className="p-2 rounded-lg text-text-muted hover:text-accent transition-colors" title="Video">
-                                    {isVideoBarVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                </button>
-                            </div>
                             <button onClick={copyShareLink} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all relative" title="Davet Linki">
                                 <Share2 className="w-4 h-4" />
-                                {linkCopied && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full" />}
+                                {linkCopied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full" />}
                             </button>
                             <button onClick={handleClearTable} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-danger hover:bg-danger/10 transition-all" title="Temizle">
                                 <Trash2 className="w-4 h-4" />
