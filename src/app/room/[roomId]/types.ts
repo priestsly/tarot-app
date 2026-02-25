@@ -17,14 +17,3 @@ export interface ChatMessage {
     audioUrl?: string;
     timestamp: string;
 }
-
-export interface CardState {
-    id: string;
-    name: string;
-    x: number;
-    y: number;
-    rotation: number;
-    isFlipped: boolean;
-    zIndex: number;
-    imageUrl?: string;
-}

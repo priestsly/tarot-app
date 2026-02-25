@@ -809,61 +809,24 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     ))}
                 </div>
 
-                {/* ═══ TOP BAR ═══ */}
-                <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
-                    {/* Left: Exit & Room ID */}
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setShowExitModal(true)} className="glass rounded-xl px-2 sm:px-3 py-2 flex items-center text-text-muted hover:text-danger transition-colors group" title="Odadan Çık">
-                            <ArrowLeft className="w-4 h-4" />
-                        </button>
-                        <button onClick={copyRoomId} className="glass rounded-xl px-3 sm:px-4 py-2 flex items-center gap-2 hover:border-accent/30 transition-all group" title="Oda ID kopyala">
-                            <span className="text-[10px] text-text-muted font-mono tracking-wider uppercase">Oda: <span className="text-text group-hover:text-accent transition-colors">{roomId}</span></span>
-                            <Copy className="w-3 h-3 text-text-muted group-hover:text-accent transition-colors" />
-                        </button>
-                        {copied && <span className="text-[10px] text-accent font-semibold animate-pulse">Kopyalandı!</span>}
-                    </div>
-
-                    {/* Center: Timer + Status + Card count */}
-                    <div className="glass rounded-full px-3 sm:px-5 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3">
-                        <div className="hidden sm:flex items-center gap-1.5">
-                            <Clock className="w-3 h-3 text-text-muted/50" />
-                            <span className="text-[10px] text-text-muted font-mono tracking-wider">{elapsed}</span>
-                            <div className="w-px h-3 bg-border ml-1" />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${remotePeerId ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
-                            <span className="text-[9px] text-text-muted font-mono tracking-wider uppercase">{remotePeerId ? 'Bağlı' : 'Bekliyor'}</span>
-                        </div>
-                        <div className="w-px h-3 bg-border" />
-                        <span className="text-[10px] text-text font-bold tracking-widest uppercase">{cards.length}</span>
-                    </div>
-
-                    {/* Right: Tools — hide extras on mobile */}
-                    <div className="flex items-center gap-1">
-                        {/* Desktop-only tools */}
-                        <div className="hidden md:flex items-center gap-1">
-                            {isConsultant && (
-                                <button onClick={copyShareLink} className="glass rounded-xl px-3 py-2 flex items-center gap-1.5 text-text-muted hover:text-accent transition-colors" title="Müşteri davet linki kopyala">
-                                    <Share2 className="w-3.5 h-3.5" />
-                                    <span className="text-[9px] font-semibold tracking-wider uppercase">{linkCopied ? 'Kopyalandı!' : 'Davet'}</span>
-                                </button>
-                            )}
-                            <button onClick={toggleAmbient} className={cn("glass rounded-xl p-2.5 transition-colors", isAmbientOn ? "text-accent" : "text-text-muted hover:text-accent")} title={isAmbientOn ? "Sesi Kapat" : "Ortam Sesi"}>
-                                {isAmbientOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                            </button>
-                            <button onClick={captureScreenshot} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Ekran Görüntüsü">
-                                <Camera className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Video">
-                                {isVideoBarVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                        </div>
-                        {/* Always visible: panel toggle */}
-                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="glass rounded-xl p-2 sm:p-2.5 text-text-muted hover:text-accent transition-colors">
-                            {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-                        </button>
-                    </div>
-                </div>
+                {/* ═══ TOP BAR COMPONENT ═══ */}
+                <TopBar
+                    roomId={roomId}
+                    elapsed={elapsed}
+                    cardsCount={cards.length}
+                    remotePeerId={remotePeerId}
+                    isConsultant={isConsultant}
+                    isAmbientOn={isAmbientOn}
+                    copied={copied}
+                    linkCopied={linkCopied}
+                    isSidebarOpen={isSidebarOpen}
+                    copyRoomId={copyRoomId}
+                    copyShareLink={copyShareLink}
+                    toggleAmbient={toggleAmbient}
+                    captureScreenshot={captureScreenshot}
+                    setIsSidebarOpen={setIsSidebarOpen}
+                    setShowExitModal={setShowExitModal}
+                />
 
                 {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
                 <div className={cn(
@@ -887,157 +850,44 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     </div>
                 </div>
 
-                {/* ═══ RIGHT DRAWER (Client Profile + Actions + Logs) ═══ */}
-                <div className={cn(
-                    "absolute top-16 right-4 z-30 w-72 max-h-[calc(100vh-130px)] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden transition-all duration-500 ease-out",
-                    isSidebarOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8 pointer-events-none"
-                )} style={{ top: isVideoBarVisible ? 'calc(16px + 16rem)' : '64px' }}>
-                    <div className="p-5 space-y-4 flex-1 overflow-y-auto">
-                        {/* Client Profile */}
-                        {isConsultant && clientProfile && (
-                            <div className="bg-accent-dim border border-accent/15 rounded-xl p-4 space-y-2">
-                                <h3 className="text-[10px] text-accent tracking-[0.15em] uppercase font-bold">Müşteri Profili</h3>
-                                <p className="text-base font-bold text-text">{clientProfile.name}</p>
-                                {(clientProfile.birth || clientProfile.time) && (
-                                    <p className="text-xs text-text-muted">{clientProfile.birth} {clientProfile.time}</p>
-                                )}
-                                <div className="pt-2 border-t border-border mt-1">
-                                    <p className="text-xs text-text-muted">Talep: <span className="text-text font-semibold">{clientProfile.cards} Kart</span></p>
-                                </div>
-                            </div>
-                        )}
+                {/* ═══ RIGHT DRAWER COMPONENT ═══ */}
+                <RightSidebar
+                    isSidebarOpen={isSidebarOpen}
+                    isVideoBarVisible={isVideoBarVisible}
+                    isConsultant={isConsultant}
+                    clientProfile={clientProfile}
+                    cards={cards}
+                    logs={logs}
+                    setShowExitModal={setShowExitModal}
+                />
 
-                        {/* Client waiting — only before cards are dealt */}
-                        {!isConsultant && cards.length === 0 && (
-                            <div className="bg-gold-dim border border-gold/15 rounded-xl p-4 text-center">
-                                <Sparkles className="w-5 h-5 text-gold mx-auto mb-2 animate-pulse" />
-                                <p className="text-xs text-text-muted">Danışmanınızın kartları dağıtmasını bekleyin...</p>
-                            </div>
-                        )}
-
-                        {/* Activity Log */}
-                        <div className="pt-3 border-t border-border">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Activity className="w-3.5 h-3.5 text-accent/60" />
-                                <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Akış</span>
-                            </div>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                {logs.slice().reverse().map(log => (
-                                    <div key={log.id} className="text-[10px] leading-relaxed border-l-2 border-accent/20 pl-2.5">
-                                        <span className="text-text-muted/50 block font-mono tracking-wider">{log.timestamp}</span>
-                                        <span className="text-text-muted">{log.message}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Leave Room */}
-                        <div className="p-4 border-t border-border mt-3">
-                            <button
-                                onClick={() => setShowExitModal(true)}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Görüşmeyi Sonlandır
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ═══ FLOATING CHAT ═══ */}
-                {
-                    isChatOpen && (
-                        <div className="absolute bottom-20 sm:bottom-6 left-2 sm:left-4 right-2 sm:right-auto z-40 sm:w-80 max-h-[350px] sm:max-h-[380px] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/40">
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                                <span className="text-xs text-text font-semibold tracking-wider uppercase flex items-center gap-1.5">
-                                    <MessageCircle className="w-3.5 h-3.5 text-accent" />
-                                    Sohbet
-                                </span>
-                                <button onClick={() => setIsChatOpen(false)} className="text-text-muted hover:text-text transition-colors">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[230px]">
-                                {messages.length === 0 && (
-                                    <p className="text-[10px] text-text-muted/40 text-center py-6 tracking-widest uppercase">Henüz mesaj yok...</p>
-                                )}
-                                {messages.slice(-20).map(msg => {
-                                    const isMine = (isConsultant && msg.sender === 'Consultant') || (!isConsultant && msg.sender === 'Client');
-                                    const label = isMine ? 'Sen' : (msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri'));
-                                    return (
-                                        <div key={msg.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-                                            <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{label}</span>
-                                            <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${isMine
-                                                ? "bg-accent/20 text-text rounded-tr-sm"
-                                                : "bg-surface border border-border text-text rounded-tl-sm"
-                                                }`}>
-                                                {msg.audioUrl ? (
-                                                    <audio controls src={msg.audioUrl} className="max-w-full sm:max-w-[200px] h-8" />
-                                                ) : (
-                                                    msg.text
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                <div ref={messagesEndRef} />
-                            </div>
-                            {remoteTyping && (
-                                <div className="px-5 pb-2">
-                                    <span className="text-[10px] text-text-muted/60 italic animate-pulse">Karşı taraf yazıyor...</span>
-                                </div>
-                            )}
-                            <form onSubmit={handleSendMessage} className="relative flex items-center gap-2 p-3 border-t border-border">
-                                {showEmojiPicker && (
-                                    <div className="absolute bottom-14 left-0">
-                                        <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} />
-                                    </div>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className="p-2 rounded-lg text-text-muted hover:text-accent hover:bg-accent/20 transition-all"
-                                >
-                                    <Smile className="w-4 h-4" />
-                                </button>
-                                <input
-                                    type="text"
-                                    value={chatInput}
-                                    onChange={handleTyping}
-                                    placeholder="Mesaj yazın..."
-                                    autoFocus
-                                    className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all placeholder:text-text-muted/40"
-                                />
-                                {!chatInput.trim() ? (
-                                    <button
-                                        type="button"
-                                        onPointerDown={startRecording}
-                                        onPointerUp={stopRecording}
-                                        onPointerLeave={stopRecording}
-                                        onContextMenu={e => e.preventDefault()}
-                                        className={cn("p-2 rounded-full transition-all touch-none select-none", isRecording ? "bg-danger text-white scale-110 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse" : "bg-accent/10 text-accent hover:bg-accent/20")}
-                                    >
-                                        <Mic className="w-4 h-4" />
-                                    </button>
-                                ) : (
-                                    <button type="submit" className="p-2 rounded-full bg-accent text-white hover:bg-accent-hover transition-all">
-                                        <Send className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </form>
-                        </div>
-                    )
-                }
+                {/* ═══ FLOATING CHAT COMPONENT ═══ */}
+                <ChatPanel
+                    isChatOpen={isChatOpen}
+                    setIsChatOpen={setIsChatOpen}
+                    messages={messages}
+                    isConsultant={isConsultant}
+                    clientProfile={clientProfile}
+                    remoteTyping={remoteTyping}
+                    chatInput={chatInput}
+                    handleTyping={handleTyping}
+                    handleSendMessage={handleSendMessage}
+                    showEmojiPicker={showEmojiPicker}
+                    setShowEmojiPicker={setShowEmojiPicker}
+                    onEmojiClick={onEmojiClick}
+                    startRecording={startRecording}
+                    stopRecording={stopRecording}
+                    isRecording={isRecording}
+                    messagesEndRef={messagesEndRef}
+                />
 
                 {/* ═══ LIVE MESSAGE TOAST ═══ */}
-                {
-                    toastMsg && (
-                        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-[#1a1825]/95 border border-border rounded-2xl px-4 py-3 max-w-[80vw] sm:max-w-sm shadow-xl shadow-black/30 animate-pulse pointer-events-none">
-                            <span className="text-[10px] text-accent font-bold uppercase tracking-wider block mb-0.5">{toastMsg.sender}</span>
-                            <span className="text-sm text-text">{toastMsg.text}</span>
-                        </div>
-                    )
-                }
+                {toastMsg && (
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-[#1a1825]/95 border border-border rounded-2xl px-4 py-3 max-w-[80vw] sm:max-w-sm shadow-xl shadow-black/30 animate-pulse pointer-events-none">
+                        <span className="text-[10px] text-accent font-bold uppercase tracking-wider block mb-0.5">{toastMsg.sender}</span>
+                        <span className="text-sm text-text">{toastMsg.text}</span>
+                    </div>
+                )}
 
                 {/* ═══ CARD INFO PANEL (consultant only) ═══ */}
                 {

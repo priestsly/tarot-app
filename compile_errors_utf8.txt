@@ -1,0 +1,2 @@
+﻿src/app/room/[roomId]/page.tsx(859,21): error TS2322: Type 'import("C:/Users/sLyGhosT/tarot/src/components/TarotCard").CardState[]' is not assignable to type 'import("C:/Users/sLyGhosT/tarot/src/app/room/[roomId]/types").CardState[]'.
+  Type 'CardState' is missing the following properties from type 'CardState': name, rotation

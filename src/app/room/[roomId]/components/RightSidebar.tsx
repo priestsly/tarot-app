@@ -1,6 +1,6 @@
 import { Sparkles, Activity, LogOut } from 'lucide-react';
 import { cn } from '../page';
-import { CardState } from '../types';
+import { CardState } from '@/components/TarotCard';
 
 interface RightSidebarProps {
     isSidebarOpen: boolean;
