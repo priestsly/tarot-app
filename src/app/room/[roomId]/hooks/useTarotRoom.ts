@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
 import { ActivityLog, CursorData, ChatMessage } from "../types";
@@ -95,6 +96,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
+    const toggleVideoBar = () => setIsVideoBarVisible(prev => !prev);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
 
     // Exit Modal
@@ -173,6 +175,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     // ── Share Link ──
     const [linkCopied, setLinkCopied] = useState(false);
+
+    // Aura Color based on focus or birth
+    const auraColor = useMemo(() => {
+        const focus = clientProfile?.focus || searchParams.get('focus') || '';
+        if (focus === 'Aşk') return 'rgba(232, 124, 124, 0.15)'; // Pinkish
+        if (focus === 'Para') return 'rgba(212, 185, 106, 0.15)'; // Gold
+        if (focus === 'Kariyer') return 'rgba(124, 184, 232, 0.15)'; // Blue
+        if (focus === 'Ruhsal') return 'rgba(184, 164, 232, 0.15)'; // Purple
+        return 'rgba(184, 164, 232, 0.12)'; // Default Purple
+    }, [clientProfile?.focus, searchParams]);
+
     const copyShareLink = () => {
         const url = `${window.location.origin}/?room=${roomId}`;
         navigator.clipboard.writeText(url);
@@ -251,57 +264,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     useEffect(() => {
-        // 1. Initialize Socket
-        socket = io();
+        // 1. Initialize Socket - only once
+        if (!socket) {
+            socket = io();
+        }
 
-        // Helper: Initialize PeerJS and setup event listeners once we have a stream (real or dummy)
-        const initPeerAndJoin = (mediaStream: MediaStream) => {
-            peerRef.current = new Peer({
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' }
-                    ]
-                }
-            });
-
-            peerRef.current.on('open', (id) => {
-                setMyPeerId(id);
-                console.log('My peer ID is: ' + id);
-                socket.emit("join-room", roomId, id);
-            });
-
-            // Answer incoming calls
-            peerRef.current.on('call', call => {
-                call.answer(mediaStream);
-                call.on('stream', remoteStream => {
-                    console.log("Received remote stream (answering)", remoteStream.id);
-                    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
-                        remoteVideoRef.current.srcObject = remoteStream;
-                        remoteVideoRef.current.onloadedmetadata = () => {
-                            remoteVideoRef.current?.play().catch(e => {
-                                console.error("Play error:", e);
-                                if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
-                                    // Browser blocked autoplay (likely because it has audio and user hasn't interacted).
-                                    // Mute it temporarily to force video playback, user can unmute later.
-                                    remoteVideoRef.current.muted = true;
-                                    remoteVideoRef.current.play().catch(console.error);
-                                }
-                            });
-                        };
-                    }
-                });
-            });
-
-            // Listen for new users connecting
-            socket.on("user-connected", (userId: string) => {
-                console.log("User connected:", userId);
-                setRemotePeerId(userId);
-                connectToNewUser(userId, mediaStream);
-            });
-        };
-
-        // 2. Setup User Media (Camera/Mic) FIRST
+        // 2. Setup User Media (Camera/Mic)
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
             audio: true
@@ -315,9 +283,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             })
             .catch(err => {
                 console.error("Failed to get local stream", err);
-
-                // Fallback: Create a dummy stream with a black canvas and silent audio.
-                // This forces PeerJS to negotiate WebRTC video/audio tracks in the SDP so it can still RECEIVE video from others!
                 try {
                     const canvas = document.createElement("canvas");
                     canvas.width = 640;
@@ -327,33 +292,76 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         ctx.fillStyle = "black";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                     }
-                    const videoStream = (canvas as any).captureStream(1); // 1 FPS
-
+                    const videoStream = (canvas as any).captureStream(1);
                     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
                     const destNode = audioCtx.createMediaStreamDestination();
-
                     const dummyStream = new MediaStream([
                         ...videoStream.getVideoTracks(),
                         ...destNode.stream.getAudioTracks()
                     ]);
-
-                    // Disable tracks so they send black/silent frames instead of nonsense
                     dummyStream.getTracks().forEach(t => t.enabled = false);
                     streamRef.current = dummyStream;
-
                     initPeerAndJoin(dummyStream);
                 } catch (fallbackErr) {
-                    console.error("Fallback dummy stream creation failed", fallbackErr);
                     initPeerAndJoin(new MediaStream());
                 }
             });
 
-        // Handle user disconnect
+        function initPeerAndJoin(mediaStream: MediaStream) {
+            peerRef.current = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+
+            peerRef.current.on('open', (id) => {
+                setMyPeerId(id);
+                socket.emit("join-room", roomId, id);
+            });
+
+            peerRef.current.on('call', call => {
+                call.answer(mediaStream);
+                call.on('stream', remoteStream => {
+                    if (remoteVideoRef.current) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.onloadedmetadata = () => {
+                            remoteVideoRef.current?.play().catch(() => {
+                                if (remoteVideoRef.current) remoteVideoRef.current.muted = true;
+                                remoteVideoRef.current?.play().catch(console.error);
+                            });
+                        };
+                    }
+                });
+            });
+
+            socket.on("user-connected", (userId: string) => {
+                setRemotePeerId(userId);
+                connectToNewUser(userId, mediaStream);
+            });
+        }
+
+        function connectToNewUser(userId: string, stream: MediaStream) {
+            if (!peerRef.current || !stream) return;
+            const call = peerRef.current.call(userId, stream);
+            call.on('stream', remoteStream => {
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = remoteStream;
+                    remoteVideoRef.current.onloadedmetadata = () => {
+                        remoteVideoRef.current?.play().catch(() => {
+                            if (remoteVideoRef.current) remoteVideoRef.current.muted = true;
+                            remoteVideoRef.current?.play().catch(console.error);
+                        });
+                    };
+                }
+            });
+        }
+
+        // SYNC Listeners
         socket.on("user-disconnected", (userId: string) => {
-            console.log("User disconnected:", userId);
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = null;
-            }
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
             setRemotePeerId("");
             setCursors(prev => {
                 const next = { ...prev };
@@ -362,14 +370,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         });
 
-        // ========== PREMIUM FEATURES SYNC ==========
-        socket.on("sync-logs", (serverLogs: ActivityLog[]) => {
-            if (serverLogs) setLogs(serverLogs);
-        });
-
-        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => {
-            if (serverMsgs) setMessages(serverMsgs);
-        });
+        socket.on("sync-logs", (serverLogs: ActivityLog[]) => { if (serverLogs) setLogs(serverLogs); });
+        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => { if (serverMsgs) setMessages(serverMsgs); });
 
         socket.on("chat-message", (msg: ChatMessage) => {
             setMessages(prev => {
@@ -377,11 +379,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (newMsgs.length > 100) newMsgs.shift();
                 return newMsgs;
             });
-            // Notification sound
             playNotifSound();
-            // Live toast
-            const senderLabel = msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri');
-            setToastMsg({ text: msg.text || "🎤 Sesli Mesaj", sender: senderLabel });
+            setToastMsg({ text: msg.text || "🎤 Sesli Mesaj", sender: msg.sender === 'Consultant' ? 'Danışman' : 'Müşteri' });
             if (toastTimeout.current) clearTimeout(toastTimeout.current);
             toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
         });
@@ -394,15 +393,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         });
 
-        socket.on("user-typing", (isTyping: boolean) => {
-            setRemoteTyping(isTyping);
-        });
-
-        socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
+        socket.on("user-typing", (isTyping: boolean) => setRemoteTyping(isTyping));
+        socket.on("cursor-move", (cursorData: any) => {
             setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
         });
 
-        // ========== TAROT STATE SYNC ==========
         socket.on("sync-state", (serverCards: CardState[]) => {
             setCards(serverCards);
             const topZ = Math.max(0, ...serverCards.map(c => c.zIndex));
@@ -410,41 +405,36 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         });
 
         socket.on("card-added", (newCard: CardState) => {
-            setCards(prev => {
-                // Prevent duplicate adds if we emitted it ourselves
-                if (prev.some(c => c.id === newCard.id)) return prev;
-                return [...prev, newCard];
-            });
+            setCards(prev => prev.some(c => c.id === newCard.id) ? prev : [...prev, newCard]);
             setMaxZIndex(prev => Math.max(prev, newCard.zIndex + 1));
         });
 
         socket.on("card-updated", (updatedCard: CardState) => {
             setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
-            setMaxZIndex(prev => Math.max(prev, updatedCard.zIndex + 1));
         });
 
         socket.on("card-flipped", (cardId: string, isReversed: boolean, isFlipped: boolean) => {
-            setCards(prev => prev.map(c =>
-                c.id === cardId ? { ...c, isReversed, isFlipped } : c
-            ));
+            setCards(prev => prev.map(c => c.id === cardId ? { ...c, isReversed, isFlipped } : c));
         });
 
-        // ========== CLIENT PROFILE SYNC ==========
-        socket.on("sync-client-profile", (profile: any) => {
-            if (profile) setClientProfile(profile);
-        });
-
-        socket.on("client-profile-updated", (profile: any) => {
-            setClientProfile(profile);
-        });
+        socket.on("sync-client-profile", (profile: any) => { if (profile) setClientProfile(profile); });
+        socket.on("client-profile-updated", (profile: any) => setClientProfile(profile));
 
         return () => {
-            socket.disconnect();
-            peerRef.current?.destroy();
-            const tracks = streamRef.current?.getTracks();
-            tracks?.forEach(track => track.stop());
+            socket.off("user-connected");
+            socket.off("user-disconnected");
+            socket.off("chat-message");
+            socket.off("activity-log");
+            socket.off("user-typing");
+            socket.off("cursor-move");
+            socket.off("sync-state");
+            socket.off("card-added");
+            socket.off("card-updated");
+            socket.off("card-flipped");
+            socket.off("sync-client-profile");
+            socket.off("client-profile-updated");
         };
-    }, [roomId, clientProfile, playNotifSound]);
+    }, [roomId, playNotifSound]);
 
     function connectToNewUser(userId: string, stream: MediaStream) {
         if (!peerRef.current || !stream) return;
@@ -508,7 +498,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    card: info,
+                    card: { ...info, isReversed: selectedCard?.isReversed },
                     allCards: flippedCards,
                     clientName: clientProfile?.name || "Danışan",
                     focus: clientProfile?.focus || searchParams.get('focus') || ""
@@ -655,6 +645,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const handleDealPackage = useCallback(() => {
         if (!isConsultant) return;
         const count = clientProfile?.cards || 3;
+        const pkgId = clientProfile?.pkgId || 'standard';
         appendLog(`Dealt the ${count}-card package for ${clientProfile?.name || 'the Client'}`);
 
         const usedIndices = new Set<number>();
@@ -664,14 +655,36 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
             usedIndices.add(idx);
 
-            const xPercent = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+            // Positioning logic based on popular spreads
+            let xPos = 50;
+            let yPos = 45;
+
+            if (pkgId === 'standard') {
+                xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+            } else if (pkgId === 'synastry') {
+                // Heart-ish shape or two columns
+                xPos = i < 3 ? 30 : (i < 6 ? 70 : 50);
+                yPos = 30 + (i % 3) * 20;
+            } else if (pkgId === 'celtic') {
+                // Cross + Pillar
+                const crossX = [50, 50, 50, 50, 35, 65];
+                const crossY = [45, 45, 25, 65, 45, 45];
+                const pillarX = [85, 85, 85, 85];
+                const pillarY = [75, 55, 35, 15];
+                if (i < 6) { xPos = crossX[i]; yPos = crossY[i]; }
+                else { xPos = pillarX[i - 6]; yPos = pillarY[i - 6]; }
+            } else {
+                xPos = 15 + (Math.random() * 70);
+                yPos = 20 + (Math.random() * 50);
+            }
+
             spread.push({
                 id: Math.random().toString(36).substring(2, 9),
                 cardIndex: idx,
-                x: xPercent,
-                y: 45 + (Math.random() * 10 - 5),
+                x: xPos,
+                y: yPos,
                 isFlipped: false,
-                isReversed: Math.random() > 0.5,
+                isReversed: Math.random() > 0.3, // 30% chance of being reversed
                 zIndex: maxZIndex + i + 1
             });
         }
@@ -763,7 +776,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
-        linkCopied, isAmbientOn, isFullscreen,
+        linkCopied, isAmbientOn, isFullscreen, auraColor,
 
         // Setters
         setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
@@ -776,6 +789,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, toggleVideoBar
     };
 }

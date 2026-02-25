@@ -30,17 +30,19 @@ export async function POST(req: Request) {
         4. Kartın elementinden ve gizemli enerjisinden bahset. 
         5. Kısa (en fazla 4-5 cümle) ama çok etkileyici konuş.`;
 
+        const orientation = card.isReversed ? "Ters (Reversed)" : "Düz";
         const intentText = body.focus ? `Danışanın Odaklandığı Konu/Niyet: ${body.focus}` : "";
 
         const userPrompt = `Danışan Adı: ${name}
-        Seçilen Kart: ${card.name}
+        Seçilen Kart: ${card.name} (${orientation})
         Element: ${card.element}
         Anahtar Kelimeler: ${card.keywords}
         Anlamı: ${card.meaning}
         ${intentText}
         ${contextText}
         
-        Lütfen yukarıdaki bilgiler ve özellikle danışanın niyeti (eğer belirtilmişse) ışığında, bu kartın ${name} için taşıdığı mesajı mistik ve kusursuz bir Türkçeyle fısılda.`;
+        Lütfen yukarıdaki bilgiler (kartın ${orientation} olması dahil) ve özellikle danışanın niyeti (eğer belirtilmişse) ışığında, bu kartın ${name} için taşıdığı mesajı mistik ve kusursuz bir Türkçeyle fısılda. 
+        Not: Kart ters gelmişse yorumunu bu ters durumun getirdiği engeller veya içsel uyarılar üzerinden şekillendir.`;
 
         const res = await fetch('https://text.pollinations.ai/', {
             method: 'POST',

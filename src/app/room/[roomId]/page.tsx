@@ -1,7 +1,8 @@
 "use client";
 
 import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame } from "lucide-react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Video, VideoOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
@@ -29,7 +30,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
-        linkCopied, isAmbientOn, isFullscreen,
+        linkCopied, isAmbientOn, isFullscreen, auraColor,
 
         // Setters
         setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
@@ -42,7 +43,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, toggleVideoBar
     } = useTarotRoom(roomId, searchParams);
 
     return (
@@ -58,6 +59,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] bg-purple-400/3 rounded-full blur-[220px]" />
                     <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-indigo-400/3 rounded-full blur-[140px]" />
                     <div className="absolute bottom-[15%] right-[15%] w-[250px] h-[250px] bg-amber-300/2 rounded-full blur-[120px]" />
+
+                    {/* Dynamic Aura Glow */}
+                    <motion.div
+                        className="absolute inset-0 transition-colors duration-1000"
+                        style={{ background: `radial-gradient(circle at center, transparent 40%, ${auraColor} 100%)` }}
+                    />
+
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-bg)_80%)]" />
                 </div>
 
@@ -248,6 +256,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     {isConsultant && (
                         <>
                             <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
+                            <button onClick={toggleVideoBar} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent/20" : "text-text-muted hover:text-accent hover:bg-accent/10")} title="Görüntülü Görüşme">
+                                {isVideoBarVisible ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+                            </button>
                             <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                                 <span className="hidden sm:inline">Dağıt</span>
