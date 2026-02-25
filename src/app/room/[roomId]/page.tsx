@@ -1,7 +1,7 @@
 "use client";
 
 import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2 } from "lucide-react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
@@ -40,7 +40,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         // Handlers
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
-        handleDrawCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
+        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
     } = useTarotRoom(roomId, searchParams);
 
@@ -250,6 +250,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </button>
                             <button onClick={handleDrawCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Kart Çek">
                                 <PlusSquare className="w-4 h-4" />
+                            </button>
+                            <button onClick={handleDrawRumiCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-all font-heading text-xs uppercase" title="Rumi Kartı Çek">
+                                <Feather className="w-4 h-4" />
                             </button>
                             <button onClick={copyShareLink} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all relative" title="Davet Linki">
                                 <Share2 className="w-4 h-4" />

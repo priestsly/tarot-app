@@ -625,6 +625,25 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         socket.emit("add-card", roomId, newCard);
     };
 
+    const handleDrawRumiCard = () => {
+        appendLog("Rumi destesinden bir kart çekti");
+        const newCard: CardState = {
+            id: Math.random().toString(36).substring(2, 9),
+            cardIndex: Math.floor(Math.random() * 78), // 0-77
+            deckType: 'rumi',
+            x: 50, // Bottom center dealing
+            y: 80 + Math.random() * 5, // Slight jitter
+            isFlipped: false,
+            isReversed: false,
+            zIndex: maxZIndex
+        };
+        setMaxZIndex(prev => prev + 1);
+
+        // Optimistic update
+        setCards(prev => [...prev, newCard]);
+        socket.emit("add-card", roomId, newCard);
+    };
+
     const handleDealPackage = useCallback(() => {
         if (!isConsultant) return;
         const count = clientProfile?.cards || 3;
@@ -747,7 +766,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // Handlers
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
-        handleDrawCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
+        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
     };
 }

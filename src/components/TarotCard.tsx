@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useRef, useState, useCallback } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Feather } from "lucide-react";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -12,6 +13,7 @@ function cn(...inputs: ClassValue[]) {
 export interface CardState {
     id: string;
     cardIndex: number;
+    deckType?: 'tarot' | 'rumi';
     x: number;       // percentage 0-100
     y: number;       // percentage 0-100
     isFlipped: boolean;
@@ -184,6 +186,8 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         }
     }, [card.id, card.isFlipped, card.isReversed, onFlipEnd]);
 
+    const isRumi = card.deckType === 'rumi';
+
     return (
         <motion.div
             onPointerDown={handlePointerDown}
@@ -225,49 +229,91 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 className="absolute inset-0 rounded-xl shadow-2xl backface-hidden border border-purple-500/20 overflow-hidden"
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
-                {/* Full-bleed card image */}
-                <img
-                    src={getCardImage(card.cardIndex)}
-                    alt={getCardName(card.cardIndex)}
-                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
-                    draggable={false}
-                />
-
-                {/* Bottom gradient overlay for name + badge */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
-                    <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
-                        {getCardName(card.cardIndex)}
-                    </span>
-                    <div className={cn(
-                        "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
-                        "text-purple-300 border-purple-400/50 bg-purple-500/20"
-                    )}>
-                        Düz
+                {isRumi ? (
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-950 via-red-950 to-orange-950 flex flex-col items-center justify-center p-2 border-2 border-amber-600/30">
+                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500 via-transparent to-transparent" />
+                        <span className="text-amber-500/40 mb-3">
+                            <Feather className="w-10 h-10" />
+                        </span>
+                        <h3 className="text-amber-400/80 font-heading text-xs uppercase tracking-[0.2em] mb-2 border-b border-amber-500/20 pb-1 w-3/4 text-center z-10">
+                            Rumi
+                        </h3>
+                        <p className="text-amber-100 text-[13px] text-center font-bold z-10 px-1 leading-tight">
+                            {getCardName(card.cardIndex)}
+                        </p>
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10">
+                            <div className={cn(
+                                "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border shadow-lg",
+                                "text-amber-300 border-amber-400/50 bg-amber-900/80 backdrop-blur-sm"
+                            )}>
+                                Düz
+                            </div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Full-bleed card image */}
+                        <img
+                            src={getCardImage(card.cardIndex)}
+                            alt={getCardName(card.cardIndex)}
+                            className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                            draggable={false}
+                        />
+
+                        {/* Bottom gradient overlay for name + badge */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
+                            <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                                {getCardName(card.cardIndex)}
+                            </span>
+                            <div className={cn(
+                                "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
+                                "text-purple-300 border-purple-400/50 bg-purple-500/20"
+                            )}>
+                                Düz
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Back of Card (shown initially) */}
             <div
-                className="absolute inset-0 rounded-xl bg-gradient-to-b from-purple-900 to-indigo-950 shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center justify-center p-1.5 border-2 border-amber-500/30 backface-hidden overflow-hidden"
+                className={cn("absolute inset-0 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center justify-center p-1.5 border-2 backface-hidden overflow-hidden",
+                    isRumi ? "bg-gradient-to-b from-red-950 to-orange-950 border-amber-600/40" : "bg-gradient-to-b from-purple-900 to-indigo-950 border-amber-500/30")}
                 style={{ backfaceVisibility: "hidden" }}
             >
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay pointer-events-none" />
 
-                <div className="w-full h-full border border-amber-500/20 rounded-lg flex items-center justify-center relative bg-gradient-to-br from-purple-950 to-midnight overflow-hidden shadow-inner">
-                    <div className="w-24 h-24 bg-gradient-to-tr from-amber-500/20 to-purple-500/30 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none" />
+                <div className={cn("w-full h-full border rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner",
+                    isRumi ? "border-amber-500/30 bg-gradient-to-br from-red-950 to-midnight" : "border-amber-500/20 bg-gradient-to-br from-purple-950 to-midnight")}>
 
-                    <svg viewBox="0 0 100 100" className="w-[85%] h-[85%] text-amber-300 opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">
-                        <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
-                        <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
-                        <path fill="currentColor" opacity="0.9" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
-                        <path fill="none" stroke="currentColor" strokeWidth="0.5" d="M25 40 L40 30 L50 45 L35 65 L25 40" opacity="0.6" />
-                        <circle fill="currentColor" cx="25" cy="40" r="1.5" />
-                        <circle fill="currentColor" cx="40" cy="30" r="1" />
-                        <circle fill="currentColor" cx="50" cy="45" r="2" />
-                        <circle fill="currentColor" cx="35" cy="65" r="1.5" />
-                        <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.8" transform="scale(0.5) translate(70, 0)" />
-                        <path fill="currentColor" d="M30 70 L32 75 L37 77 L32 79 L30 84 L28 79 L23 77 L28 75 Z" opacity="0.6" transform="scale(0.4) translate(30, 80)" />
+                    <div className={cn("w-24 h-24 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none",
+                        isRumi ? "bg-gradient-to-tr from-amber-600/30 to-red-600/30" : "bg-gradient-to-tr from-amber-500/20 to-purple-500/30")} />
+
+                    <svg viewBox="0 0 100 100" className={cn("w-[85%] h-[85%] opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]",
+                        isRumi ? "text-amber-400" : "text-amber-300")}>
+                        {isRumi ? (
+                            <g>
+                                <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" opacity="0.8" />
+                                <circle fill="none" stroke="currentColor" strokeWidth="1" cx="50" cy="50" r="32" opacity="0.4" strokeDasharray="1 2" />
+                                <path fill="currentColor" d="M50 15 L55 35 L75 30 L60 45 L70 65 L50 55 L30 65 L40 45 L25 30 L45 35 Z" opacity="0.2" />
+                                <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="15" opacity="0.6" />
+                                <circle fill="currentColor" cx="50" cy="50" r="3" opacity="0.8" />
+                            </g>
+                        ) : (
+                            <g>
+                                <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" />
+                                <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="42" strokeDasharray="2 4" opacity="0.5" />
+                                <path fill="currentColor" opacity="0.9" d="M60 25 A 25 25 0 1 0 75 70 A 30 30 0 1 1 60 25 Z" />
+                                <path fill="none" stroke="currentColor" strokeWidth="0.5" d="M25 40 L40 30 L50 45 L35 65 L25 40" opacity="0.6" />
+                                <circle fill="currentColor" cx="25" cy="40" r="1.5" />
+                                <circle fill="currentColor" cx="40" cy="30" r="1" />
+                                <circle fill="currentColor" cx="50" cy="45" r="2" />
+                                <circle fill="currentColor" cx="35" cy="65" r="1.5" />
+                                <path fill="currentColor" d="M70 30 L72 35 L77 37 L72 39 L70 44 L68 39 L63 37 L68 35 Z" opacity="0.8" transform="scale(0.5) translate(70, 0)" />
+                                <path fill="currentColor" d="M30 70 L32 75 L37 77 L32 79 L30 84 L28 79 L23 77 L28 75 Z" opacity="0.6" transform="scale(0.4) translate(30, 80)" />
+                            </g>
+                        )}
                     </svg>
 
                     <div className="absolute inset-1.5 border border-amber-400/10 rounded-md pointer-events-none" />
