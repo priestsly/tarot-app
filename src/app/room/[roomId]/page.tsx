@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
 import TarotCard, { CardState } from "@/components/TarotCard";
+import { getCardMeaning } from "@/lib/cardData";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -107,38 +108,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         setTimeout(() => setLinkCopied(false), 2500);
     };
 
-    // ── Major Arcana Meanings ──
-    const CARD_MEANINGS: Record<number, { upright: string; reversed: string }> = {
-        0: { upright: "Yeni başlangıçlar, spontanlık, özgür ruh", reversed: "Dikkatsizlik, risk almaktan kaçınma" },
-        1: { upright: "İrade gücü, yaratıcılık, beceri", reversed: "Manipülasyon, beceriksizlik" },
-        2: { upright: "Sezgi, gizem, bilinçaltı bilgelik", reversed: "Bastırılmış duygular, gizli gündem" },
-        3: { upright: "Bereket, annelik, doğa ile bağ", reversed: "Bağımlılık, yaratıcı tıkanıklık" },
-        4: { upright: "Otorite, yapı, liderlik", reversed: "Tiranlık, katılık, kontrol kaybı" },
-        5: { upright: "Gelenek, ruhani rehberlik, ahlak", reversed: "İsyankarlık, dogmaya meydan okuma" },
-        6: { upright: "Aşk, uyum, ilişkiler, seçimler", reversed: "Dengesizlik, yanlış hizalanma" },
-        7: { upright: "Azim, zafer, irade gücü", reversed: "Yön kaybı, saldırganlık" },
-        8: { upright: "Cesaret, sabır, içsel güç", reversed: "Öz şüphe, zayıflık" },
-        9: { upright: "İçsel arayış, yalnızlık, bilgelik", reversed: "İzolasyon, yalnızlık korkusu" },
-        10: { upright: "Kader, dönüm noktası, şans", reversed: "Kötü şans, direniş, değişim korkusu" },
-        11: { upright: "Adalet, denge, doğruluk", reversed: "Adaletsizlik, dürüst olmayan davranış" },
-        12: { upright: "Fedakarlık, yeni bakış açısı, bırakma", reversed: "Erteleme, gereksiz fedakarlık" },
-        13: { upright: "Dönüşüm, son ve başlangıç", reversed: "Değişime direnç, durgunluk" },
-        14: { upright: "Denge, ölçülülük, sabır", reversed: "Aşırılık, dengesizlik, sabırsızlık" },
-        15: { upright: "Bağımlılık, maddecilik, gölge ben", reversed: "Özgürleşme, bağlardan kurtulma" },
-        16: { upright: "Ani değişim, yıkım ve yeniden yapılanma", reversed: "Kaçınma, değişim korkusu" },
-        17: { upright: "Umut, ilham, huzur", reversed: "Umutsuzluk, kopukluk" },
-        18: { upright: "İllüzyon, korku, bilinçaltı", reversed: "Korkuların üstesinden gelme, netlik" },
-        19: { upright: "Mutluluk, başarı, canlılık", reversed: "Geçici mutsuzluk, aşırı iyimserlik" },
-        20: { upright: "Yargı, uyanış, iç çağrı", reversed: "Öz eleştiri, fırsatları kaçırma" },
-        21: { upright: "Tamamlanma, bütünlük, başarı", reversed: "Tamamlanmamışlık, kapanış eksikliği" },
-    };
-    const getCardMeaning = (cardIndex: number, isReversed: boolean) => {
-        const majorIndex = cardIndex < 22 ? cardIndex : null;
-        if (majorIndex !== null && CARD_MEANINGS[majorIndex]) {
-            return isReversed ? CARD_MEANINGS[majorIndex].reversed : CARD_MEANINGS[majorIndex].upright;
-        }
-        return isReversed ? "Bu kart ters konumda. Enerjisi bloke veya gecikmiş olabilir." : "Bu kart düz konumda. Enerjisi doğrudan etkili.";
-    };
+    // ── Card meanings imported from separate file ──
+    // (see src/lib/cardData.ts for full 78-card database)
 
     // ── Screenshot ──
     const captureScreenshot = async () => {
@@ -729,7 +700,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
                 {/* ═══ RIGHT DRAWER (Client Profile + Actions + Logs) ═══ */}
                 <div className={cn(
-                    "absolute top-16 right-4 z-30 w-72 max-h-[calc(100vh-130px)] glass rounded-2xl flex flex-col overflow-hidden transition-all duration-500 ease-out",
+                    "absolute top-16 right-4 z-30 w-72 max-h-[calc(100vh-130px)] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden transition-all duration-500 ease-out",
                     isSidebarOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8 pointer-events-none"
                 )} style={{ top: isVideoBarVisible ? 'calc(16px + 16rem)' : '64px' }}>
                     <div className="p-5 space-y-4 flex-1 overflow-y-auto">
@@ -811,7 +782,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
                 {/* ═══ FLOATING CHAT ═══ */}
                 {isChatOpen && (
-                    <div className="absolute bottom-20 sm:bottom-6 left-2 sm:left-4 right-2 sm:right-auto z-40 sm:w-80 max-h-[350px] sm:max-h-[380px] glass rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/30">
+                    <div className="absolute bottom-20 sm:bottom-6 left-2 sm:left-4 right-2 sm:right-auto z-40 sm:w-80 max-h-[350px] sm:max-h-[380px] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/40">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                             <span className="text-xs text-text font-semibold tracking-wider uppercase flex items-center gap-1.5">
                                 <MessageCircle className="w-3.5 h-3.5 text-accent" />
@@ -828,8 +799,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             )}
                             {messages.slice(-20).map(msg => (
                                 <div key={msg.id} className={`flex flex-col ${msg.sender === "Seeker" ? "items-end" : "items-start"}`}>
-                                    <span className="text-[9px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{msg.sender === "Seeker" ? "Sen" : "Danışman"}</span>
-                                    <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-xs leading-relaxed ${msg.sender === "Seeker"
+                                    <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{msg.sender === "Seeker" ? "Sen" : "Danışman"}</span>
+                                    <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${msg.sender === "Seeker"
                                         ? "bg-accent/20 text-text rounded-tr-sm"
                                         : "bg-surface border border-border text-text rounded-tl-sm"
                                         }`}>
@@ -860,27 +831,30 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     </div>
                 )}
 
-                {/* ═══ CARD INFO PANEL (when a flipped card is selected) ═══ */}
-                {selectedCard && selectedCard.isFlipped && (
-                    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 glass rounded-2xl p-4 w-80 max-w-[calc(100vw-2rem)] shadow-xl shadow-black/20">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Info className="w-3.5 h-3.5 text-accent shrink-0" />
-                                    <span className="text-[10px] text-accent font-bold tracking-[0.15em] uppercase">
-                                        {selectedCard.isReversed ? 'Ters' : 'Düz'} Konum
-                                    </span>
+                {/* ═══ CARD INFO PANEL (consultant only, when a flipped card is selected) ═══ */}
+                {isConsultant && selectedCard && selectedCard.isFlipped && (() => {
+                    const info = getCardMeaning(selectedCard.cardIndex);
+                    return (
+                        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#1a1825] border border-border rounded-2xl p-4 w-80 max-w-[calc(100vw-2rem)] shadow-xl shadow-black/40">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <Info className="w-3.5 h-3.5 text-accent shrink-0" />
+                                        <span className="text-sm text-text font-heading font-bold">{info.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-bold uppercase tracking-wider">{info.element}</span>
+                                        <span className="text-[10px] text-text-muted">{info.keywords}</span>
+                                    </div>
+                                    <p className="text-sm text-text leading-relaxed">{info.meaning}</p>
                                 </div>
-                                <p className="text-sm text-text leading-relaxed">
-                                    {getCardMeaning(selectedCard.cardIndex, selectedCard.isReversed)}
-                                </p>
+                                <button onClick={() => setSelectedCardId(null)} className="text-text-muted hover:text-text transition-colors shrink-0 mt-0.5">
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                            <button onClick={() => setSelectedCardId(null)} className="text-text-muted hover:text-text transition-colors shrink-0 mt-0.5">
-                                <X className="w-4 h-4" />
-                            </button>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
                 {/* ═══ FULLSCREEN REMOTE VIDEO OVERLAY ═══ */}
                 {remoteFullscreen && (
                     <div className="fixed inset-0 z-50 bg-black flex flex-col">

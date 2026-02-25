@@ -30,20 +30,20 @@ interface TarotCardProps {
 
 const getCardName = (index: number) => {
     const majorArcana = [
-        "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
-        "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
-        "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
-        "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
-        "Judgement", "The World"
+        "Deli", "Büyücü", "Başrahibe", "İmparatoriçe", "İmparator",
+        "Başkeşiş", "Âşıklar", "Savaş Arabası", "Güç", "Ermiş",
+        "Kader Çarkı", "Adalet", "Asılan Adam", "Ölüm", "Denge",
+        "Şeytan", "Kule", "Yıldız", "Ay", "Güneş",
+        "Mahkeme", "Dünya"
     ];
     if (index < majorArcana.length) return majorArcana[index];
 
     const minorIndex = index - 22;
     const suit = Math.floor(minorIndex / 14);
     const rank = (minorIndex % 14) + 1;
-    const suits = ["Cups", "Pentacles", "Swords", "Wands"];
-    const ranks = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Page", "Knight", "Queen", "King"];
-    return `${ranks[rank - 1]} of ${suits[suit]}`;
+    const suits = ["Kupa", "Tılsım", "Kılıç", "Asa"];
+    const ranks = ["As", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz", "On", "Şövalye", "Süvari", "Kraliçe", "Kral"];
+    return `${suits[suit]} ${ranks[rank - 1]}`;
 };
 
 const getCardImage = (index: number): string => {
@@ -66,9 +66,9 @@ const getCardImage = (index: number): string => {
     return `/Cards/${suitNames[suit]}${paddedRank}.jpg`;
 };
 
-// Card dimensions
-const CARD_W = 144; // w-36
-const CARD_H = 224; // h-56
+// Card dimensions — responsive
+const CARD_W = typeof window !== 'undefined' && window.innerWidth < 640 ? 108 : 144;
+const CARD_H = typeof window !== 'undefined' && window.innerWidth < 640 ? 168 : 224;
 
 export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, isLocal, constraintsRef }: TarotCardProps) {
     // Local drag offset in pixels (resets to 0 when not dragging)
@@ -176,9 +176,8 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
             Math.abs(e.clientX - prev.x) < 30 &&
             Math.abs(e.clientY - prev.y) < 30
         ) {
-            // Double-tap detected → flip card
-            const newReversed = card.isFlipped ? card.isReversed : Math.random() > 0.5;
-            onFlipEnd(card.id, newReversed, !card.isFlipped);
+            // Double-tap detected → flip card (never reverse)
+            onFlipEnd(card.id, false, !card.isFlipped);
             lastTap.current = { time: 0, x: 0, y: 0 }; // reset to prevent triple-tap
         } else {
             lastTap.current = { time: now, x: e.clientX, y: e.clientY };
@@ -209,7 +208,9 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateY: { duration: 0.8, ease: "easeInOut" },
                 rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
-            className="w-36 h-56 rounded-xl select-none touch-none"
+            className={cn("rounded-xl select-none touch-none",
+                typeof window !== 'undefined' && window.innerWidth < 640 ? "w-[108px] h-[168px]" : "w-36 h-56"
+            )}
             style={{
                 position: 'absolute',
                 left: `calc(${card.x}% - ${CARD_W / 2}px + ${dragOffset.x}px)`,
@@ -239,11 +240,9 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                     </span>
                     <div className={cn(
                         "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
-                        card.isReversed
-                            ? "text-amber-300 border-amber-400/50 bg-amber-500/20"
-                            : "text-purple-300 border-purple-400/50 bg-purple-500/20"
+                        "text-purple-300 border-purple-400/50 bg-purple-500/20"
                     )}>
-                        {card.isReversed ? "Reversed" : "Upright"}
+                        Düz
                     </div>
                 </div>
             </div>
