@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Camera, Volume2, VolumeX, LogOut, Maximize } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Camera, Volume2, VolumeX, LogOut, Maximize, Wand2, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -46,8 +46,35 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const [chatInput, setChatInput] = useState("");
     const [isChatOpen, setIsChatOpen] = useState(false);
 
+    // Toast message (live stream style)
+    const [toastMsg, setToastMsg] = useState<{ text: string; sender: string } | null>(null);
+    const toastTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // AI Interpretation
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiResponse, setAiResponse] = useState("");
+
     const lastCursorEmit = useRef<number>(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Notification beep
+    const playNotifSound = useCallback(() => {
+        try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+            setTimeout(() => ctx.close(), 500);
+        } catch { }
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -308,6 +335,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 if (newMsgs.length > 100) newMsgs.shift();
                 return newMsgs;
             });
+            // Notification sound
+            playNotifSound();
+            // Live toast
+            const senderLabel = msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri');
+            setToastMsg({ text: msg.text, sender: senderLabel });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
         });
 
         socket.on("activity-log", (logEntry: ActivityLog) => {
@@ -416,6 +450,31 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
             }
         }
     };
+    // ========== AI INTERPRETATION ==========
+    const handleAiInterpret = async (cardIndex: number) => {
+        if (aiLoading) return;
+        setAiLoading(true);
+        setAiResponse("");
+        try {
+            const info = getCardMeaning(cardIndex);
+            const flippedCards = cards.filter(c => c.isFlipped).map(c => getCardMeaning(c.cardIndex).name);
+            const res = await fetch("/api/interpret", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    card: info,
+                    allCards: flippedCards,
+                    clientName: clientProfile?.name || "Danışan"
+                })
+            });
+            const data = await res.json();
+            setAiResponse(data.interpretation || "Yorum alınamadı.");
+        } catch {
+            setAiResponse("AI yorumu şu an kullanılamıyor.");
+        } finally {
+            setAiLoading(false);
+        }
+    };
 
     // ========== TAROT INTERACTIONS ==========
 
@@ -431,7 +490,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
         const msg: ChatMessage = {
             id: Math.random().toString(36).substring(2, 9),
-            sender: "Seeker",
+            sender: isConsultant ? "Consultant" : "Client",
             text: chatInput.trim(),
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
@@ -690,11 +749,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <Maximize className="w-5 h-5 text-white/70" />
                         </div>
                     </div>
-                    {/* Local */}
-                    <div className={cn("w-28 sm:w-44 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative", isVideoOff && "bg-surface")}>
-                        <video ref={myVideoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover scale-x-[-1]", isVideoOff && "opacity-0")} />
-                        {isVideoOff && <div className="absolute inset-0 flex items-center justify-center"><VideoOff className="w-5 h-5 text-text-muted/30" /></div>}
-                        <div className="absolute bottom-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-gold font-semibold tracking-wider uppercase">Sen</div>
+                    {/* Local — hidden from self, still streams to remote */}
+                    <div className="hidden">
+                        <video ref={myVideoRef} autoPlay playsInline muted />
                     </div>
                 </div>
 
@@ -737,46 +794,42 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                     {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                                     {isMuted ? 'Kapalı' : 'Mikrofon'}
                                 </button>
-                                <button onClick={toggleVideo} className={cn("flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-[0.98]", isVideoOff ? "bg-danger/15 text-danger border border-danger/20" : "glass text-text-muted hover:text-accent")}>
-                                    {isVideoOff ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
-                                    {isVideoOff ? 'Kapalı' : 'Kamera'}
-                                </button>
                                 <button onClick={() => setRemoteFullscreen(true)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 glass rounded-xl text-text-muted hover:text-accent text-xs font-semibold tracking-wide transition-all active:scale-[0.98]">
                                     <Maximize className="w-3.5 h-3.5" /> Tam Ekran
                                 </button>
-                                <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-[0.98]", isVideoBarVisible ? "glass text-accent" : "glass text-text-muted hover:text-accent")}>
+                                <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-[0.98] col-span-2", isVideoBarVisible ? "glass text-accent" : "glass text-text-muted hover:text-accent")}>
                                     {isVideoBarVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                                    {isVideoBarVisible ? 'Görünür' : 'Gizli'}
+                                    {isVideoBarVisible ? 'Video Görünür' : 'Video Gizli'}
                                 </button>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Activity Log */}
-                        <div className="pt-3 border-t border-border">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Activity className="w-3.5 h-3.5 text-accent/60" />
-                                <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Akış</span>
-                            </div>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                {logs.slice().reverse().map(log => (
-                                    <div key={log.id} className="text-[10px] leading-relaxed border-l-2 border-accent/20 pl-2.5">
-                                        <span className="text-text-muted/50 block font-mono tracking-wider">{log.timestamp}</span>
-                                        <span className="text-text-muted">{log.message}</span>
-                                    </div>
-                                ))}
-                            </div>
+                    {/* Activity Log */}
+                    <div className="pt-3 border-t border-border">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Activity className="w-3.5 h-3.5 text-accent/60" />
+                            <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Akış</span>
                         </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            {logs.slice().reverse().map(log => (
+                                <div key={log.id} className="text-[10px] leading-relaxed border-l-2 border-accent/20 pl-2.5">
+                                    <span className="text-text-muted/50 block font-mono tracking-wider">{log.timestamp}</span>
+                                    <span className="text-text-muted">{log.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
-                        {/* Leave Room */}
-                        <div className="pt-4 border-t border-border">
-                            <button
-                                onClick={() => router.push("/")}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Kanaldan Çık
-                            </button>
-                        </div>
+                    {/* Leave Room */}
+                    <div className="pt-4 border-t border-border">
+                        <button
+                            onClick={() => router.push("/")}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Kanaldan Çık
+                        </button>
                     </div>
                 </div>
 
@@ -792,25 +845,27 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
-
                         <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[230px]">
                             {messages.length === 0 && (
                                 <p className="text-[10px] text-text-muted/40 text-center py-6 tracking-widest uppercase">Henüz mesaj yok...</p>
                             )}
-                            {messages.slice(-20).map(msg => (
-                                <div key={msg.id} className={`flex flex-col ${msg.sender === "Seeker" ? "items-end" : "items-start"}`}>
-                                    <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{msg.sender === "Seeker" ? "Sen" : "Danışman"}</span>
-                                    <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${msg.sender === "Seeker"
-                                        ? "bg-accent/20 text-text rounded-tr-sm"
-                                        : "bg-surface border border-border text-text rounded-tl-sm"
-                                        }`}>
-                                        {msg.text}
+                            {messages.slice(-20).map(msg => {
+                                const isMine = (isConsultant && msg.sender === 'Consultant') || (!isConsultant && msg.sender === 'Client');
+                                const label = isMine ? 'Sen' : (msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri'));
+                                return (
+                                    <div key={msg.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                                        <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{label}</span>
+                                        <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${isMine
+                                            ? "bg-accent/20 text-text rounded-tr-sm"
+                                            : "bg-surface border border-border text-text rounded-tl-sm"
+                                            }`}>
+                                            {msg.text}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             <div ref={messagesEndRef} />
                         </div>
-
                         <form onSubmit={handleSendMessage} className="flex items-center gap-2 p-3 border-t border-border">
                             <input
                                 type="text"
@@ -820,98 +875,88 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 autoFocus
                                 className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all placeholder:text-text-muted/40"
                             />
-                            <button
-                                type="submit"
-                                disabled={!chatInput.trim()}
-                                className="p-2 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-30 transition-all"
-                            >
+                            <button type="submit" disabled={!chatInput.trim()} className="p-2 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-30 transition-all">
                                 <Send className="w-4 h-4" />
                             </button>
                         </form>
                     </div>
-                )}
+                )
+                }
 
-                {/* ═══ CARD INFO PANEL (consultant only, when a flipped card is selected) ═══ */}
-                {isConsultant && selectedCard && selectedCard.isFlipped && (() => {
-                    const info = getCardMeaning(selectedCard.cardIndex);
-                    return (
-                        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#1a1825] border border-border rounded-2xl p-4 w-80 max-w-[calc(100vw-2rem)] shadow-xl shadow-black/40">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                        <Info className="w-3.5 h-3.5 text-accent shrink-0" />
-                                        <span className="text-sm text-text font-heading font-bold">{info.name}</span>
+                {/* ═══ LIVE MESSAGE TOAST ═══ */}
+                {
+                    toastMsg && (
+                        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-[#1a1825]/95 border border-border rounded-2xl px-4 py-3 max-w-[80vw] sm:max-w-sm shadow-xl shadow-black/30 animate-pulse pointer-events-none">
+                            <span className="text-[10px] text-accent font-bold uppercase tracking-wider block mb-0.5">{toastMsg.sender}</span>
+                            <span className="text-sm text-text">{toastMsg.text}</span>
+                        </div>
+                    )
+                }
+
+                {/* ═══ CARD INFO PANEL (consultant only) ═══ */}
+                {
+                    isConsultant && selectedCard && selectedCard.isFlipped && (() => {
+                        const info = getCardMeaning(selectedCard.cardIndex);
+                        return (
+                            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#1a1825] border border-border rounded-2xl p-4 w-[28rem] max-w-[calc(100vw-2rem)] max-h-[55vh] sm:max-h-[65vh] overflow-y-auto shadow-2xl shadow-black/50">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Info className="w-4 h-4 text-accent shrink-0" />
+                                            <span className="text-base text-text font-heading font-bold">{info.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-bold uppercase tracking-wider">{info.element}</span>
+                                            <span className="text-xs text-text-muted">{info.keywords}</span>
+                                        </div>
+                                        <p className="text-base text-text/90 leading-relaxed mb-4">{info.meaning}</p>
+                                        <button onClick={() => handleAiInterpret(selectedCard.cardIndex)} disabled={aiLoading} className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-xl text-sm text-purple-200 font-semibold transition-all active:scale-[0.98] disabled:opacity-50 mt-2">
+                                            {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                                            {aiLoading ? 'Yorumlanıyor, ruhlara fısıldanıyor...' : 'Mistik AI ile Yorumla'}
+                                        </button>
+                                        {aiResponse && (
+                                            <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl bg-gradient-to-b from-purple-500/5 to-transparent">
+                                                <div className="flex items-center gap-1.5 mb-2">
+                                                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                                                    <span className="text-[10px] text-purple-400 font-bold uppercase tracking-widest">Mistik AI Yorumu</span>
+                                                </div>
+                                                <p className="text-[15px] sm:text-base text-text/95 leading-[1.6] whitespace-pre-line tracking-wide drop-shadow-sm">{aiResponse}</p>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-bold uppercase tracking-wider">{info.element}</span>
-                                        <span className="text-[10px] text-text-muted">{info.keywords}</span>
-                                    </div>
-                                    <p className="text-sm text-text leading-relaxed">{info.meaning}</p>
+                                    <button onClick={() => { setSelectedCardId(null); setAiResponse(""); }} className="text-text-muted hover:text-text hover:bg-white/5 p-1.5 rounded-lg transition-colors shrink-0">
+                                        <X className="w-5 h-5" />
+                                    </button>
                                 </div>
-                                <button onClick={() => setSelectedCardId(null)} className="text-text-muted hover:text-text transition-colors shrink-0 mt-0.5">
-                                    <X className="w-4 h-4" />
+                            </div>
+                        );
+                    })()
+                }
+
+                {/* ═══ FULLSCREEN REMOTE VIDEO OVERLAY ═══ */}
+                {
+                    remoteFullscreen && (
+                        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+                            <video autoPlay playsInline className="flex-1 w-full h-full object-cover" ref={(el) => { if (el && remoteVideoRef.current?.srcObject) { el.srcObject = remoteVideoRef.current.srcObject; } }} />
+                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 p-2 glass rounded-2xl">
+                                <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all", isMuted ? "bg-danger/30 text-danger" : "bg-white/10 text-white hover:bg-white/20")}>
+                                    {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                                </button>
+                                <button onClick={() => setRemoteFullscreen(false)} className="p-3 rounded-xl bg-danger/30 text-danger hover:bg-danger/50 transition-all">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
+                            <div className="absolute top-4 left-4 glass rounded-xl px-4 py-2 flex items-center gap-3">
+                                <Clock className="w-3.5 h-3.5 text-text-muted/50" />
+                                <span className="text-xs text-text-muted font-mono">{elapsed}</span>
+                                {clientProfile && <span className="text-xs text-text font-semibold">{clientProfile.name}</span>}
+                            </div>
                         </div>
-                    );
-                })()}
-                {/* ═══ FULLSCREEN REMOTE VIDEO OVERLAY ═══ */}
-                {remoteFullscreen && (
-                    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-                        <video
-                            autoPlay playsInline
-                            className="flex-1 w-full h-full object-cover"
-                            ref={(el) => {
-                                if (el && remoteVideoRef.current?.srcObject) {
-                                    el.srcObject = remoteVideoRef.current.srcObject;
-                                }
-                            }}
-                        />
-                        {/* Local PiP in fullscreen */}
-                        <div className="absolute top-4 right-4 w-24 sm:w-32 aspect-video rounded-xl overflow-hidden glass shadow-xl shadow-black/50">
-                            <video
-                                autoPlay playsInline muted
-                                className={cn("w-full h-full object-cover scale-x-[-1]", isVideoOff && "opacity-0")}
-                                ref={(el) => {
-                                    if (el && myVideoRef.current?.srcObject) {
-                                        el.srcObject = myVideoRef.current.srcObject;
-                                    }
-                                }}
-                            />
-                            {isVideoOff && <div className="absolute inset-0 flex items-center justify-center bg-surface"><VideoOff className="w-4 h-4 text-text-muted/30" /></div>}
-                        </div>
-                        {/* Controls */}
-                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 p-2 glass rounded-2xl">
-                            <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all", isMuted ? "bg-danger/30 text-danger" : "bg-white/10 text-white hover:bg-white/20")}>
-                                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                            </button>
-                            <button onClick={toggleVideo} className={cn("p-3 rounded-xl transition-all", isVideoOff ? "bg-danger/30 text-danger" : "bg-white/10 text-white hover:bg-white/20")}>
-                                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                            </button>
-                            <button onClick={() => setRemoteFullscreen(false)} className="p-3 rounded-xl bg-danger/30 text-danger hover:bg-danger/50 transition-all">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        {/* Timer + Name */}
-                        <div className="absolute top-4 left-4 glass rounded-xl px-4 py-2 flex items-center gap-3">
-                            <Clock className="w-3.5 h-3.5 text-text-muted/50" />
-                            <span className="text-xs text-text-muted font-mono">{elapsed}</span>
-                            {clientProfile && <span className="text-xs text-text font-semibold">{clientProfile.name}</span>}
-                        </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* ═══ BOTTOM TOOLBAR ═══ */}
                 <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 glass rounded-xl sm:rounded-2xl">
-
-                    {/* === UNIVERSAL CONTROLS (everyone sees these) === */}
-                    {/* Kamera aç/kapat — şimdilik gizli */}
-                    {/* <button onClick={toggleMute} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isMuted ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isMuted ? 'Ses Aç' : 'Sessize Al'}>
-                        {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    </button>
-                    <button onClick={toggleVideo} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoOff ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isVideoOff ? 'Kamera Aç' : 'Kamera Kapat'}>
-                        {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                    </button> */}
                     <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title="Kamera Görüntüsü">
                         {isVideoBarVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>
@@ -924,11 +969,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     {isConsultant && (
                         <>
                             <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
-                            <button
-                                onClick={handleDealPackage}
-                                disabled={!clientProfile}
-                                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]"
-                            >
+                            <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                                 <span className="hidden sm:inline">Dağıt</span>
                             </button>
@@ -945,8 +986,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         </>
                     )}
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
 
