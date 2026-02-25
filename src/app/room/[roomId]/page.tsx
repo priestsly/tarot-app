@@ -39,7 +39,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     // Premium UI State
     interface ActivityLog { id: string; message: string; timestamp: string; userId: string; }
     interface CursorData { x: number; y: number; }
-    interface ChatMessage { id: string; sender: string; text: string; timestamp: string; }
+    interface ChatMessage { id: string; sender: string; text?: string; audioUrl?: string; timestamp: string; }
 
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [cursors, setCursors] = useState<Record<string, CursorData>>({});
@@ -108,6 +108,14 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
 
+    // Exit Modal
+    const [showExitModal, setShowExitModal] = useState(false);
+
+    // Chat Voice Message State
+    const [isRecording, setIsRecording] = useState(false);
+    const [voiceRecorder, setVoiceRecorder] = useState<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+
     // Chat Enhanced State
     const [isTyping, setIsTyping] = useState(false);
     const [remoteTyping, setRemoteTyping] = useState(false);
@@ -117,16 +125,42 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     // Prevent Mobile Back Button Exit
     useEffect(() => {
         const handlePopState = (e: PopStateEvent) => {
-            const leave = window.confirm("Gerçekten odadan çıkmak istiyor musunuz?");
-            if (!leave) {
-                window.history.pushState(null, '', window.location.href);
-            } else {
-                window.location.href = "/";
-            }
+            setShowExitModal(true);
+            window.history.pushState(null, '', window.location.href);
         };
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Hold A for 5 seconds to show/hide Camera
+    useEffect(() => {
+        let timer: any = null;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'a') {
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+                if (!timer) {
+                    timer = setTimeout(() => {
+                        setIsVideoBarVisible(v => !v);
+                        timer = null;
+                    }, 5000);
+                }
+            }
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'a' && timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            if (timer) clearTimeout(timer);
+        };
     }, []);
 
     const tableRef = useRef<HTMLDivElement>(null);
@@ -361,7 +395,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
             playNotifSound();
             // Live toast
             const senderLabel = msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri');
-            setToastMsg({ text: msg.text, sender: senderLabel });
+            setToastMsg({ text: msg.text || "🎤 Sesli Mesaj", sender: senderLabel });
             if (toastTimeout.current) clearTimeout(toastTimeout.current);
             toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
         });
@@ -521,6 +555,53 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
             setIsTyping(false);
             socket.emit("typing", roomId, false);
         }, 2000);
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = e => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+            recorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                audioChunksRef.current = [];
+
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result as string;
+                    sendVoiceMessage(base64Audio);
+                };
+                stream.getTracks().forEach(track => track.stop());
+            };
+            audioChunksRef.current = [];
+            recorder.start();
+            setVoiceRecorder(recorder);
+            setIsRecording(true);
+        } catch (err) {
+            console.error("Microphone access denied", err);
+        }
+    };
+
+    const stopRecording = () => {
+        if (voiceRecorder && isRecording) {
+            voiceRecorder.stop();
+            setIsRecording(false);
+            setVoiceRecorder(null);
+        }
+    };
+
+    const sendVoiceMessage = (base64Audio: string) => {
+        const msg: ChatMessage = {
+            id: Math.random().toString(36).substring(2, 9),
+            sender: isConsultant ? "Consultant" : "Client",
+            audioUrl: base64Audio,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, msg]);
+        socket.emit("chat-message", roomId, msg);
     };
 
     const handleSendMessage = (e: React.FormEvent) => {
@@ -729,8 +810,11 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
                 {/* ═══ TOP BAR ═══ */}
                 <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
-                    {/* Left: Room ID */}
+                    {/* Left: Exit & Room ID */}
                     <div className="flex items-center gap-2">
+                        <button onClick={() => setShowExitModal(true)} className="glass rounded-xl px-2 sm:px-3 py-2 flex items-center text-text-muted hover:text-danger transition-colors group" title="Odadan Çık">
+                            <ArrowLeft className="w-4 h-4" />
+                        </button>
                         <button onClick={copyRoomId} className="glass rounded-xl px-3 sm:px-4 py-2 flex items-center gap-2 hover:border-accent/30 transition-all group" title="Oda ID kopyala">
                             <span className="text-[10px] text-text-muted font-mono tracking-wider uppercase">Oda: <span className="text-text group-hover:text-accent transition-colors">{roomId}</span></span>
                             <Copy className="w-3 h-3 text-text-muted group-hover:text-accent transition-colors" />
@@ -830,121 +914,119 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </div>
                         )}
 
-                        {/* Media Controls */}
+                        {/* Activity Log */}
                         <div className="pt-3 border-t border-border">
                             <div className="flex items-center gap-2 mb-3">
-                                <Video className="w-3.5 h-3.5 text-accent/60" />
-                                <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Medya</span>
+                                <Activity className="w-3.5 h-3.5 text-accent/60" />
+                                <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Akış</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button onClick={toggleMute} className={cn("flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-[0.98]", isMuted ? "bg-danger/15 text-danger border border-danger/20" : "glass text-text-muted hover:text-accent")}>
-                                    {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                                    {isMuted ? 'Kapalı' : 'Mikrofon'}
-                                </button>
-                                <button onClick={() => setRemoteFullscreen(true)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 glass rounded-xl text-text-muted hover:text-accent text-xs font-semibold tracking-wide transition-all active:scale-[0.98]">
-                                    <Maximize className="w-3.5 h-3.5" /> Tam Ekran
-                                </button>
-                                <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-[0.98] col-span-2", isVideoBarVisible ? "glass text-accent" : "glass text-text-muted hover:text-accent")}>
-                                    {isVideoBarVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                                    {isVideoBarVisible ? 'Video Görünür' : 'Video Gizli'}
-                                </button>
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {logs.slice().reverse().map(log => (
+                                    <div key={log.id} className="text-[10px] leading-relaxed border-l-2 border-accent/20 pl-2.5">
+                                        <span className="text-text-muted/50 block font-mono tracking-wider">{log.timestamp}</span>
+                                        <span className="text-text-muted">{log.message}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Activity Log */}
-                    <div className="pt-3 border-t border-border">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Activity className="w-3.5 h-3.5 text-accent/60" />
-                            <span className="text-[10px] text-accent/60 font-bold tracking-[0.15em] uppercase">Akış</span>
+                        {/* Leave Room */}
+                        <div className="p-4 border-t border-border mt-3">
+                            <button
+                                onClick={() => setShowExitModal(true)}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Görüşmeyi Sonlandır
+                            </button>
                         </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                            {logs.slice().reverse().map(log => (
-                                <div key={log.id} className="text-[10px] leading-relaxed border-l-2 border-accent/20 pl-2.5">
-                                    <span className="text-text-muted/50 block font-mono tracking-wider">{log.timestamp}</span>
-                                    <span className="text-text-muted">{log.message}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Leave Room */}
-                    <div className="pt-4 border-t border-border">
-                        <button
-                            onClick={() => router.push("/")}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            Kanaldan Çık
-                        </button>
                     </div>
                 </div>
 
                 {/* ═══ FLOATING CHAT ═══ */}
-                {isChatOpen && (
-                    <div className="absolute bottom-20 sm:bottom-6 left-2 sm:left-4 right-2 sm:right-auto z-40 sm:w-80 max-h-[350px] sm:max-h-[380px] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/40">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                            <span className="text-xs text-text font-semibold tracking-wider uppercase flex items-center gap-1.5">
-                                <MessageCircle className="w-3.5 h-3.5 text-accent" />
-                                Sohbet
-                            </span>
-                            <button onClick={() => setIsChatOpen(false)} className="text-text-muted hover:text-text transition-colors">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[230px]">
-                            {messages.length === 0 && (
-                                <p className="text-[10px] text-text-muted/40 text-center py-6 tracking-widest uppercase">Henüz mesaj yok...</p>
-                            )}
-                            {messages.slice(-20).map(msg => {
-                                const isMine = (isConsultant && msg.sender === 'Consultant') || (!isConsultant && msg.sender === 'Client');
-                                const label = isMine ? 'Sen' : (msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri'));
-                                return (
-                                    <div key={msg.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-                                        <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{label}</span>
-                                        <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${isMine
-                                            ? "bg-accent/20 text-text rounded-tr-sm"
-                                            : "bg-surface border border-border text-text rounded-tl-sm"
-                                            }`}>
-                                            {msg.text}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            <div ref={messagesEndRef} />
-                        </div>
-                        {remoteTyping && (
-                            <div className="px-5 pb-2">
-                                <span className="text-[10px] text-text-muted/60 italic animate-pulse">Karşı taraf yazıyor...</span>
+                {
+                    isChatOpen && (
+                        <div className="absolute bottom-20 sm:bottom-6 left-2 sm:left-4 right-2 sm:right-auto z-40 sm:w-80 max-h-[350px] sm:max-h-[380px] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/40">
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                                <span className="text-xs text-text font-semibold tracking-wider uppercase flex items-center gap-1.5">
+                                    <MessageCircle className="w-3.5 h-3.5 text-accent" />
+                                    Sohbet
+                                </span>
+                                <button onClick={() => setIsChatOpen(false)} className="text-text-muted hover:text-text transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                        )}
-                        <form onSubmit={handleSendMessage} className="relative flex items-center gap-2 p-3 border-t border-border">
-                            {showEmojiPicker && (
-                                <div className="absolute bottom-14 left-0">
-                                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} />
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[230px]">
+                                {messages.length === 0 && (
+                                    <p className="text-[10px] text-text-muted/40 text-center py-6 tracking-widest uppercase">Henüz mesaj yok...</p>
+                                )}
+                                {messages.slice(-20).map(msg => {
+                                    const isMine = (isConsultant && msg.sender === 'Consultant') || (!isConsultant && msg.sender === 'Client');
+                                    const label = isMine ? 'Sen' : (msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri'));
+                                    return (
+                                        <div key={msg.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                                            <span className="text-[10px] font-semibold text-text-muted/60 uppercase tracking-wider mb-0.5 mx-1">{label}</span>
+                                            <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed ${isMine
+                                                ? "bg-accent/20 text-text rounded-tr-sm"
+                                                : "bg-surface border border-border text-text rounded-tl-sm"
+                                                }`}>
+                                                {msg.audioUrl ? (
+                                                    <audio controls src={msg.audioUrl} className="max-w-full sm:max-w-[200px] h-8" />
+                                                ) : (
+                                                    msg.text
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div ref={messagesEndRef} />
+                            </div>
+                            {remoteTyping && (
+                                <div className="px-5 pb-2">
+                                    <span className="text-[10px] text-text-muted/60 italic animate-pulse">Karşı taraf yazıyor...</span>
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="p-2 rounded-lg text-text-muted hover:text-accent hover:bg-accent/20 transition-all"
-                            >
-                                <Smile className="w-4 h-4" />
-                            </button>
-                            <input
-                                type="text"
-                                value={chatInput}
-                                onChange={handleTyping}
-                                placeholder="Mesaj yazın..."
-                                autoFocus
-                                className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all placeholder:text-text-muted/40"
-                            />
-                            <button type="submit" disabled={!chatInput.trim()} className="p-2 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-30 transition-all">
-                                <Send className="w-4 h-4" />
-                            </button>
-                        </form>
-                    </div>
-                )}
+                            <form onSubmit={handleSendMessage} className="relative flex items-center gap-2 p-3 border-t border-border">
+                                {showEmojiPicker && (
+                                    <div className="absolute bottom-14 left-0">
+                                        <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} />
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                    className="p-2 rounded-lg text-text-muted hover:text-accent hover:bg-accent/20 transition-all"
+                                >
+                                    <Smile className="w-4 h-4" />
+                                </button>
+                                <input
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={handleTyping}
+                                    placeholder="Mesaj yazın..."
+                                    autoFocus
+                                    className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all placeholder:text-text-muted/40"
+                                />
+                                {!chatInput.trim() ? (
+                                    <button
+                                        type="button"
+                                        onPointerDown={startRecording}
+                                        onPointerUp={stopRecording}
+                                        onPointerLeave={stopRecording}
+                                        onContextMenu={e => e.preventDefault()}
+                                        className={cn("p-2 rounded-full transition-all touch-none select-none", isRecording ? "bg-danger text-white scale-110 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse" : "bg-accent/10 text-accent hover:bg-accent/20")}
+                                    >
+                                        <Mic className="w-4 h-4" />
+                                    </button>
+                                ) : (
+                                    <button type="submit" className="p-2 rounded-full bg-accent text-white hover:bg-accent-hover transition-all">
+                                        <Send className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </form>
+                        </div>
+                    )
+                }
 
                 {/* ═══ LIVE MESSAGE TOAST ═══ */}
                 {
@@ -1020,9 +1102,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
                 {/* ═══ BOTTOM TOOLBAR ═══ */}
                 <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 glass rounded-xl sm:rounded-2xl">
-                    <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title="Kamera Görüntüsü">
-                        {isVideoBarVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
                     <button onClick={() => setIsChatOpen(!isChatOpen)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all relative", isChatOpen ? "text-gold bg-gold-dim" : "text-text-muted hover:text-gold hover:bg-gold-dim")} title="Sohbet">
                         <MessageCircle className="w-4 h-4" />
                         {messages.length > 0 && !isChatOpen && <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-gold rounded-full animate-pulse" />}
@@ -1049,6 +1128,28 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         </>
                     )}
                 </div>
+
+                {/* ═══ CUSTOM EXIT MODAL ═══ */}
+                {
+                    showExitModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                            <div className="bg-[#1a1825] border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 relative overflow-hidden">
+                                {/* Decorative background glow */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-danger/10 blur-[50px] rounded-full pointer-events-none" />
+
+                                <h3 className="text-xl font-bold text-text mb-2 flex items-center gap-2">
+                                    <LogOut className="w-5 h-5 text-danger" />
+                                    Çıkış Onayı
+                                </h3>
+                                <p className="text-sm text-text-muted leading-relaxed">Gerçekten mistik masadan ayrılmak istiyor musunuz? Ses veya görüntü bağlantısı kesilecektir.</p>
+                                <div className="flex gap-3 pt-5">
+                                    <button onClick={() => setShowExitModal(false)} className="flex-1 py-3 px-4 rounded-xl glass text-text-muted hover:text-text hover:bg-white/5 transition-all text-sm font-semibold border border-transparent hover:border-border">Vazgeç</button>
+                                    <button onClick={() => window.location.href = "/"} className="flex-1 py-3 px-4 rounded-xl bg-danger/90 text-white hover:bg-danger transition-all text-sm font-semibold shadow-[0_4px_14px_0_rgba(239,68,68,0.39)]">Çıkış Yap</button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
             </main >
         </div >
     );
@@ -1061,4 +1162,3 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         </Suspense>
     );
 }
-
