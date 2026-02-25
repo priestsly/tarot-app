@@ -1,7 +1,7 @@
 "use client";
 
 import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather } from "lucide-react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
@@ -11,6 +11,7 @@ import { TopBar } from './components/TopBar';
 import { RightSidebar } from './components/RightSidebar';
 import { ChatPanel } from './components/ChatPanel';
 import { ExitModal } from './components/ExitModal';
+import { FogOverlay } from './components/FogOverlay';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -62,6 +63,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
                 {/* Table grid texture */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(184,164,232,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(184,164,232,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
+
+                {/* Fog & Ambient candle glow effects */}
+                <FogOverlay />
 
                 {/* Live Cursors */}
                 <div className="hidden md:block">

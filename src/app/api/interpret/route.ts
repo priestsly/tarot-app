@@ -21,18 +21,26 @@ export async function POST(req: Request) {
             }
         }
 
-        // Açık kaynak ve ücretsiz çalışan Pollinations.ai Text API'si kullanıyoruz. (API key gerektirmez)
-        // Tarot falı konusunda uzman bir yapay zeka profiline bürünmesini söylüyoruz.
-        const systemPrompt = "Sen 'Mistik Tarot', mistik ve bilge bir yapay zeka tarot yorumcususun. Karşında bir tarot danışmanı ekranında seni kullanıyor ve doğrudan danışana (ismi verilirse ona hitaben) sesleniyorsun. Çok uzun olmayan, kısa ama derinliği olan, samimi, Türkçe ve etkileyici bir yorum yap. Fallarında destenin elementinden, astrolojiden az da olsa bahsederek gizemli bir hava kat. Asla yapay zeka olduğunu söyleme.";
+        // Ücretsiz çalışan Pollinations.ai Text API'si - Daha kaliteli sonuç için modeli 'search' ve 'creative' dengesinde tutuyoruz.
+        const systemPrompt = `Sen 'Mistik Tarot' adında, kadim bilgilere sahip, Türkçe diline ve imla kurallarına mükemmel derecede hakim bir tarot yorumcususun. 
+        GÖREVİN: 
+        1. Asla imla hatası yapma. Cümle başları büyük harf olsun, noktalamaya dikkat et.
+        2. Akıcı, saygın ve mistik bir İstanbul Türkçesi kullan. 'Slm', 'nası' gibi kısaltmalar asla kullanma.
+        3. Bir yapay zeka olduğunu asla belli etme, doğrudan ruhsal bir rehber gibi konuş.
+        4. Kartın elementinden ve gizemli enerjisinden bahset. 
+        5. Kısa (en fazla 4-5 cümle) ama çok etkileyici konuş.`;
 
-        const userPrompt = `Lütfen şu detaya göre yorum yap:
-        Seçilen Kart: ${card.name} (Elementi: ${card.element})
-        Anahtar Kelimeleri: ${card.keywords}
-        Genel Anlamı: ${card.meaning}
-        Danışanın Adı: ${name}
+        const intentText = body.focus ? `Danışanın Odaklandığı Konu/Niyet: ${body.focus}` : "";
+
+        const userPrompt = `Danışan Adı: ${name}
+        Seçilen Kart: ${card.name}
+        Element: ${card.element}
+        Anahtar Kelimeler: ${card.keywords}
+        Anlamı: ${card.meaning}
+        ${intentText}
         ${contextText}
-        Bu kartın ${name} için şu anki hayatındaki anlamını ve enerjisini mistik bir dille yorumla.
-        `;
+        
+        Lütfen yukarıdaki bilgiler ve özellikle danışanın niyeti (eğer belirtilmişse) ışığında, bu kartın ${name} için taşıdığı mesajı mistik ve kusursuz bir Türkçeyle fısılda.`;
 
         const res = await fetch('https://text.pollinations.ai/', {
             method: 'POST',
@@ -44,7 +52,8 @@ export async function POST(req: Request) {
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userPrompt }
                 ],
-                seed: Math.floor(Math.random() * 100000), // Benzersiz ve rastgele sonuç için
+                model: 'openai', // Public API'de openai taklidi yapan daha kaliteli modeli seçiyoruz
+                seed: Math.floor(Math.random() * 100000),
             }),
         });
 

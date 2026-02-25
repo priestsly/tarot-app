@@ -4,6 +4,12 @@ import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // ─── TYPES & DATA ───────────────────────────────────────────────
 
@@ -103,6 +109,7 @@ function HomeContent() {
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [selectedPackage, setSelectedPackage] = useState<string>("");
+  const [readingFocus, setReadingFocus] = useState("");
 
   useEffect(() => {
     if (initialRoom) {
@@ -132,6 +139,7 @@ function HomeContent() {
     if (birthTime) params.set("time", birthTime);
     params.set("pkgId", selectedPackage);
     params.set("cards", String(cardCount));
+    if (readingFocus) params.set("focus", readingFocus);
     router.push(`/room/${roomId}?${params.toString()}`);
   };
 
@@ -139,7 +147,8 @@ function HomeContent() {
   const stepIndex = step === "room_input" ? 0
     : step === "client_step1_name" ? 1
       : step === "client_step2_birth" ? 2
-        : step === "client_step3_package" ? 3 : -1;
+        : step === "client_step3_focus" ? 3
+          : step === "client_step4_package" ? 4 : -1;
 
   // ─── INPUT STYLE ────────────────────────────────────────────────
   const inputClass = "w-full bg-surface border border-border rounded-xl px-5 py-4 text-text placeholder:text-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/20 transition-all text-base";
@@ -273,17 +282,55 @@ function HomeContent() {
           </motion.div>
         )}
 
-        <button onClick={() => setStep("client_step3_package")} disabled={!birthDate} className={btnPrimary + " mt-2"}>
+        <button onClick={() => setStep("client_step3_focus")} disabled={!birthDate} className={btnPrimary + " mt-2"}>
           İleri <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </motion.div>
   );
 
-  // ─── STEP 3: PACKAGE ────────────────────────────────────────────
-  const renderClientStep3 = () => (
-    <motion.div key="client_step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+  // ─── STEP 3: FOCUS / INTENT ──────────────────────────────────────
+  const renderClientStep3Focus = () => (
+    <motion.div key="client_step3_focus" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
       <button onClick={() => setStep("client_step2_birth")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
+      </button>
+      <div className="text-center space-y-2 mb-8">
+        <h2 className="text-2xl font-heading text-text">Niyetiniz Nedir?</h2>
+        <p className="text-sm text-text-muted">Kartların hangi konuya ışık tutmasını istersiniz?</p>
+      </div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          {['Genel', 'Aşk', 'Kariyer', 'Para', 'Sağlık', 'Ruhsal'].map(tag => (
+            <button
+              key={tag}
+              onClick={() => setReadingFocus(tag)}
+              className={cn(
+                "px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all",
+                readingFocus === tag ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-text-muted hover:border-accent/40"
+              )}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={readingFocus}
+          onChange={(e) => setReadingFocus(e.target.value)}
+          placeholder="Veya spesifik bir soru yazın (örn: Bu iş teklifini kabul etmeli miyim?)"
+          className={inputClass + " h-24 resize-none text-sm"}
+        />
+        <button onClick={() => setStep("client_step4_package")} className={btnPrimary}>
+          İleri <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </motion.div>
+  );
+
+  // ─── STEP 4: PACKAGE ────────────────────────────────────────────
+  const renderClientStep4 = () => (
+    <motion.div key="client_step4" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+      <button onClick={() => setStep("client_step3_focus")} className={backBtn}>
         <ArrowLeft className="w-4 h-4" /> Geri
       </button>
       <div className="text-center space-y-2 mb-6">
@@ -333,7 +380,7 @@ function HomeContent() {
     if (stepIndex < 0) return null;
     return (
       <div className="flex justify-center gap-2 mt-8">
-        {[0, 1, 2, 3].map(i => (
+        {[0, 1, 2, 3, 4].map(i => (
           <div
             key={i}
             className={`h-1.5 rounded-full transition-all duration-500 ${i === stepIndex ? "w-8 bg-accent" : i < stepIndex ? "w-3 bg-accent/50" : "w-3 bg-border"
@@ -422,7 +469,8 @@ function HomeContent() {
                 {step === "room_input" && renderRoomInput()}
                 {step === "client_step1_name" && renderClientStep1()}
                 {step === "client_step2_birth" && renderClientStep2()}
-                {step === "client_step3_package" && renderClientStep3()}
+                {step === "client_step3_focus" && renderClientStep3Focus()}
+                {step === "client_step4_package" && renderClientStep4()}
               </AnimatePresence>
             </div>
           </div>

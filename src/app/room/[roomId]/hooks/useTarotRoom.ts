@@ -13,7 +13,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const isConsultant = role === 'consultant';
 
     // Store remote client profile (for the Consultant)
-    const [clientProfile, setClientProfile] = useState<any>(null);
+    const [clientProfile, setClientProfile] = useState<{
+        name: string;
+        birth: string;
+        time: string;
+        pkgId: string;
+        cards: number;
+        focus?: string;
+    } | null>(null);
 
     const [copied, setCopied] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -503,7 +510,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 body: JSON.stringify({
                     card: info,
                     allCards: flippedCards,
-                    clientName: clientProfile?.name || "Danışan"
+                    clientName: clientProfile?.name || "Danışan",
+                    focus: clientProfile?.focus || searchParams.get('focus') || ""
                 })
             });
             const data = await res.json();
@@ -684,6 +692,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     time: searchParams.get('time') || '',
                     pkgId: searchParams.get('pkgId') || '',
                     cards: Number(searchParams.get('cards')) || 0,
+                    focus: searchParams.get('focus') || '',
                 };
                 socket.emit("update-client-profile", roomId, data);
             }
