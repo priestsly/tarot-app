@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Camera, Volume2, VolumeX, LogOut, Maximize, Wand2, Loader2 } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Camera, Volume2, VolumeX, LogOut, Maximize, Wand2, Loader2, Smile } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -9,6 +9,7 @@ import TarotCard, { CardState } from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -104,8 +105,29 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
+
+    // Chat Enhanced State
+    const [isTyping, setIsTyping] = useState(false);
+    const [remoteTyping, setRemoteTyping] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    // Prevent Mobile Back Button Exit
+    useEffect(() => {
+        const handlePopState = (e: PopStateEvent) => {
+            const leave = window.confirm("Gerçekten odadan çıkmak istiyor musunuz?");
+            if (!leave) {
+                window.history.pushState(null, '', window.location.href);
+            } else {
+                window.location.href = "/";
+            }
+        };
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     const tableRef = useRef<HTMLDivElement>(null);
 
@@ -352,6 +374,10 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
             });
         });
 
+        socket.on("user-typing", (isTyping: boolean) => {
+            setRemoteTyping(isTyping);
+        });
+
         socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
             setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
         });
@@ -484,6 +510,19 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         socket.emit("clear-table", roomId);
     };
 
+    const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setChatInput(e.target.value);
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit("typing", roomId, true);
+        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            setIsTyping(false);
+            socket.emit("typing", roomId, false);
+        }, 2000);
+    };
+
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
@@ -498,6 +537,14 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         setMessages(prev => [...prev, msg]);
         socket.emit("chat-message", roomId, msg);
         setChatInput("");
+        setIsTyping(false);
+        socket.emit("typing", roomId, false);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        setShowEmojiPicker(false);
+    };
+
+    const onEmojiClick = (emojiObject: any) => {
+        setChatInput(prev => prev + emojiObject.emoji);
     };
 
     const handleDrawCard = () => {
@@ -866,11 +913,28 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             })}
                             <div ref={messagesEndRef} />
                         </div>
-                        <form onSubmit={handleSendMessage} className="flex items-center gap-2 p-3 border-t border-border">
+                        {remoteTyping && (
+                            <div className="px-5 pb-2">
+                                <span className="text-[10px] text-text-muted/60 italic animate-pulse">Karşı taraf yazıyor...</span>
+                            </div>
+                        )}
+                        <form onSubmit={handleSendMessage} className="relative flex items-center gap-2 p-3 border-t border-border">
+                            {showEmojiPicker && (
+                                <div className="absolute bottom-14 left-0">
+                                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} />
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className="p-2 rounded-lg text-text-muted hover:text-accent hover:bg-accent/20 transition-all"
+                            >
+                                <Smile className="w-4 h-4" />
+                            </button>
                             <input
                                 type="text"
                                 value={chatInput}
-                                onChange={e => setChatInput(e.target.value)}
+                                onChange={handleTyping}
                                 placeholder="Mesaj yazın..."
                                 autoFocus
                                 className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all placeholder:text-text-muted/40"
@@ -880,8 +944,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </button>
                         </form>
                     </div>
-                )
-                }
+                )}
 
                 {/* ═══ LIVE MESSAGE TOAST ═══ */}
                 {

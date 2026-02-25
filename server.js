@@ -119,6 +119,10 @@ app.prepare().then(() => {
     });
 
     // Chat System
+    socket.on("typing", (roomId, isTyping) => {
+      socket.to(roomId).emit("user-typing", isTyping);
+    });
+
     socket.on("chat-message", (roomId, messageData) => {
       const room = rooms.get(roomId);
       if (room) {
