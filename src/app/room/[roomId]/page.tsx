@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Maximize, Minimize, Camera, Volume2, VolumeX } from "lucide-react";
+import { Copy, PlusSquare, ArrowLeft, Mic, MicOff, Video, VideoOff, Menu, X, Sparkles, Activity, MousePointer2, MessageCircle, Send, Trash2, Eye, EyeOff, Link2, Clock, Info, Share2, Camera, Volume2, VolumeX, LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Peer from "peerjs";
@@ -694,9 +694,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <button onClick={captureScreenshot} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Ekran Görüntüsü">
                                 <Camera className="w-4 h-4" />
                             </button>
-                            <button onClick={toggleFullscreen} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Tam Ekran">
-                                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                            </button>
                             <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className="glass rounded-xl p-2.5 text-text-muted hover:text-accent transition-colors" title="Video">
                                 {isVideoBarVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
@@ -749,28 +746,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </div>
                         )}
 
-                        {/* Consultant Actions */}
-                        {isConsultant && (
-                            <div className="space-y-2">
-                                <button
-                                    onClick={handleDealPackage}
-                                    disabled={!clientProfile}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-xl font-semibold text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
-                                >
-                                    <Sparkles className="w-4 h-4 text-amber-300" />
-                                    Paketi Dağıt
-                                </button>
-                                <div className="flex gap-2">
-                                    <button onClick={handleDrawCard} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 glass rounded-xl text-text-muted hover:text-accent text-xs font-semibold tracking-wide transition-all active:scale-[0.98]">
-                                        <PlusSquare className="w-3.5 h-3.5" /> Çek
-                                    </button>
-                                    <button onClick={handleClearTable} className="flex items-center justify-center px-3 py-2.5 glass rounded-xl text-danger/70 hover:text-danger hover:bg-danger/10 transition-all active:scale-[0.98]">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Client waiting */}
                         {!isConsultant && (
                             <div className="bg-gold-dim border border-gold/15 rounded-xl p-4 text-center">
@@ -793,6 +768,17 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+
+                        {/* Leave Room */}
+                        <div className="pt-4 border-t border-border">
+                            <button
+                                onClick={() => router.push("/")}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 glass rounded-xl text-danger/80 hover:text-danger hover:bg-danger/10 text-xs font-semibold tracking-wide transition-all active:scale-[0.98]"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Kanaldan Çık
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -874,21 +860,19 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 glass rounded-xl sm:rounded-2xl">
 
                     {/* === UNIVERSAL CONTROLS (everyone sees these) === */}
-                    <button onClick={toggleMute} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isMuted ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isMuted ? 'Ses Aç' : 'Sessize Al'}>
+                    {/* Kamera aç/kapat — şimdilik gizli */}
+                    {/* <button onClick={toggleMute} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isMuted ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isMuted ? 'Ses Aç' : 'Sessize Al'}>
                         {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                     </button>
                     <button onClick={toggleVideo} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoOff ? "bg-danger/20 text-danger" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title={isVideoOff ? 'Kamera Aç' : 'Kamera Kapat'}>
                         {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                    </button>
+                    </button> */}
                     <button onClick={() => setIsVideoBarVisible(!isVideoBarVisible)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title="Kamera Görüntüsü">
                         {isVideoBarVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>
                     <button onClick={() => setIsChatOpen(!isChatOpen)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all relative", isChatOpen ? "text-gold bg-gold-dim" : "text-text-muted hover:text-gold hover:bg-gold-dim")} title="Sohbet">
                         <MessageCircle className="w-4 h-4" />
                         {messages.length > 0 && !isChatOpen && <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-gold rounded-full animate-pulse" />}
-                    </button>
-                    <button onClick={toggleFullscreen} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Tam Ekran">
-                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                     </button>
 
                     {/* === CONSULTANT ACTIONS === */}
