@@ -1,0 +1,753 @@
+import { useEffect, useState, useRef, useCallback } from "react";
+import { io, Socket } from "socket.io-client";
+import Peer from "peerjs";
+import { ActivityLog, CursorData, ChatMessage } from "../types";
+import { CardState } from "@/components/TarotCard";
+import { getCardMeaning } from "@/lib/cardData";
+
+let socket: Socket;
+
+export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
+    // Role & Client Form Data
+    const role = searchParams.get('role') || 'consultant'; // default to consultant
+    const isConsultant = role === 'consultant';
+
+    // Store remote client profile (for the Consultant)
+    const [clientProfile, setClientProfile] = useState<any>(null);
+
+    const [copied, setCopied] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Real-time State
+    const [cards, setCards] = useState<CardState[]>([]);
+    const [maxZIndex, setMaxZIndex] = useState(1);
+
+    // Premium UI State
+    const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const [cursors, setCursors] = useState<Record<string, CursorData>>({});
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState("");
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
+    // Toast message (live stream style)
+    const [toastMsg, setToastMsg] = useState<{ text: string; sender: string } | null>(null);
+    const toastTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // AI Interpretation
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiResponse, setAiResponse] = useState("");
+
+    const lastCursorEmit = useRef<number>(0);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Notification beep
+    const playNotifSound = useCallback(() => {
+        try {
+            const ctx = new window.AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+            setTimeout(() => ctx.close(), 500);
+        } catch { }
+    }, []);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (isChatOpen) scrollToBottom();
+    }, [messages, isChatOpen]);
+
+    const appendLog = useCallback((message: string) => {
+        const logEntry: ActivityLog = {
+            id: Math.random().toString(36).substring(2, 9),
+            message,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            userId: socket?.id || "Unknown"
+        };
+        socket?.emit("activity-log", roomId, logEntry);
+    }, [roomId]);
+
+    // WebRTC & Audio/Video State
+    const [myPeerId, setMyPeerId] = useState<string>("");
+    const [remotePeerId, setRemotePeerId] = useState<string>("");
+    const myVideoRef = useRef<HTMLVideoElement>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    const [isMuted, setIsMuted] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
+    const [remoteFullscreen, setRemoteFullscreen] = useState(false);
+
+    // Exit Modal
+    const [showExitModal, setShowExitModal] = useState(false);
+
+    // Chat Voice Message State
+    const [isRecording, setIsRecording] = useState(false);
+    const [voiceRecorder, setVoiceRecorder] = useState<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+
+    // Chat Enhanced State
+    const [isTyping, setIsTyping] = useState(false);
+    const [remoteTyping, setRemoteTyping] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    // Prevent Mobile Back Button Exit
+    useEffect(() => {
+        const handlePopState = (e: PopStateEvent) => {
+            setShowExitModal(true);
+            window.history.pushState(null, '', window.location.href);
+        };
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Hold A for 5 seconds to show/hide Camera
+    useEffect(() => {
+        let timer: any = null;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'a') {
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+                if (!timer) {
+                    timer = setTimeout(() => {
+                        setIsVideoBarVisible(v => !v);
+                        timer = null;
+                    }, 5000);
+                }
+            }
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'a' && timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            if (timer) clearTimeout(timer);
+        };
+    }, []);
+
+    const tableRef = useRef<HTMLDivElement>(null);
+
+    // ── Session Timer ──
+    const [sessionStart] = useState(() => Date.now());
+    const [elapsed, setElapsed] = useState("00:00");
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const diff = Math.floor((Date.now() - sessionStart) / 1000);
+            const m = String(Math.floor(diff / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            setElapsed(`${m}:${s}`);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [sessionStart]);
+
+    // ── Card Info Panel ──
+    const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+    const selectedCard = cards.find(c => c.id === selectedCardId);
+
+    // ── Share Link ──
+    const [linkCopied, setLinkCopied] = useState(false);
+    const copyShareLink = () => {
+        const url = `${window.location.origin}/?room=${roomId}`;
+        navigator.clipboard.writeText(url);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2500);
+    };
+
+    // ── Screenshot ──
+    const captureScreenshot = async () => {
+        const el = document.getElementById("tarot-table");
+        if (!el) return;
+        try {
+            const html2canvas = (await import("html2canvas")).default;
+            const canvas = await html2canvas(el, { backgroundColor: "#0C0B14", scale: 2 });
+            const link = document.createElement("a");
+            link.download = `tarot-${roomId}-${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            appendLog("Masa ekran görüntüsü kaydedildi");
+        } catch { appendLog("Ekran görüntüsü alınamadı"); }
+    };
+
+    // ── Fullscreen ──
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    // ── Ambient Sound ──
+    const [isAmbientOn, setIsAmbientOn] = useState(false);
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const oscillatorsRef = useRef<OscillatorNode[]>([]);
+
+    const toggleAmbient = () => {
+        if (isAmbientOn) {
+            oscillatorsRef.current.forEach(o => { try { o.stop(); } catch { } });
+            oscillatorsRef.current = [];
+            audioCtxRef.current?.close();
+            audioCtxRef.current = null;
+            setIsAmbientOn(false);
+        } else {
+            const ctx = new window.AudioContext();
+            audioCtxRef.current = ctx;
+
+            // Create a warm ambient drone
+            const freqs = [65.41, 98.0, 130.81, 196.0]; // C2, G2, C3, G3
+            const oscs: OscillatorNode[] = [];
+            freqs.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = i < 2 ? "sine" : "triangle";
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.03 / (i + 1), ctx.currentTime);
+                // Slow LFO for movement
+                const lfo = ctx.createOscillator();
+                const lfoGain = ctx.createGain();
+                lfo.frequency.setValueAtTime(0.1 + i * 0.05, ctx.currentTime);
+                lfoGain.gain.setValueAtTime(0.01, ctx.currentTime);
+                lfo.connect(lfoGain);
+                lfoGain.connect(gain.gain);
+                lfo.start();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                oscs.push(osc);
+            });
+            oscillatorsRef.current = oscs;
+            setIsAmbientOn(true);
+        }
+    };
+
+    useEffect(() => {
+        // 1. Initialize Socket
+        socket = io();
+
+        // Helper: Initialize PeerJS and setup event listeners once we have a stream (real or dummy)
+        const initPeerAndJoin = (mediaStream: MediaStream) => {
+            peerRef.current = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+
+            peerRef.current.on('open', (id) => {
+                setMyPeerId(id);
+                console.log('My peer ID is: ' + id);
+                socket.emit("join-room", roomId, id);
+            });
+
+            // Answer incoming calls
+            peerRef.current.on('call', call => {
+                call.answer(mediaStream);
+                call.on('stream', remoteStream => {
+                    console.log("Received remote stream (answering)", remoteStream.id);
+                    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.onloadedmetadata = () => {
+                            remoteVideoRef.current?.play().catch(e => {
+                                console.error("Play error:", e);
+                                if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                                    // Browser blocked autoplay (likely because it has audio and user hasn't interacted).
+                                    // Mute it temporarily to force video playback, user can unmute later.
+                                    remoteVideoRef.current.muted = true;
+                                    remoteVideoRef.current.play().catch(console.error);
+                                }
+                            });
+                        };
+                    }
+                });
+            });
+
+            // Listen for new users connecting
+            socket.on("user-connected", (userId: string) => {
+                console.log("User connected:", userId);
+                setRemotePeerId(userId);
+                connectToNewUser(userId, mediaStream);
+            });
+        };
+
+        // 2. Setup User Media (Camera/Mic) FIRST
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: true
+        })
+            .then(stream => {
+                streamRef.current = stream;
+                if (myVideoRef.current) {
+                    myVideoRef.current.srcObject = stream;
+                }
+                initPeerAndJoin(stream);
+            })
+            .catch(err => {
+                console.error("Failed to get local stream", err);
+
+                // Fallback: Create a dummy stream with a black canvas and silent audio.
+                // This forces PeerJS to negotiate WebRTC video/audio tracks in the SDP so it can still RECEIVE video from others!
+                try {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) {
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    const videoStream = (canvas as any).captureStream(1); // 1 FPS
+
+                    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const destNode = audioCtx.createMediaStreamDestination();
+
+                    const dummyStream = new MediaStream([
+                        ...videoStream.getVideoTracks(),
+                        ...destNode.stream.getAudioTracks()
+                    ]);
+
+                    // Disable tracks so they send black/silent frames instead of nonsense
+                    dummyStream.getTracks().forEach(t => t.enabled = false);
+                    streamRef.current = dummyStream;
+
+                    initPeerAndJoin(dummyStream);
+                } catch (fallbackErr) {
+                    console.error("Fallback dummy stream creation failed", fallbackErr);
+                    initPeerAndJoin(new MediaStream());
+                }
+            });
+
+        // Handle user disconnect
+        socket.on("user-disconnected", (userId: string) => {
+            console.log("User disconnected:", userId);
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = null;
+            }
+            setRemotePeerId("");
+            setCursors(prev => {
+                const next = { ...prev };
+                delete next[userId];
+                return next;
+            });
+        });
+
+        // ========== PREMIUM FEATURES SYNC ==========
+        socket.on("sync-logs", (serverLogs: ActivityLog[]) => {
+            if (serverLogs) setLogs(serverLogs);
+        });
+
+        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => {
+            if (serverMsgs) setMessages(serverMsgs);
+        });
+
+        socket.on("chat-message", (msg: ChatMessage) => {
+            setMessages(prev => {
+                const newMsgs = [...prev, msg];
+                if (newMsgs.length > 100) newMsgs.shift();
+                return newMsgs;
+            });
+            // Notification sound
+            playNotifSound();
+            // Live toast
+            const senderLabel = msg.sender === 'Consultant' ? 'Danışman' : (clientProfile?.name || 'Müşteri');
+            setToastMsg({ text: msg.text || "🎤 Sesli Mesaj", sender: senderLabel });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
+        });
+
+        socket.on("activity-log", (logEntry: ActivityLog) => {
+            setLogs(prev => {
+                const newLogs = [...prev, logEntry];
+                if (newLogs.length > 50) newLogs.shift();
+                return newLogs;
+            });
+        });
+
+        socket.on("user-typing", (isTyping: boolean) => {
+            setRemoteTyping(isTyping);
+        });
+
+        socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
+            setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
+        });
+
+        // ========== TAROT STATE SYNC ==========
+        socket.on("sync-state", (serverCards: CardState[]) => {
+            setCards(serverCards);
+            const topZ = Math.max(0, ...serverCards.map(c => c.zIndex));
+            setMaxZIndex(topZ + 1);
+        });
+
+        socket.on("card-added", (newCard: CardState) => {
+            setCards(prev => {
+                // Prevent duplicate adds if we emitted it ourselves
+                if (prev.some(c => c.id === newCard.id)) return prev;
+                return [...prev, newCard];
+            });
+            setMaxZIndex(prev => Math.max(prev, newCard.zIndex + 1));
+        });
+
+        socket.on("card-updated", (updatedCard: CardState) => {
+            setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+            setMaxZIndex(prev => Math.max(prev, updatedCard.zIndex + 1));
+        });
+
+        socket.on("card-flipped", (cardId: string, isReversed: boolean, isFlipped: boolean) => {
+            setCards(prev => prev.map(c =>
+                c.id === cardId ? { ...c, isReversed, isFlipped } : c
+            ));
+        });
+
+        // ========== CLIENT PROFILE SYNC ==========
+        socket.on("sync-client-profile", (profile: any) => {
+            if (profile) setClientProfile(profile);
+        });
+
+        socket.on("client-profile-updated", (profile: any) => {
+            setClientProfile(profile);
+        });
+
+        return () => {
+            socket.disconnect();
+            peerRef.current?.destroy();
+            const tracks = streamRef.current?.getTracks();
+            tracks?.forEach(track => track.stop());
+        };
+    }, [roomId, clientProfile, playNotifSound]);
+
+    function connectToNewUser(userId: string, stream: MediaStream) {
+        if (!peerRef.current || !stream) return;
+        console.log("Calling user", userId);
+
+        const call = peerRef.current.call(userId, stream);
+
+        call.on('stream', remoteStream => {
+            console.log("Received remote stream (calling)", remoteStream.id);
+            if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                remoteVideoRef.current.srcObject = remoteStream;
+                // Ensure playback starts
+                remoteVideoRef.current.onloadedmetadata = () => {
+                    remoteVideoRef.current?.play().catch(e => {
+                        console.error("Play error:", e);
+                        if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                            // Browser blocked autoplay. Mute to force video playback.
+                            remoteVideoRef.current.muted = true;
+                            remoteVideoRef.current.play().catch(console.error);
+                        }
+                    });
+                };
+            }
+        });
+    }
+
+    const copyRoomId = () => {
+        navigator.clipboard.writeText(roomId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const toggleMute = () => {
+        if (streamRef.current) {
+            const audioTrack = streamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
+    };
+
+    const toggleVideo = () => {
+        if (streamRef.current) {
+            const videoTrack = streamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoOff(!videoTrack.enabled);
+            }
+        }
+    };
+    // ========== AI INTERPRETATION ==========
+    const handleAiInterpret = async (cardIndex: number) => {
+        if (aiLoading) return;
+        setAiLoading(true);
+        setAiResponse("");
+        try {
+            const info = getCardMeaning(cardIndex);
+            const flippedCards = cards.filter(c => c.isFlipped).map(c => getCardMeaning(c.cardIndex).name);
+            const res = await fetch("/api/interpret", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    card: info,
+                    allCards: flippedCards,
+                    clientName: clientProfile?.name || "Danışan"
+                })
+            });
+            const data = await res.json();
+            setAiResponse(data.interpretation || "Yorum alınamadı.");
+        } catch {
+            setAiResponse("AI yorumu şu an kullanılamıyor.");
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    // ========== TAROT INTERACTIONS ==========
+
+    const handleClearTable = () => {
+        appendLog("Cleared the mystical table");
+        setCards([]);
+        socket.emit("clear-table", roomId);
+    };
+
+    const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setChatInput(e.target.value);
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit("typing", roomId, true);
+        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            setIsTyping(false);
+            socket.emit("typing", roomId, false);
+        }, 2000);
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = e => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+            recorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                audioChunksRef.current = [];
+
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result as string;
+                    sendVoiceMessage(base64Audio);
+                };
+                stream.getTracks().forEach(track => track.stop());
+            };
+            audioChunksRef.current = [];
+            recorder.start();
+            setVoiceRecorder(recorder);
+            setIsRecording(true);
+        } catch (err) {
+            console.error("Microphone access denied", err);
+        }
+    };
+
+    const stopRecording = () => {
+        if (voiceRecorder && isRecording) {
+            voiceRecorder.stop();
+            setIsRecording(false);
+            setVoiceRecorder(null);
+        }
+    };
+
+    const sendVoiceMessage = (base64Audio: string) => {
+        const msg: ChatMessage = {
+            id: Math.random().toString(36).substring(2, 9),
+            sender: isConsultant ? "Consultant" : "Client",
+            audioUrl: base64Audio,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, msg]);
+        socket.emit("chat-message", roomId, msg);
+    };
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const msg: ChatMessage = {
+            id: Math.random().toString(36).substring(2, 9),
+            sender: isConsultant ? "Consultant" : "Client",
+            text: chatInput.trim(),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setMessages(prev => [...prev, msg]);
+        socket.emit("chat-message", roomId, msg);
+        setChatInput("");
+        setIsTyping(false);
+        socket.emit("typing", roomId, false);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        setShowEmojiPicker(false);
+    };
+
+    const onEmojiClick = (emojiObject: any) => {
+        setChatInput(prev => prev + emojiObject.emoji);
+    };
+
+    const handleDrawCard = () => {
+        appendLog("Drew a mysterious card from the aether");
+        const newCard: CardState = {
+            id: Math.random().toString(36).substring(2, 9),
+            cardIndex: Math.floor(Math.random() * 78), // 0-77
+            x: 50, // Bottom center dealing
+            y: 80 + Math.random() * 5, // Slight jitter
+            isFlipped: false,
+            isReversed: false,
+            zIndex: maxZIndex
+        };
+        setMaxZIndex(prev => prev + 1);
+
+        // Optimistic update
+        setCards(prev => [...prev, newCard]);
+        socket.emit("add-card", roomId, newCard);
+    };
+
+    const handleDealPackage = useCallback(() => {
+        if (!isConsultant) return;
+        const count = clientProfile?.cards || 3;
+        appendLog(`Dealt the ${count}-card package for ${clientProfile?.name || 'the Client'}`);
+
+        const usedIndices = new Set<number>();
+        const spread: CardState[] = [];
+        for (let i = 0; i < count; i++) {
+            let idx: number;
+            do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+            usedIndices.add(idx);
+
+            const xPercent = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+            spread.push({
+                id: Math.random().toString(36).substring(2, 9),
+                cardIndex: idx,
+                x: xPercent,
+                y: 45 + (Math.random() * 10 - 5),
+                isFlipped: false,
+                isReversed: Math.random() > 0.5,
+                zIndex: maxZIndex + i + 1
+            });
+        }
+        setMaxZIndex(prev => prev + count);
+        setCards(prev => [...prev, ...spread]);
+        spread.forEach(c => socket?.emit("add-card", roomId, c));
+    }, [isConsultant, clientProfile, maxZIndex, roomId, appendLog]);
+
+    // Role-based Profile Syncing
+    useEffect(() => {
+        if (!socket) return;
+
+        const syncProfile = () => {
+            if (!isConsultant && searchParams.get('name')) {
+                const data = {
+                    name: searchParams.get('name') || '',
+                    birth: searchParams.get('birth') || '',
+                    time: searchParams.get('time') || '',
+                    pkgId: searchParams.get('pkgId') || '',
+                    cards: Number(searchParams.get('cards')) || 0,
+                };
+                socket.emit("update-client-profile", roomId, data);
+            }
+        };
+
+        if (socket.connected) syncProfile();
+        else socket.on('connect', syncProfile);
+
+        return () => { socket.off('connect', syncProfile); };
+    }, [isConsultant, searchParams, roomId]);
+
+    const handlePointerDown = useCallback((id: string) => {
+        const newZ = maxZIndex + 1;
+        setMaxZIndex(newZ);
+        let updatedCard: CardState | undefined;
+        setCards(prev => {
+            const next = prev.map(c => {
+                if (c.id === id) {
+                    updatedCard = { ...c, zIndex: newZ };
+                    return updatedCard;
+                }
+                return c;
+            });
+            return next;
+        });
+        if (updatedCard) socket.emit("update-card", roomId, updatedCard);
+    }, [maxZIndex, roomId]);
+
+    const handleDragEnd = useCallback((id: string, percentX: number, percentY: number) => {
+        let updatedCard: CardState | undefined;
+        setCards(prev => {
+            const next = prev.map(c => {
+                if (c.id === id) {
+                    updatedCard = { ...c, x: percentX, y: percentY };
+                    return updatedCard;
+                }
+                return c;
+            });
+            return next;
+        });
+        if (updatedCard) socket.emit("update-card", roomId, updatedCard);
+    }, [roomId]);
+
+    const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
+        if (isFlipped) {
+            appendLog("Revealed a card's destiny");
+            setSelectedCardId(id); // show meaning panel
+        } else {
+            if (selectedCardId === id) setSelectedCardId(null);
+        }
+        setCards(prev => prev.map(c => c.id === id ? { ...c, isReversed, isFlipped } : c));
+        socket.emit("flip-card", roomId, id, isReversed, isFlipped);
+    }, [roomId, appendLog, selectedCardId]);
+
+    const handleCursorMove = (e: React.PointerEvent) => {
+        if (e.pointerType === 'touch') return;
+        const now = Date.now();
+        if (now - lastCursorEmit.current > 50) {
+            lastCursorEmit.current = now;
+            socket?.emit("cursor-move", roomId, { userId: socket.id, x: e.clientX, y: e.clientY });
+        }
+    }
+
+    return {
+        // State
+        role, isConsultant, clientProfile, copied, isSidebarOpen,
+        cards, maxZIndex, logs, cursors, messages, chatInput, isChatOpen,
+        toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
+        isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
+        remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
+        linkCopied, isAmbientOn, isFullscreen,
+
+        // Setters
+        setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
+        setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
+
+        // Refs
+        messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
+
+        // Handlers
+        copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
+        handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
+        handleDrawCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
+    };
+}
