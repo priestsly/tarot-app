@@ -107,6 +107,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
             socket.on("user-connected", (uid: string) => {
                 setRemotePeerId(uid);
+
+                // Show notification
+                const otherLabel = isConsultant ? 'Müşteri' : 'Danışman';
+                setToastMsg({ text: `🔔 ${otherLabel} odaya giriş yaptı`, sender: "Sistem" });
+                appendLog(`${otherLabel} bağlandı`);
+                playNotifSound();
+                if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
+
                 peerRef.current?.call(uid, mediaStream)?.on('stream', rs => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = rs; });
             });
         };
@@ -120,7 +129,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         streamRef.current = dStream;
         initPeerAndJoin(dStream);
 
-        socket.on("user-disconnected", () => { setRemotePeerId(""); if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null; });
+        socket.on("user-disconnected", () => {
+            setRemotePeerId("");
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
+            const otherLabel = isConsultant ? 'Müşteri' : 'Danışman';
+            setToastMsg({ text: `🚪 ${otherLabel} odadan ayrıldı`, sender: "Sistem" });
+            appendLog(`${otherLabel} ayrıldı`);
+            playNotifSound();
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 4000);
+        });
         socket.on("sync-logs", (l: ActivityLog[]) => setLogs(l));
         socket.on("sync-messages", (m: ChatMessage[]) => setMessages(m));
         socket.on("chat-message", (msg: ChatMessage) => {
@@ -177,12 +196,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         }
     };
 
-    const handleSendMessage = () => {
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!chatInput.trim()) return;
         const msg: ChatMessage = { id: Math.random().toString(36).substr(2, 9), text: chatInput, sender: isConsultant ? 'Consultant' : 'Client', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         setMessages(prev => [...prev.slice(-99), msg]);
         socketRef.current?.emit("chat-message", roomId, msg);
-        setChatInput(""); socketRef.current?.emit("user-typing", roomId, false);
+        setChatInput(""); setIsTyping(false); socketRef.current?.emit("user-typing", roomId, false);
     };
 
     const handleVoiceMessage = (audioUrl: string) => {
@@ -242,11 +262,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         }, 2000);
     };
     const onEmojiClick = (e: any) => { setChatInput(prev => prev + e.emoji); setShowEmojiPicker(false); };
-    const handleAiInterpret = () => { setAiLoading(true); setTimeout(() => { setAiResponse("Geleceğiniz parlak görünüyor..."); setAiLoading(false); }, 2000); };
+    const handleAiInterpret = (cardIndex: number) => {
+        setAiLoading(true);
+        setTimeout(() => {
+            setAiResponse(`Mistik enerjiler ${cardIndex} nolu kart için şunu söylüyor: Geleceğiniz parlak görünüyor...`);
+            setAiLoading(false);
+        }, 2000);
+    };
     const voiceRecorderRef = useRef<MediaRecorder | null>(null);
     const voiceChunksRef = useRef<Blob[]>([]);
 
-    const startRecording = async () => {
+    const startRecording = async (e: React.PointerEvent) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const recorder = new MediaRecorder(stream);
