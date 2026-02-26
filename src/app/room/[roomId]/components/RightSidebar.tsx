@@ -35,7 +35,10 @@ export const RightSidebar = ({
                         {(clientProfile.birth || clientProfile.time) && (
                             <p className="text-xs text-text-muted">{clientProfile.birth} {clientProfile.time}</p>
                         )}
-                        <div className="pt-2 border-t border-border mt-1">
+                        <div className="pt-2 border-t border-border mt-1 space-y-1">
+                            {clientProfile.focus && (
+                                <p className="text-xs text-text-muted">Niyet: <span className="text-accent font-semibold">{clientProfile.focus}</span></p>
+                            )}
                             <p className="text-xs text-text-muted">Talep: <span className="text-text font-semibold">{clientProfile.cards} Kart</span></p>
                         </div>
                     </div>

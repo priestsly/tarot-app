@@ -1,7 +1,7 @@
 "use client";
 
 import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Video, VideoOff } from "lucide-react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
@@ -43,7 +43,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, toggleVideoBar
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
     } = useTarotRoom(roomId, searchParams);
 
     return (
@@ -256,9 +256,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     {isConsultant && (
                         <>
                             <div className="w-px h-5 sm:h-6 bg-border mx-0.5" />
-                            <button onClick={toggleVideoBar} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", isVideoBarVisible ? "text-accent bg-accent/20" : "text-text-muted hover:text-accent hover:bg-accent/10")} title="Görüntülü Görüşme">
-                                {isVideoBarVisible ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
-                            </button>
                             <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500/70 to-indigo-500/60 text-white/90 rounded-lg sm:rounded-xl font-semibold text-[11px] sm:text-xs tracking-wide transition-all hover:brightness-105 disabled:opacity-40 active:scale-[0.98]">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                                 <span className="hidden sm:inline">Dağıt</span>
