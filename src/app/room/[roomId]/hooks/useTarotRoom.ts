@@ -127,6 +127,44 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     }, []);
 
     // Hold A for 5 seconds to show/hide Camera
+    // When activating: request real camera + swap tracks on PeerJS connection
+    const activateRealCamera = useCallback(async () => {
+        try {
+            const realStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: true
+            });
+            streamRef.current = realStream;
+            if (myVideoRef.current) {
+                myVideoRef.current.srcObject = realStream;
+            }
+            // Replace tracks on existing PeerJS connections
+            const peer = peerRef.current;
+            if (peer) {
+                const senders = (peer as any)._connections;
+                if (senders) {
+                    for (const [, conns] of Object.entries(senders) as any) {
+                        for (const conn of conns) {
+                            if (conn.peerConnection) {
+                                const pc = conn.peerConnection as RTCPeerConnection;
+                                const videoTrack = realStream.getVideoTracks()[0];
+                                const audioTrack = realStream.getAudioTracks()[0];
+                                const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+                                const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+                                if (videoSender && videoTrack) videoSender.replaceTrack(videoTrack);
+                                if (audioSender && audioTrack) audioSender.replaceTrack(audioTrack);
+                            }
+                        }
+                    }
+                }
+            }
+            appendLog("Kamera ve mikrofon aktif edildi");
+        } catch (err) {
+            console.error("Camera activation failed:", err);
+            appendLog("Kamera açılamadı");
+        }
+    }, [appendLog]);
+
     useEffect(() => {
         let timer: any = null;
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -135,7 +173,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
                 if (!timer) {
                     timer = setTimeout(() => {
-                        setIsVideoBarVisible(v => !v);
+                        setIsVideoBarVisible(v => {
+                            const newVal = !v;
+                            if (newVal) activateRealCamera();
+                            return newVal;
+                        });
                         timer = null;
                     }, 5000);
                 }
@@ -154,7 +196,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             window.removeEventListener('keyup', handleKeyUp);
             if (timer) clearTimeout(timer);
         };
-    }, []);
+    }, [activateRealCamera]);
 
     const tableRef = useRef<HTMLDivElement>(null);
 
