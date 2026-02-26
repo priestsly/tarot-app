@@ -35,10 +35,23 @@ export const RightSidebar = ({
                         {(clientProfile.birth || clientProfile.time) && (
                             <p className="text-xs text-text-muted">{clientProfile.birth} {clientProfile.time}</p>
                         )}
-                        <div className="pt-2 border-t border-border mt-1 space-y-1">
-                            {clientProfile.focus && (
-                                <p className="text-xs text-text-muted">Niyet: <span className="text-accent font-semibold">{clientProfile.focus}</span></p>
-                            )}
+                        {clientProfile.focus && (
+                            <div className="flex items-center gap-1.5 pt-1">
+                                <span className="text-[9px] text-text-muted uppercase tracking-wider">Niyet:</span>
+                                <span className={cn(
+                                    "text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border",
+                                    clientProfile.focus === 'Aşk' ? "bg-pink-500/15 text-pink-300 border-pink-500/30" :
+                                        clientProfile.focus === 'Kariyer' ? "bg-blue-500/15 text-blue-300 border-blue-500/30" :
+                                            clientProfile.focus === 'Para' ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
+                                                clientProfile.focus === 'Sağlık' ? "bg-green-500/15 text-green-300 border-green-500/30" :
+                                                    clientProfile.focus === 'Ruhsal' ? "bg-purple-500/15 text-purple-300 border-purple-500/30" :
+                                                        "bg-accent/15 text-accent border-accent/30"
+                                )}>
+                                    {clientProfile.focus}
+                                </span>
+                            </div>
+                        )}
+                        <div className="pt-2 border-t border-border mt-1">
                             <p className="text-xs text-text-muted">Talep: <span className="text-text font-semibold">{clientProfile.cards} Kart</span></p>
                         </div>
                     </div>

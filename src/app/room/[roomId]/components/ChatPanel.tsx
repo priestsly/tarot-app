@@ -2,7 +2,7 @@ import { MessageCircle, X, Smile, Mic, Send } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { cn } from '../page';
 import { ChatMessage } from '../types';
-import { VoiceMessage } from './VoiceMessage';
+import { VoicePlayer } from './VoicePlayer';
 
 interface ChatPanelProps {
     isChatOpen: boolean;
@@ -69,7 +69,7 @@ export const ChatPanel = ({
                                 : "bg-surface border border-border text-text rounded-tl-sm"
                                 }`}>
                                 {msg.audioUrl ? (
-                                    <VoiceMessage audioUrl={msg.audioUrl} />
+                                    <VoicePlayer src={msg.audioUrl} isMine={isMine} />
                                 ) : (
                                     msg.text
                                 )}
