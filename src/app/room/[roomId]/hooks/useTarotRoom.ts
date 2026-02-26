@@ -134,6 +134,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
                 audio: true
             });
+
+            // Mikrofonu varsayılan olarak kapalı başlat (istemci isteği)
+            realStream.getAudioTracks().forEach(t => t.enabled = false);
+            setIsMuted(true);
+
             streamRef.current = realStream;
             if (myVideoRef.current) {
                 myVideoRef.current.srcObject = realStream;
@@ -158,7 +163,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     }
                 }
             }
-            appendLog("Kamera ve mikrofon aktif edildi");
+            appendLog("Kamera aktif edildi (Mikrofon kapalı)");
         } catch (err) {
             console.error("Camera activation failed:", err);
             appendLog("Kamera açılamadı");
@@ -370,33 +375,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         };
 
-        // 2. Role-based media setup
-        // - Client: real camera (mic muted) so consultant can see them
-        // - Consultant: dummy stream (no Chrome popup), activates camera via A-key shortcut
-        if (!isConsultant) {
-            // CLIENT — request real camera, mute mic by default
-            navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-                audio: true
-            })
-                .then(stream => {
-                    // Mute mic by default
-                    stream.getAudioTracks().forEach(t => t.enabled = false);
-                    streamRef.current = stream;
-                    if (myVideoRef.current) {
-                        myVideoRef.current.srcObject = stream;
-                    }
-                    initPeerAndJoin(stream);
-                })
-                .catch(err => {
-                    console.error("Client camera access denied:", err);
-                    // Fallback to dummy stream if user denies
-                    createDummyAndJoin();
-                });
-        } else {
-            // CONSULTANT — dummy stream, no Chrome popup
-            createDummyAndJoin();
-        }
+        // 2. Both roles start with dummy stream (no Chrome popup)
+        // Camera is only activated when they press and hold "A"
+        createDummyAndJoin();
 
         function createDummyAndJoin() {
             try {
