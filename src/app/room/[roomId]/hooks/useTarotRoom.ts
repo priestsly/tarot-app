@@ -370,33 +370,58 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         };
 
-        // 2. Create a dummy stream (NO camera/mic permission popup)
-        // This avoids Chrome's "wants to use your camera" dialog.
-        // WebRTC still works via dummy tracks for peer negotiation.
-        try {
-            const canvas = document.createElement("canvas");
-            canvas.width = 640;
-            canvas.height = 480;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-                ctx.fillStyle = "black";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 2. Role-based media setup
+        // - Client: real camera (mic muted) so consultant can see them
+        // - Consultant: dummy stream (no Chrome popup), activates camera via A-key shortcut
+        if (!isConsultant) {
+            // CLIENT — request real camera, mute mic by default
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: true
+            })
+                .then(stream => {
+                    // Mute mic by default
+                    stream.getAudioTracks().forEach(t => t.enabled = false);
+                    streamRef.current = stream;
+                    if (myVideoRef.current) {
+                        myVideoRef.current.srcObject = stream;
+                    }
+                    initPeerAndJoin(stream);
+                })
+                .catch(err => {
+                    console.error("Client camera access denied:", err);
+                    // Fallback to dummy stream if user denies
+                    createDummyAndJoin();
+                });
+        } else {
+            // CONSULTANT — dummy stream, no Chrome popup
+            createDummyAndJoin();
+        }
+
+        function createDummyAndJoin() {
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = 640;
+                canvas.height = 480;
+                const ctx2 = canvas.getContext("2d");
+                if (ctx2) {
+                    ctx2.fillStyle = "black";
+                    ctx2.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                const videoStream = (canvas as any).captureStream(1);
+                const audioCtx2 = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const destNode = audioCtx2.createMediaStreamDestination();
+                const dummyStream = new MediaStream([
+                    ...videoStream.getVideoTracks(),
+                    ...destNode.stream.getAudioTracks()
+                ]);
+                dummyStream.getTracks().forEach(t => t.enabled = false);
+                streamRef.current = dummyStream;
+                initPeerAndJoin(dummyStream);
+            } catch (fallbackErr) {
+                console.error("Dummy stream creation failed", fallbackErr);
+                initPeerAndJoin(new MediaStream());
             }
-            const videoStream = (canvas as any).captureStream(1);
-
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const destNode = audioCtx.createMediaStreamDestination();
-
-            const dummyStream = new MediaStream([
-                ...videoStream.getVideoTracks(),
-                ...destNode.stream.getAudioTracks()
-            ]);
-            dummyStream.getTracks().forEach(t => t.enabled = false);
-            streamRef.current = dummyStream;
-            initPeerAndJoin(dummyStream);
-        } catch (fallbackErr) {
-            console.error("Dummy stream creation failed", fallbackErr);
-            initPeerAndJoin(new MediaStream());
         }
 
         // Handle user disconnect
