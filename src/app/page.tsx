@@ -195,36 +195,28 @@ function HomeContent() {
       {/* Meditation Room */}
       <div className="relative my-2">
         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
-        <div className="relative flex justify-center"><span className="bg-bg px-3 text-[9px] text-text-muted/40 uppercase tracking-[0.2em]">veya</span></div>
+        <div className="relative flex justify-center"><span className="bg-bg px-3 text-[9px] text-text-muted/40 uppercase tracking-[0.2em]">keşfet</span></div>
       </div>
 
-      <button
-        onClick={() => router.push("/meditation")}
-        className="group w-full relative overflow-hidden rounded-xl border border-purple-500/10 bg-surface/50 p-4 flex items-center gap-4 transition-all hover:border-purple-500/20 hover:bg-purple-500/5"
-      >
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/30 to-indigo-600/20 flex items-center justify-center shrink-0">
-          <Moon className="w-4 h-4 text-purple-300/70" />
-        </div>
-        <div className="text-left flex-1">
-          <h3 className="text-sm font-semibold text-text/70">Meditasyon Odası</h3>
-          <p className="text-[10px] text-text-muted/60 mt-0.5">Nefes egzersizi ve niyet belirleme.</p>
-        </div>
-        <ArrowRight className="w-4 h-4 text-text-muted/30 group-hover:text-purple-400/50 transition-colors" />
-      </button>
-
-      <button
-        onClick={() => router.push("/astrology")}
-        className="group w-full relative overflow-hidden rounded-xl border border-indigo-500/10 bg-surface/50 p-4 flex items-center gap-4 transition-all hover:border-indigo-500/20 hover:bg-indigo-500/5"
-      >
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500/30 to-violet-600/20 flex items-center justify-center shrink-0">
-          <Star className="w-4 h-4 text-indigo-300/70" />
-        </div>
-        <div className="text-left flex-1">
-          <h3 className="text-sm font-semibold text-text/70">Astroloji</h3>
-          <p className="text-[10px] text-text-muted/60 mt-0.5">Burç analizi, günlük yorum, gezegen haritası.</p>
-        </div>
-        <ArrowRight className="w-4 h-4 text-text-muted/30 group-hover:text-indigo-400/50 transition-colors" />
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { href: "/meditation", name: "Meditasyon", desc: "Nefes & niyet", icon: "🧘", border: "border-purple-500/10", hover: "hover:border-purple-500/20 hover:bg-purple-500/5" },
+          { href: "/astrology", name: "Astroloji", desc: "Burç & gezegen", icon: "🪐", border: "border-indigo-500/10", hover: "hover:border-indigo-500/20 hover:bg-indigo-500/5" },
+          { href: "/dreams", name: "Rüya Yorumu", desc: "AI destekli", icon: "🌙", border: "border-blue-500/10", hover: "hover:border-blue-500/20 hover:bg-blue-500/5" },
+          { href: "/candle", name: "Mum Ritüeli", desc: "Niyet & ritüel", icon: "🕯️", border: "border-orange-500/10", hover: "hover:border-orange-500/20 hover:bg-orange-500/5" },
+          { href: "/numerology", name: "Numeroloji", desc: "Sayıların gücü", icon: "🔢", border: "border-amber-500/10", hover: "hover:border-amber-500/20 hover:bg-amber-500/5" },
+          { href: "/coffee", name: "Kahve Falı", desc: "Fotoğraf ile", icon: "☕", border: "border-yellow-600/10", hover: "hover:border-yellow-600/20 hover:bg-yellow-600/5" },
+        ].map(item => (
+          <button key={item.href} onClick={() => router.push(item.href)}
+            className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
+            <span className="text-xl">{item.icon}</span>
+            <div className="text-left flex-1 min-w-0">
+              <h3 className="text-xs font-semibold text-text/70 truncate">{item.name}</h3>
+              <p className="text-[9px] text-text-muted/50 mt-0.5">{item.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
     </motion.div>
   );
 
