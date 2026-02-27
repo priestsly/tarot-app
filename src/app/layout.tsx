@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Cinzel } from "next/font/google";
+import { Quicksand, Cinzel } from "next/font/google";
 import "./globals.css";
 import { MusicPlayerWrapper } from "@/components/MusicPlayerWrapper";
 
-const body = DM_Sans({
+const body = Quicksand({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],

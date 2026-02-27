@@ -290,6 +290,16 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <button onClick={handleDrawRumiCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-all font-heading text-xs uppercase" title="Rumi Kartı Çek">
                                 <Feather className="w-4 h-4" />
                             </button>
+                            <button onClick={() => {
+                                const flipped = cards.filter(c => c.isFlipped);
+                                if (flipped.length > 0) {
+                                    const last = flipped[flipped.length - 1];
+                                    setSelectedCardId(last.id);
+                                    if (!aiResponse) handleAiInterpret(last.cardIndex);
+                                }
+                            }} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-purple-400 hover:bg-purple-400/10 transition-all" title="Son Kartı Yorumla (AI)">
+                                <Wand2 className="w-4 h-4" />
+                            </button>
                             <button onClick={copyShareLink} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all relative" title="Davet Linki">
                                 <Share2 className="w-4 h-4" />
                                 {linkCopied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full" />}
