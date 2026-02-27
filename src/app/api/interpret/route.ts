@@ -3,66 +3,68 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { card, allCards, clientName } = body;
-
-        if (!card) {
-            return NextResponse.json({ error: "Kart bilgisi eksik." }, { status: 400 });
-        }
+        const { card, allCards, allCardsDetailed, clientName, focus } = body;
 
         // Danışan ismi kontrolü
         const name = clientName || "Danışanımız";
+        const intentText = focus ? `Danışanın Odaklandığı Konu/Niyet: ${focus}` : "";
 
-        // Masa üzerinde başka açık kartlar da varsa yorumu ona göre zenginleştirebilmek için:
-        let contextText = "";
-        if (allCards && allCards.length > 1) {
-            const otherCards = allCards.filter((c: string) => c !== card.name);
-            if (otherCards.length > 0) {
-                contextText = `Masadaki diğer açık kartlar: ${otherCards.join(', ')}. Lütfen o anki destedeki enerji bağlamını da kısaca düşün.`;
-            }
-        }
-
-        // Ücretsiz çalışan Pollinations.ai Text API'si - Daha kaliteli sonuç için modeli 'search' ve 'creative' dengesinde tutuyoruz.
-        const systemPrompt = `Sen 'Mistik Tarot' adında, kadim bilgilere sahip, Türkçe diline ve imla kurallarına mükemmel derecede hakim bir tarot yorumcususun. 
+        // Ücretsiz çalışan Pollinations.ai Text API'si
+        const systemPrompt = `Sen 'Mistik Tarot' adında, kadim bilgilere sahip bir tarot yorumcususun. 
         GÖREVİN: 
-        1. Asla imla hatası yapma. Cümle başları büyük harf olsun, noktalamaya dikkat et.
-        2. Akıcı, saygın ve mistik bir İstanbul Türkçesi kullan. 'Slm', 'nası' gibi kısaltmalar asla kullanma.
-        3. Bir yapay zeka olduğunu asla belli etme, doğrudan ruhsal bir rehber gibi konuş.
-        4. Kartın elementinden ve gizemli enerjisinden bahset. 
-        5. Kısa (en fazla 4-5 cümle) ama çok etkileyici konuş.`;
+        1. Asla imla hatası yapma. Akıcı ve saygın bir İstanbul Türkçesi kullan.
+        2. Bir yapay zeka olduğunu asla belli etme, doğrudan ruhsal bir rehber gibi konuş.
+        3. Kartların birbiriyle olan element ve ruhsal geçişlerinden bahset.
+        4. En fazla 6-7 cümle kullan ama çok derin ve etkileyici olsun.`;
 
-        const orientation = card.isReversed ? "Ters (Reversed)" : "Düz";
-        const intentText = body.focus ? `Danışanın Odaklandığı Konu/Niyet: ${body.focus}` : "";
+        let userPrompt = "";
 
-        const userPrompt = `Danışan Adı: ${name}
-        Seçilen Kart: ${card.name} (${orientation})
-        Element: ${card.element}
-        Anahtar Kelimeler: ${card.keywords}
-        Anlamı: ${card.meaning}
-        ${intentText}
-        ${contextText}
-        
-        Lütfen yukarıdaki bilgiler (kartın ${orientation} olması dahil) ve özellikle danışanın niyeti (eğer belirtilmişse) ışığında, bu kartın ${name} için taşıdığı mesajı mistik ve kusursuz bir Türkçeyle fısılda. 
-        Not: Kart ters gelmişse yorumunu bu ters durumun getirdiği engeller veya içsel uyarılar üzerinden şekillendir.`;
+        if (card) {
+            // Tek bir kart yorumu
+            const orientation = card.isReversed ? "Ters (Reversed)" : "Düz";
+            let contextText = "";
+            if (allCards && allCards.length > 1) {
+                const otherCards = allCards.filter((c: string) => c !== card.name);
+                if (otherCards.length > 0) {
+                    contextText = `Masadaki diğer açılmış kartlar: ${otherCards.join(', ')}. Tasvirini bu kartların kolektif enerjisiyle harmanla.`;
+                }
+            }
+
+            userPrompt = `Danışan Adı: ${name}
+            Seçilen Kart: ${card.name} (${orientation})
+            Element: ${card.element}
+            Anlamı: ${card.meaning}
+            ${intentText}
+            ${contextText}
+            
+            Lütfen bu kartın taşıdığı mesajı mistik bir dille fısılda. Kart ters ise uyarıcı ol.`;
+        } else if (allCardsDetailed && allCardsDetailed.length > 0) {
+            // Tüm masanın genel yorumu
+            const cardsInfo = allCardsDetailed.map((c: any) => `- ${c.name} (${c.isReversed ? 'Ters' : 'Düz'}) [Element: ${c.element}]`).join('\n');
+            userPrompt = `Danışan Adı: ${name}
+            Masa Üzerindeki Tüm Kartlar:
+            ${cardsInfo}
+            ${intentText}
+            
+            Lütfen masadaki bu tüm kartların birleşiminden doğan genel bir kehanet ve ruhsal okuma yap. Kartların birbirini nasıl etkilediğini ve danışanın yolculuğundaki genel mesajı mistik ve akıcı bir Türkçeyle anlat.`;
+        } else {
+            return NextResponse.json({ error: "Kart bilgisi eksik." }, { status: 400 });
+        }
 
         const res = await fetch('https://text.pollinations.ai/', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userPrompt }
                 ],
-                model: 'openai', // Public API'de openai taklidi yapan daha kaliteli modeli seçiyoruz
+                model: 'openai',
                 seed: Math.floor(Math.random() * 100000),
             }),
         });
 
-        if (!res.ok) {
-            throw new Error(`AI Api hatası: ${res.statusText}`);
-        }
-
+        if (!res.ok) throw new Error(`AI Api hatası: ${res.statusText}`);
         const data = await res.text();
 
         return NextResponse.json({ interpretation: data });

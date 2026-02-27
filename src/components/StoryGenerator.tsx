@@ -35,15 +35,23 @@ export const StoryGenerator = ({ isOpen, onClose, cardName, cardMeaning, cardIma
             const canvas = await html2canvas(canvasRef.current, {
                 backgroundColor: null,
                 scale: 3,
-                width: 1080 / 3,
-                height: 1920 / 3,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                width: canvasRef.current.offsetWidth,
+                height: canvasRef.current.offsetHeight,
             });
+
+            const dataUrl = canvas.toDataURL("image/png", 1.0);
             const link = document.createElement("a");
             link.download = `mystic-tarot-story-${Date.now()}.png`;
-            link.href = canvas.toDataURL("image/png");
+            link.href = dataUrl;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         } catch (e) {
             console.error("Story generation failed:", e);
+            alert("Görsel oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.");
         }
         setGenerating(false);
     };
@@ -85,12 +93,12 @@ export const StoryGenerator = ({ isOpen, onClose, cardName, cardMeaning, cardIma
                             <div className="relative z-10 text-center space-y-4 w-full">
                                 {cardImage && (
                                     <div className="w-16 h-28 mx-auto rounded-lg overflow-hidden border border-white/10 shadow-xl">
-                                        <img src={cardImage} alt={cardName} className="w-full h-full object-cover" />
+                                        <img src={cardImage} alt={cardName} className="w-full h-full object-cover" crossOrigin="anonymous" />
                                     </div>
                                 )}
 
                                 {cardName && (
-                                    <h2 className={`text-base font-heading font-bold ${selectedTemplate.textColor}`}>
+                                    <h2 className={`text-base font-heading font-bold tracking-widest uppercase ${selectedTemplate.textColor}`}>
                                         {cardName}
                                     </h2>
                                 )}

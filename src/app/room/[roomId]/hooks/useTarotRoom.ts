@@ -625,14 +625,18 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         setAiLoading(true);
         setAiResponse("");
         try {
-            const info = getCardMeaning(cardIndex);
-            const flippedCards = cards.filter(c => c.isFlipped).map(c => getCardMeaning(c.cardIndex).name);
+            const flippedCards = cards.filter(c => c.isFlipped).map(c => ({
+                ...getCardMeaning(c.cardIndex),
+                isReversed: c.isReversed
+            }));
+
             const res = await fetch("/api/interpret", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    card: { ...info, isReversed: selectedCard?.isReversed },
-                    allCards: flippedCards,
+                    card: cardIndex === -1 ? null : { ...getCardMeaning(cardIndex), isReversed: selectedCard?.isReversed },
+                    allCards: flippedCards.map(c => c.name),
+                    allCardsDetailed: cardIndex === -1 ? flippedCards : null,
                     clientName: clientProfile?.name || "Danışan",
                     focus: clientProfile?.focus || searchParams.get('focus') || ""
                 })

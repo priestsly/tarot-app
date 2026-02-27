@@ -445,13 +445,15 @@ function HomeContent() {
   // ─── LAYOUT ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-bg text-text flex relative overflow-hidden font-inter">
-      {/* Background Effects — soft, diffused */}
+      {/* Background Effects — soft, diffused edge glows */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-400/4 rounded-full blur-[200px]" />
-        <div className="absolute bottom-[-5%] right-[20%] w-[500px] h-[500px] bg-amber-300/3 rounded-full blur-[180px]" />
-        <div className="absolute top-[40%] right-[40%] w-[400px] h-[400px] bg-indigo-400/3 rounded-full blur-[200px]" />
-        {/* Moon phase dynamic glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] rounded-full blur-[300px]" style={{ backgroundColor: moonBg }} />
+        <div className="absolute top-0 inset-x-0 h-[40%] blur-[120px]" style={{ background: `linear-gradient(to bottom, ${moonBg}40, transparent)` }} />
+        <div className="absolute bottom-0 inset-x-0 h-[35%] blur-[120px]" style={{ background: `linear-gradient(to top, #1a103060, transparent)` }} />
+        <div className="absolute left-0 inset-y-0 w-[40%] blur-[120px]" style={{ background: `linear-gradient(to right, #101a3030, transparent)` }} />
+        <div className="absolute right-0 inset-y-0 w-[40%] blur-[120px]" style={{ background: `linear-gradient(to left, #2a1a1020, transparent)` }} />
+
+        {/* Subtle noise/texture */}
+        <div className="absolute inset-0 bg-midnight/5 mix-blend-soft-light opacity-20" />
       </div>
       <Particles />
 
