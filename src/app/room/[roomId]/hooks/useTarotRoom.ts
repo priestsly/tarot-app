@@ -5,7 +5,6 @@ import Peer from "peerjs";
 import { ActivityLog, CursorData, ChatMessage } from "../types";
 import { CardState } from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
-import answers from "@/lib/answers.json";
 
 // Remove global socket to avoid cross-component pollution
 
@@ -51,7 +50,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResponse, setAiResponse] = useState("");
-    const [mindAnswer, setMindAnswer] = useState<string | null>(null);
 
     const lastCursorEmit = useRef<number>(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -577,10 +575,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             setCurrentAura(aura);
         });
 
-        socket.on("sync-answer", (answer: string | null) => {
-            setMindAnswer(answer);
-        });
-
         return () => {
             socket?.disconnect();
             peerRef.current?.destroy();
@@ -821,16 +815,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 x: 50,
                 y: 45,
                 isFlipped: false,
-                isReversed: false,
+                isReversed: false, // Or allow reversed if you want
                 zIndex: maxZIndex + 1
             });
-        } else if (pkgId === 'mind') {
-            // Randomly select an answer
-            const randomAns = answers[Math.floor(Math.random() * answers.length)];
-            setMindAnswer(randomAns);
-            socketRef.current?.emit("sync-answer", roomId, randomAns);
-            appendLog(`Answered the Mind Question for ${clientProfile?.name || 'the Client'}`);
-            return; // No cards for mind mode
         } else {
             for (let i = 0; i < count; i++) {
                 let idx: number;
@@ -959,7 +946,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // State
         role, isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, cursors, messages, chatInput, isChatOpen,
-        toastMsg, aiLoading, aiResponse, mindAnswer, remotePeerId, isMuted, isVideoOff,
+        toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,

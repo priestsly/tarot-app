@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-inter: var(--font-inter), 'Quicksand', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-heading), 'Cinzel', ui-serif, Georgia, serif;
+  --font-inter: var(--font-inter), 'Quicksand';
+  --font-heading: var(--font-heading), 'Quicksand';
 
   /* ── Soft Mystic Palette ── */
   --color-bg: #0C0B14;
@@ -34,7 +34,6 @@
   body {
     background-color: var(--color-bg);
     color: var(--color-text);
-    font-family: var(--font-inter);
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     overscroll-behavior: none;
@@ -44,12 +43,10 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  * {
-    font-family: inherit;
-  }
+
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
+    
     letter-spacing: 0.04em;
   }
 

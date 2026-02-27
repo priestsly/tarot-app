@@ -163,9 +163,6 @@ function HomeContent() {
       params.set("pkgId", "relation");
       params.set("cards", "1");
       params.set("gender", gender);
-    } else if (readingFocus === "Aklımdaki Soru") {
-      params.set("pkgId", "mind");
-      params.set("cards", "0");
     } else {
       if (!selectedPackage) return;
       const pkg = PACKAGES.find(p => p.id === selectedPackage);
@@ -398,17 +395,6 @@ function HomeContent() {
           <span className="text-sm font-semibold">İlişki Danışmanı (Özel Kart)</span>
         </button>
 
-        <button
-          onClick={() => setReadingFocus("Aklımdaki Soru")}
-          className={cn(
-            "w-full px-4 py-3 rounded-xl border flex items-center justify-center gap-3 transition-all",
-            readingFocus === "Aklımdaki Soru" ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" : "bg-surface border-border hover:border-emerald-500/30 text-text-muted"
-          )}
-        >
-          <span className="text-xl">📖</span>
-          <span className="text-sm font-semibold">Aklımdaki Soru (Anlık Cevap)</span>
-        </button>
-
         <textarea
           value={readingFocus === "İlişki Danışmanı" ? "" : readingFocus}
           onChange={(e) => {
@@ -422,8 +408,6 @@ function HomeContent() {
           onClick={() => {
             if (readingFocus === "İlişki Danışmanı") {
               setStep("client_step_gender");
-            } else if (readingFocus === "Aklımdaki Soru") {
-              submitClientForm(); // Direct submit as it doesn't need package or gender
             } else {
               setStep("client_step4_package");
             }

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useRef, useState, useCallback } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Feather } from "lucide-react";
+import { rumiCards } from "@/lib/rumiData";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -31,6 +31,7 @@ interface TarotCardProps {
 }
 
 const getCardName = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'disil') => {
+    if (deckType === 'rumi') return rumiCards[index]?.name || `Rumi Kart ${index}`;
     if (deckType === 'eril') return `Eril Enerji ${index}`;
     if (deckType === 'disil') return `Dişil Enerji ${index}`;
 
@@ -52,6 +53,7 @@ const getCardName = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'disi
 };
 
 const getCardImage = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'disil'): string => {
+    if (deckType === 'rumi') return `/assets/rumi/${index}.webp`;
     if (deckType === 'eril') return `/assets/eril-disil/${String(index).padStart(2, '0')}.jpg`;
     if (deckType === 'disil') return `/assets/disil/${String(index).padStart(2, '0')}.jpg`;
 
@@ -258,52 +260,27 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 className="absolute inset-0 rounded-xl shadow-2xl backface-hidden border border-purple-500/20 overflow-hidden"
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
-                {isRumi ? (
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-950 via-red-950 to-orange-950 flex flex-col items-center justify-center p-2 border-2 border-amber-600/30">
-                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500 via-transparent to-transparent" />
-                        <span className="text-amber-500/40 mb-3">
-                            <Feather className="w-10 h-10" />
+                {/* Full-bleed card image */}
+                <img
+                    src={getCardImage(card.cardIndex, card.deckType)}
+                    alt={getCardName(card.cardIndex, card.deckType)}
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                    draggable={false}
+                />
+
+                {/* Bottom gradient overlay for name + badge (Hiding for Eril/Disil as requested) */}
+                {!isLarge && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
+                        <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                            {getCardName(card.cardIndex, card.deckType)}
                         </span>
-                        <h3 className="text-amber-400/80 font-heading text-xs uppercase tracking-[0.2em] mb-2 border-b border-amber-500/20 pb-1 w-3/4 text-center z-10">
-                            Rumi
-                        </h3>
-                        <p className="text-amber-100 text-[13px] text-center font-bold z-10 px-1 leading-tight">
-                            {getCardName(card.cardIndex)}
-                        </p>
-                        <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10">
-                            <div className={cn(
-                                "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border shadow-lg",
-                                "text-amber-300 border-amber-400/50 bg-amber-900/80 backdrop-blur-sm"
-                            )}>
-                                Düz
-                            </div>
+                        <div className={cn(
+                            "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
+                            isRumi ? "text-amber-300 border-amber-400/50 bg-amber-900/40" : "text-purple-300 border-purple-400/50 bg-purple-500/20"
+                        )}>
+                            Düz
                         </div>
                     </div>
-                ) : (
-                    <>
-                        {/* Full-bleed card image */}
-                        <img
-                            src={getCardImage(card.cardIndex, card.deckType)}
-                            alt={getCardName(card.cardIndex, card.deckType)}
-                            className="absolute inset-0 w-full h-full object-cover rounded-xl"
-                            draggable={false}
-                        />
-
-                        {/* Bottom gradient overlay for name + badge (Hiding for Eril/Disil as requested) */}
-                        {!isLarge && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
-                                <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
-                                    {getCardName(card.cardIndex, card.deckType)}
-                                </span>
-                                <div className={cn(
-                                    "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
-                                    "text-purple-300 border-purple-400/50 bg-purple-500/20"
-                                )}>
-                                    Düz
-                                </div>
-                            </div>
-                        )}
-                    </>
                 )}
             </div>
 
