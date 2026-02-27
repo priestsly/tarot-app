@@ -14,6 +14,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { ExitModal } from './components/ExitModal';
 import { ShareModal } from './components/ShareModal';
 import { FogOverlay } from './components/FogOverlay';
+import { AurasPanel } from './components/AurasPanel';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -32,10 +33,12 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor, showShareModal, fullShareUrl,
+        showAurasPanel, currentAura,
 
         // Setters
         setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowShareModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
+        setShowAurasPanel, handleAuraChange,
 
         // Refs
         messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
@@ -262,6 +265,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                                 <span className="hidden sm:inline">Dağıt</span>
                             </button>
+                            <button onClick={() => setShowAurasPanel(!showAurasPanel)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", showAurasPanel ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")} title="Aura & Enerji Seç">
+                                <Flame className="w-4 h-4" />
+                            </button>
                             <button onClick={handleDrawCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all" title="Kart Çek">
                                 <PlusSquare className="w-4 h-4" />
                             </button>
@@ -284,6 +290,14 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     isOpen={showShareModal}
                     onClose={() => setShowShareModal(false)}
                     shareUrl={fullShareUrl}
+                />
+
+                {/* ═══ AURAS PANEL COMPONENT ═══ */}
+                <AurasPanel
+                    isOpen={showAurasPanel}
+                    onClose={() => setShowAurasPanel(false)}
+                    currentAura={currentAura}
+                    setAuraFocus={handleAuraChange}
                 />
 
                 {/* ═══ EXIT MODAL COMPONENT ═══ */}

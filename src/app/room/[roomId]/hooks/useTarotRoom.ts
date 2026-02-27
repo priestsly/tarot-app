@@ -13,7 +13,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const role = searchParams.get('role') || 'consultant'; // default to consultant
     const isConsultant = role === 'consultant';
 
-    // Store remote client profile (for the Consultant)
     const [clientProfile, setClientProfile] = useState<{
         name: string;
         birth: string;
@@ -28,7 +27,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const [copied, setCopied] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showAurasPanel, setShowAurasPanel] = useState(false);
     const [fullShareUrl, setFullShareUrl] = useState("");
+    const [currentAura, setCurrentAura] = useState(searchParams.get('focus') || 'Ruhsal');
 
     // Real-time State
     const [cards, setCards] = useState<CardState[]>([]);
@@ -181,15 +182,29 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // ── Share Link ──
     const [linkCopied, setLinkCopied] = useState(false);
 
-    // Aura Color based on focus or birth
+    // Aura Color based on focus or birth or manually set by Consultant
     const auraColor = useMemo(() => {
-        const focus = clientProfile?.focus || searchParams.get('focus') || '';
-        if (focus === 'Aşk') return 'rgba(232, 124, 124, 0.15)'; // Pinkish
-        if (focus === 'Para') return 'rgba(212, 185, 106, 0.15)'; // Gold
-        if (focus === 'Kariyer') return 'rgba(124, 184, 232, 0.15)'; // Blue
-        if (focus === 'Ruhsal') return 'rgba(184, 164, 232, 0.15)'; // Purple
-        return 'rgba(184, 164, 232, 0.12)'; // Default Purple
-    }, [clientProfile?.focus, searchParams]);
+        const activeAura = clientProfile?.focus || currentAura; // Fallback to currentAura
+
+        switch (activeAura) {
+            case 'Aşk': return 'rgba(232, 124, 124, 0.15)'; // Pinkish
+            case 'Para': return 'rgba(212, 185, 106, 0.15)'; // Gold
+            case 'Kariyer': return 'rgba(124, 184, 232, 0.15)'; // Blue 1
+            case 'Yaratıcılık': return 'rgba(124, 212, 232, 0.15)'; // Cyan
+            case 'Ruhsal':
+            default:
+                return 'rgba(184, 164, 232, 0.12)'; // Default Purple
+        }
+    }, [clientProfile?.focus, currentAura]);
+
+    const handleAuraChange = useCallback((newAura: string) => {
+        setCurrentAura(newAura);
+        if (isConsultant && clientProfile) {
+            // override the client's form focus logically, to show the change
+            setClientProfile(prev => prev ? { ...prev, focus: newAura } : null);
+            socketRef.current?.emit("sync-client-profile", { ...clientProfile, focus: newAura });
+        }
+    }, [isConsultant, clientProfile]);
 
     const copyShareLink = useCallback(() => {
         const url = `${window.location.origin}/?room=${roomId}`;
@@ -836,12 +851,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         showShareModal,
         fullShareUrl,
+        showAurasPanel,
+        currentAura,
 
         // Setters
         setIsSidebarOpen,
         setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowShareModal,
+        setShowAurasPanel,
+        handleAuraChange,
 
         // Refs
         messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
