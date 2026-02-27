@@ -17,6 +17,7 @@ import { ShareModal } from './components/ShareModal';
 import { FogOverlay } from './components/FogOverlay';
 import { AurasPanel } from './components/AurasPanel';
 import { StoryGenerator } from '@/components/StoryGenerator';
+import { AiModal } from './components/AiModal';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -53,6 +54,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
+    const [showAiModal, setShowAiModal] = useState(false);
 
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
@@ -104,8 +106,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 {/* Overall AI Interpretation Button (Top Center) */}
                 {isConsultant && cards.filter(c => c.isFlipped).length >= 2 && (
                     <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40">
-                        <button onClick={() => handleAiInterpret(-1)} disabled={aiLoading} className="flex items-center gap-2 px-6 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 rounded-full text-[10px] text-purple-200 font-bold tracking-[0.15em] uppercase transition-all backdrop-blur-md shadow-lg shadow-purple-500/10">
-                            {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
+                        <button onClick={() => setShowAiModal(true)} className="flex items-center gap-2 px-6 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 rounded-full text-[10px] text-purple-200 font-bold tracking-[0.15em] uppercase transition-all backdrop-blur-md shadow-lg shadow-purple-500/10">
+                            <Sparkles className="w-4 h-4 text-amber-300" />
                             Tüm Masayı Yorumla
                         </button>
                     </div>
@@ -238,12 +240,12 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-bold uppercase tracking-wider">{info.element}</span>
                                             <span className="text-xs text-text-muted font-medium">{info.keywords}</span>
                                         </div>
-                                        
+
                                         <p className="text-base text-text/80 leading-relaxed mb-6 italic border-l-2 border-accent/20 pl-4">{info.meaning}</p>
-                                        
-                                        <button 
-                                            onClick={() => handleAiInterpret(selectedCard.cardIndex)} 
-                                            disabled={aiLoading} 
+
+                                        <button
+                                            onClick={() => handleAiInterpret(selectedCard.cardIndex)}
+                                            disabled={aiLoading}
                                             className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-600/30 via-indigo-600/20 to-purple-600/30 hover:from-purple-600/40 hover:to-indigo-600/30 border border-purple-500/40 rounded-2xl text-base text-white font-bold transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-purple-500/10 group overflow-hidden relative"
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -252,7 +254,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                         </button>
 
                                         {aiResponse && (
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="mt-6 p-5 bg-midnight/40 border border-purple-500/30 rounded-2xl bg-gradient-to-br from-purple-500/[0.08] to-transparent shadow-inner"
@@ -310,7 +312,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     {isConsultant && (
                         <>
                             <div className="w-px h-8 bg-white/5 mx-1 mb-4" />
-                            
+
                             <div className="flex flex-col items-center">
                                 <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-110 active:scale-95 disabled:opacity-30">
                                     <Sparkles className="w-4 h-4 text-amber-200" />
@@ -386,6 +388,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : undefined}
                     cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : undefined}
                     cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : undefined}
+                />
+
+                {/* ═══ AI INTERPRETATION MODAL ═══ */}
+                <AiModal
+                    isOpen={showAiModal}
+                    onClose={() => setShowAiModal(false)}
+                    aiResponse={aiResponse}
+                    aiLoading={aiLoading}
+                    onInterpret={() => handleAiInterpret(-1)}
                 />
 
                 {/* ═══ EXIT MODAL COMPONENT ═══ */}

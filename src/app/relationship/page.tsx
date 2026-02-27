@@ -28,7 +28,8 @@ export default function RelationshipPage() {
         try {
             const res = await fetch("/api/relationship", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, history: messages.slice(-6) }) });
             const data = await res.json();
-            setMessages(m => [...m, { role: "ai", text: data.response }]);
+            const aiText = data.response || data.error || "Bir hata oluştu. Tekrar deneyin.";
+            setMessages(m => [...m, { role: "ai", text: aiText }]);
         } catch {
             setMessages(m => [...m, { role: "ai", text: "Bağlantı hatası. Lütfen tekrar deneyin." }]);
         }
