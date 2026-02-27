@@ -1,85 +1,16 @@
 {
-    "name": "Mystic Tarot - Tarot Danışmanlık",
-    "short_name": "Mystic Tarot",
-    "description": "Profesyonel tarot danışmanlık platformu. Gerçek zamanlı okuma, video görüşme ve interaktif kart masası.",
+    "name": "Mystic Tarot",
+    "short_name": "Tarot",
+    "description": "Profesyonel tarot danışmanlık platformu ve mistik araçlar.",
     "start_url": "/",
-    "id": "/",
     "display": "standalone",
-    "orientation": "portrait",
     "background_color": "#0C0B14",
     "theme_color": "#0C0B14",
-    "scope": "/",
-    "prefer_related_applications": false,
-    "categories": [
-        "lifestyle",
-        "entertainment"
-    ],
-    "lang": "tr",
-    "dir": "ltr",
     "icons": [
         {
-            "src": "/icon-48x48.png",
-            "sizes": "48x48",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-96x96.png",
-            "sizes": "96x96",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-144x144.png",
-            "sizes": "144x144",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-256x256.png",
-            "sizes": "256x256",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-384x384.png",
-            "sizes": "384x384",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
-        }
-    ],
-    "screenshots": [
-        {
-            "src": "/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "form_factor": "narrow",
-            "label": "Mystic Tarot Ana Sayfa"
-        },
-        {
-            "src": "/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "form_factor": "wide",
-            "label": "Mystic Tarot Masaüstü"
+            "src": "/favicon.ico",
+            "sizes": "any",
+            "type": "image/x-icon"
         }
     ]
 }
