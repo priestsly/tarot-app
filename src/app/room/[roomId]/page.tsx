@@ -355,7 +355,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                 </button>
                                 <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Sil</span>
                             </div>
+                        </>
+                    )}
 
+                    {/* Story — visible to EVERYONE */}
+                    {cards.filter(c => c.isFlipped).length > 0 && (
+                        <>
+                            <div className="w-px h-8 bg-white/5 mx-1 mb-4" />
                             <div className="flex flex-col items-center">
                                 <button onClick={() => setShowStoryGen(true)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-pink-400 hover:bg-pink-400/10 transition-all">
                                     <Instagram className="w-4 h-4" />
@@ -385,9 +391,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 <StoryGenerator
                     isOpen={showStoryGen}
                     onClose={() => setShowStoryGen(false)}
-                    cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : undefined}
-                    cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : undefined}
-                    cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : undefined}
+                    cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).name : undefined}
+                    cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).keywords : undefined}
+                    cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : cards.filter(c => c.isFlipped).length > 0 ? `/cards/${cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex}.webp` : undefined}
                 />
 
                 {/* ═══ AI INTERPRETATION MODAL ═══ */}

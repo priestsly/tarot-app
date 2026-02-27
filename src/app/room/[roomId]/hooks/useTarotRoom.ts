@@ -286,11 +286,20 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         if (!el) return;
         try {
             const html2canvas = (await import("html2canvas")).default;
-            const canvas = await html2canvas(el, { backgroundColor: "#0C0B14", scale: 2 });
+            const canvas = await html2canvas(el, {
+                backgroundColor: "#0C0B14",
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+            });
+            const dataUrl = canvas.toDataURL("image/png", 1.0);
             const link = document.createElement("a");
             link.download = `tarot-${roomId}-${Date.now()}.png`;
-            link.href = canvas.toDataURL("image/png");
+            link.href = dataUrl;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
             appendLog("Masa ekran görüntüsü kaydedildi");
         } catch { appendLog("Ekran görüntüsü alınamadı"); }
     };

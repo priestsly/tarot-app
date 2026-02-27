@@ -64,10 +64,12 @@ export const StoryGenerator = ({ isOpen, onClose, cardName, cardMeaning, cardIma
                 try {
                     const img = new Image();
                     img.crossOrigin = "anonymous";
+                    // Must use absolute URL for Canvas API
+                    const absoluteUrl = cardImage.startsWith("http") ? cardImage : window.location.origin + cardImage;
                     await new Promise<void>((resolve, reject) => {
                         img.onload = () => resolve();
                         img.onerror = () => reject();
-                        img.src = cardImage;
+                        img.src = absoluteUrl;
                     });
                     const cardW = 280;
                     const cardH = 440;
