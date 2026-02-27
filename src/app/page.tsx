@@ -211,6 +211,20 @@ function HomeContent() {
         </div>
         <ArrowRight className="w-4 h-4 text-text-muted/30 group-hover:text-purple-400/50 transition-colors" />
       </button>
+
+      <button
+        onClick={() => router.push("/astrology")}
+        className="group w-full relative overflow-hidden rounded-xl border border-indigo-500/10 bg-surface/50 p-4 flex items-center gap-4 transition-all hover:border-indigo-500/20 hover:bg-indigo-500/5"
+      >
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500/30 to-violet-600/20 flex items-center justify-center shrink-0">
+          <Star className="w-4 h-4 text-indigo-300/70" />
+        </div>
+        <div className="text-left flex-1">
+          <h3 className="text-sm font-semibold text-text/70">Astroloji</h3>
+          <p className="text-[10px] text-text-muted/60 mt-0.5">Burç analizi, günlük yorum, gezegen haritası.</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-text-muted/30 group-hover:text-indigo-400/50 transition-colors" />
+      </button>
     </motion.div>
   );
 
