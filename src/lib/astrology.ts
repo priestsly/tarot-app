@@ -46,33 +46,24 @@ export function getZodiacSign(month: number, day: number): ZodiacSign {
     return ZODIAC_SIGNS[idx];
 }
 
-// ── Moon phase calculation (simplified) ──
+// ── Moon phase calculation (More Precise for 2026) ──
 export function getMoonPhase(date: Date): { name: string; emoji: string; desc: string } {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    // Reference: Known New Moon on Jan 18, 2026, 22:53 (TR Time)
+    const newMoonRef = new Date(2026, 0, 18, 22, 53).getTime();
+    const synodicMonth = 29.530588 * 24 * 60 * 60 * 1000;
+    const diff = date.getTime() - newMoonRef;
+    const phase = ((diff % synodicMonth) + synodicMonth) % synodicMonth;
+    const age = phase / (24 * 60 * 60 * 1000);
 
-    // Simplified moon phase calculation
-    let c = Math.floor(year / 100);
-    let n = year - 19 * Math.floor(year / 19);
-    let k = Math.floor((c - 17) / 25);
-    let i = c - Math.floor(c / 4) - Math.floor((c - k) / 3) + 19 * n + 15;
-    i = i - 30 * Math.floor(i / 30);
-    i = i - Math.floor(i / 28) * (1 - Math.floor(i / 28) * Math.floor(29 / (i + 1)) * Math.floor((21 - n) / 11));
-    let j = year + Math.floor(year / 4) + i + 2 - c + Math.floor(c / 4);
-    j = j - 7 * Math.floor(j / 7);
-    let l = i - j;
-    let moonDay = day + l;
-    moonDay = ((moonDay % 30) + 30) % 30;
-
-    if (moonDay < 2) return { name: "Yeni Ay", emoji: "🌑", desc: "Yeni başlangıçlar ve niyet belirleme zamanı." };
-    if (moonDay < 7) return { name: "Hilal (Büyüyen)", emoji: "🌒", desc: "Niyetlerinizi eyleme dökme zamanı." };
-    if (moonDay < 10) return { name: "İlk Dördün", emoji: "🌓", desc: "Kararlılık ve karar verme zamanı." };
-    if (moonDay < 14) return { name: "Şişkin Ay", emoji: "🌔", desc: "Sabır ve olgunlaşma zamanı." };
-    if (moonDay < 17) return { name: "Dolunay", emoji: "🌕", desc: "Tamamlanma ve aydınlanma zamanı." };
-    if (moonDay < 21) return { name: "Şişkin Ay (Küçülen)", emoji: "🌖", desc: "Minnettarlık ve paylaşım zamanı." };
-    if (moonDay < 24) return { name: "Son Dördün", emoji: "🌗", desc: "Bırakma ve arınma zamanı." };
-    return { name: "Hilal (Küçülen)", emoji: "🌘", desc: "İç gözlem ve dinlenme zamanı." };
+    if (age < 1.84) return { name: "Yeni Ay", emoji: "🌑", desc: "Yeni başlangıçlar ve niyet belirleme zamanı." };
+    if (age < 5.53) return { name: "Hilal (Büyüyen)", emoji: "🌒", desc: "Niyetlerinizi eyleme dökme zamanı." };
+    if (age < 9.22) return { name: "İlk Dördün", emoji: "🌓", desc: "Kararlılık ve karar verme zamanı." };
+    if (age < 12.91) return { name: "Şişkin Ay", emoji: "🌔", desc: "Sabır ve olgunlaşma zamanı." };
+    if (age < 16.61) return { name: "Dolunay", emoji: "🌕", desc: "Tamamlanma ve aydınlanma zamanı." };
+    if (age < 20.30) return { name: "Şişkin Ay (Küçülen)", emoji: "🌖", desc: "Minnettarlık ve paylaşım zamanı." };
+    if (age < 23.99) return { name: "Son Dördün", emoji: "🌗", desc: "Bırakma ve arınma zamanı." };
+    if (age < 27.68) return { name: "Hilal (Küçülen)", emoji: "🌘", desc: "İç gözlem ve dinlenme zamanı." };
+    return { name: "Yeni Ay", emoji: "🌑", desc: "Yeni başlangıçlar ve niyet belirleme zamanı." };
 }
 
 // ── Daily horoscope messages (seeded by date + sign) ──
@@ -118,15 +109,23 @@ export interface PlanetaryEvent {
 export function getCurrentPlanets(): PlanetaryEvent[] {
     const now = new Date();
     const month = now.getMonth();
+    const day = now.getDate();
 
-    // Simplified planetary positions based on month (not real ephemeris)
+    // Accuracy for 2026 Mercury Retros
+    const isMercuryRetro =
+        (month === 1 && day >= 26) || (month === 2 && day <= 20) || // Feb 26 - Mar 20
+        (month === 5 && day >= 29) || (month === 6 && day <= 23) || // Jun 29 - Jul 23
+        (month === 9 && day >= 24) || (month === 10 && day <= 13);  // Oct 24 - Nov 13
+
+    const isVenusRetro = (month === 9 && day >= 3) || (month === 10 && day <= 13); // Oct 3 - Nov 13
+
     const events: PlanetaryEvent[] = [
-        { planet: "Güneş", emoji: "☀️", status: ZODIAC_SIGNS[((month + 2) % 12)].name + " burcunda", desc: "Bilinç ve yaşam enerjisi" },
+        { planet: "Güneş", emoji: "☀️", status: ZODIAC_SIGNS[((month + 9) % 12)].name + " burcunda", desc: "Bilinç ve yaşam enerjisi" },
         { planet: "Ay", emoji: "🌙", status: getMoonPhase(now).name, desc: "Duygular ve iç dünya" },
-        { planet: "Merkür", emoji: "☿️", status: month % 4 === 0 ? "Retrograd ⚠️" : ZODIAC_SIGNS[((month + 1) % 12)].name + " burcunda", desc: month % 4 === 0 ? "İletişimde dikkatli ol" : "İletişim ve düşünce" },
-        { planet: "Venüs", emoji: "♀️", status: ZODIAC_SIGNS[((month + 3) % 12)].name + " burcunda", desc: "Aşk ve güzellik" },
-        { planet: "Mars", emoji: "♂️", status: ZODIAC_SIGNS[((month) % 12)].name + " burcunda", desc: "Enerji ve eylem" },
-        { planet: "Jüpiter", emoji: "♃", status: ZODIAC_SIGNS[Math.floor(month / 6) % 12].name + " burcunda", desc: "Şans ve büyüme" },
+        { planet: "Merkür", emoji: "☿️", status: isMercuryRetro ? "Retrograd ⚠️" : "Direkt", desc: isMercuryRetro ? "İletişim ve cihazlara dikkat" : "İletişim ve kısa yolculuklar" },
+        { planet: "Venüs", emoji: "♀️", status: isVenusRetro ? "Retrograd ⚠️" : "Direkt", desc: isVenusRetro ? "İlişkilerde geçmişi sorgulama" : "Sevgi, uyum ve değerler" },
+        { planet: "Mars", emoji: "♂️", status: "Direkt", desc: "Tutku, eylem ve mücadele gücü" },
+        { planet: "Jüpiter", emoji: "♃", status: month < 6 ? "Yengeç" : "Aslan", desc: "Büyüme ve fırsatlar" },
     ];
     return events;
 }
