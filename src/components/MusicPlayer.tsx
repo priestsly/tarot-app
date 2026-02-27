@@ -32,15 +32,20 @@ export function MusicPlayer() {
         setIsPlaying(false);
     }, []);
 
-    const play = useCallback(() => {
+    const play = useCallback(async () => {
         if (nodesRef.current) stop();
 
         const ctx = ctxRef.current || new AudioContext();
         ctxRef.current = ctx;
 
+        // Force resume for browsers that require user interaction
+        if (ctx.state === "suspended") {
+            await ctx.resume();
+        }
+
         const master = ctx.createGain();
         master.gain.setValueAtTime(0, ctx.currentTime);
-        master.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 1);
+        master.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 1); // Increased volume from 0.04 to 0.15
         master.connect(ctx.destination);
 
         const oscillators: OscillatorNode[] = [];
@@ -52,7 +57,7 @@ export function MusicPlayer() {
             osc.type = track.type;
             osc.frequency.value = freq;
             osc.detune.value = (Math.random() - 0.5) * 8;
-            gain.gain.value = 0.015 + (i === 0 ? 0.01 : 0);
+            gain.gain.value = 0.05 + (i === 0 ? 0.02 : 0); // Increased individual oscillator volumes
 
             // Slow LFO for movement
             const lfo = ctx.createOscillator();
@@ -85,18 +90,19 @@ export function MusicPlayer() {
 
     return (
         <>
-            {/* Floating button */}
+            {/* Floating button - Moved from bottom-6 to top-24 to avoid overlapping with bottom chat inputs */}
             <button onClick={() => setIsOpen(!isOpen)}
-                className={`fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl transition-all ${isPlaying ? "bg-purple-500/30 border border-purple-500/40 animate-pulse" : "bg-white/[0.05] border border-white/10 hover:bg-white/[0.08]"}`}>
-                <Music className={`w-5 h-5 ${isPlaying ? "text-purple-300" : "text-white/30"}`} />
+                className={`fixed top-20 right-6 lg:top-24 lg:right-10 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl transition-all ${isPlaying ? "bg-purple-500/30 border border-purple-500/40 animate-pulse" : "bg-[#1a1825]/80 backdrop-blur-md border border-white/10 hover:bg-white/[0.08]"}`}>
+                <Music className={`w-5 h-5 ${isPlaying ? "text-purple-300" : "text-white/50"}`} />
             </button>
 
             {/* Panel */}
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="fixed bottom-20 right-6 z-50 w-72 bg-[#1a1825]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+                    <motion.div initial={{ opacity: 0, y: -20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="fixed top-36 right-6 lg:top-40 lg:right-10 z-50 w-72 bg-[#1a1825]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
                         <div className="flex items-center justify-between p-3 border-b border-white/[0.06]">
+
                             <span className="text-[10px] text-white/30 uppercase tracking-wider">Ambient Müzik</span>
                             <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white/40"><X className="w-4 h-4" /></button>
                         </div>

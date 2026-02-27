@@ -228,7 +228,6 @@ function HomeContent() {
           { href: "/affirmations", name: "Afirmasyonlar", desc: "Günlük olumlamalar", icon: "✨", border: "border-violet-500/10", hover: "hover:border-violet-500/20 hover:bg-violet-500/5" },
           { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
           { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
-          { href: "/altar", name: "Dijital Sunak", desc: "Kişisel ritüel alanı", icon: "🏛️", border: "border-stone-500/10", hover: "hover:border-stone-500/20 hover:bg-stone-500/5" },
           { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
         ].map(item => (
           <button key={item.href} onClick={() => router.push(item.href)}
