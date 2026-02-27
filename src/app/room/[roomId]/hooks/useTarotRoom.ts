@@ -73,6 +73,63 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         } catch { }
     }, []);
 
+    // SFX: Card flip sound — mystical chime
+    const playCardFlipSound = useCallback(() => {
+        try {
+            const ctx = new window.AudioContext();
+            // Chime 1
+            const osc1 = ctx.createOscillator();
+            const g1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(523, ctx.currentTime);  // C5
+            osc1.frequency.setValueAtTime(659, ctx.currentTime + 0.1);  // E5
+            osc1.frequency.setValueAtTime(784, ctx.currentTime + 0.2);  // G5
+            g1.gain.setValueAtTime(0.12, ctx.currentTime);
+            g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+            osc1.connect(g1);
+            g1.connect(ctx.destination);
+            osc1.start(ctx.currentTime);
+            osc1.stop(ctx.currentTime + 0.6);
+            // Shimmer
+            const osc2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(1570, ctx.currentTime + 0.1);
+            g2.gain.setValueAtTime(0.05, ctx.currentTime + 0.1);
+            g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            osc2.connect(g2);
+            g2.connect(ctx.destination);
+            osc2.start(ctx.currentTime + 0.1);
+            osc2.stop(ctx.currentTime + 0.5);
+            setTimeout(() => ctx.close(), 800);
+        } catch { }
+    }, []);
+
+    // SFX: Aura change — deep whoosh
+    const playAuraChangeSound = useCallback(() => {
+        try {
+            const ctx = new window.AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(60, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.3);
+            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.8);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, ctx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.8);
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.9);
+            setTimeout(() => ctx.close(), 1200);
+        } catch { }
+    }, []);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -182,29 +239,36 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // ── Share Link ──
     const [linkCopied, setLinkCopied] = useState(false);
 
-    // Aura Color based on focus or birth or manually set by Consultant
+    // Aura Color based on focus or manually set by Consultant
     const auraColor = useMemo(() => {
-        const activeAura = clientProfile?.focus || currentAura; // Fallback to currentAura
+        const activeAura = clientProfile?.focus || currentAura;
 
         switch (activeAura) {
-            case 'Aşk': return 'rgba(232, 124, 124, 0.15)'; // Pinkish
-            case 'Para': return 'rgba(212, 185, 106, 0.15)'; // Gold
-            case 'Kariyer': return 'rgba(124, 184, 232, 0.15)'; // Blue 1
-            case 'Yaratıcılık': return 'rgba(124, 212, 232, 0.15)'; // Cyan
+            case 'Aşk': return 'rgba(232, 90, 120, 0.55)';    // Strong Pink
+            case 'Para': return 'rgba(220, 180, 60, 0.50)';     // Strong Gold
+            case 'Kariyer': return 'rgba(80, 150, 240, 0.50)';   // Strong Blue
+            case 'Yaratıcılık': return 'rgba(60, 200, 230, 0.50)'; // Strong Cyan
             case 'Ruhsal':
             default:
-                return 'rgba(184, 164, 232, 0.12)'; // Default Purple
+                return 'rgba(160, 130, 240, 0.40)';              // Strong Purple
         }
     }, [clientProfile?.focus, currentAura]);
 
     const handleAuraChange = useCallback((newAura: string) => {
         setCurrentAura(newAura);
+        playAuraChangeSound();
         if (isConsultant && clientProfile) {
-            // override the client's form focus logically, to show the change
             setClientProfile(prev => prev ? { ...prev, focus: newAura } : null);
             socketRef.current?.emit("sync-client-profile", { ...clientProfile, focus: newAura });
         }
-    }, [isConsultant, clientProfile]);
+    }, [isConsultant, clientProfile, playAuraChangeSound]);
+
+    // Initialize fullShareUrl on mount so it's always ready
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setFullShareUrl(`${window.location.origin}/?room=${roomId}`);
+        }
+    }, [roomId]);
 
     const copyShareLink = useCallback(() => {
         const url = `${window.location.origin}/?room=${roomId}`;
@@ -823,13 +887,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
         if (isFlipped) {
             appendLog("Revealed a card's destiny");
-            setSelectedCardId(id); // show meaning panel
+            setSelectedCardId(id);
+            playCardFlipSound();
         } else {
             if (selectedCardId === id) setSelectedCardId(null);
         }
         setCards(prev => prev.map(c => c.id === id ? { ...c, isReversed, isFlipped } : c));
         socketRef.current?.emit("flip-card", roomId, id, isReversed, isFlipped);
-    }, [roomId, appendLog, selectedCardId]);
+    }, [roomId, appendLog, selectedCardId, playCardFlipSound]);
 
     const handleCursorMove = (e: React.PointerEvent) => {
         if (e.pointerType === 'touch') return;

@@ -64,10 +64,12 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-indigo-400/3 rounded-full blur-[140px]" />
                     <div className="absolute bottom-[15%] right-[15%] w-[250px] h-[250px] bg-amber-300/2 rounded-full blur-[120px]" />
 
-                    {/* Dynamic Aura Glow */}
+                    {/* Dynamic Aura Glow — strong & dramatic */}
                     <motion.div
-                        className="absolute inset-0 transition-colors duration-1000"
-                        style={{ background: `radial-gradient(circle at center, transparent 40%, ${auraColor} 100%)` }}
+                        className="absolute inset-0"
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1.5 }}
+                        style={{ background: `radial-gradient(ellipse at center, ${auraColor.replace(/[\d.]+\)$/, '0.08)')} 0%, ${auraColor} 60%, ${auraColor.replace(/[\d.]+\)$/, '0.7)')} 100%)` }}
                     />
 
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-bg)_80%)]" />
