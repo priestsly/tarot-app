@@ -64,13 +64,23 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-indigo-400/3 rounded-full blur-[140px]" />
                     <div className="absolute bottom-[15%] right-[15%] w-[250px] h-[250px] bg-amber-300/2 rounded-full blur-[120px]" />
 
-                    {/* Dynamic Aura Glow — strong & dramatic */}
+                    {/* Dynamic Aura — atmospheric edge fog, not a center spotlight */}
                     <motion.div
                         className="absolute inset-0"
+                        key={auraColor}
+                        initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 1.5 }}
-                        style={{ background: `radial-gradient(ellipse at center, ${auraColor.replace(/[\d.]+\)$/, '0.08)')} 0%, ${auraColor} 60%, ${auraColor.replace(/[\d.]+\)$/, '0.7)')} 100%)` }}
-                    />
+                        transition={{ duration: 2 }}
+                    >
+                        {/* Top edge glow */}
+                        <div className="absolute top-0 inset-x-0 h-[40%] blur-[80px]" style={{ background: `linear-gradient(to bottom, ${auraColor}, transparent)` }} />
+                        {/* Bottom edge glow */}
+                        <div className="absolute bottom-0 inset-x-0 h-[35%] blur-[80px]" style={{ background: `linear-gradient(to top, ${auraColor}, transparent)` }} />
+                        {/* Left edge glow */}
+                        <div className="absolute left-0 inset-y-0 w-[30%] blur-[80px]" style={{ background: `linear-gradient(to right, ${auraColor}, transparent)` }} />
+                        {/* Right edge glow */}
+                        <div className="absolute right-0 inset-y-0 w-[30%] blur-[80px]" style={{ background: `linear-gradient(to left, ${auraColor}, transparent)` }} />
+                    </motion.div>
 
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-bg)_80%)]" />
                 </div>

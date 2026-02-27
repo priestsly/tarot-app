@@ -239,18 +239,18 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // ── Share Link ──
     const [linkCopied, setLinkCopied] = useState(false);
 
-    // Aura Color based on focus or manually set by Consultant
+    // Aura Color — deep, dark tones that keep the mystical mood
     const auraColor = useMemo(() => {
         const activeAura = clientProfile?.focus || currentAura;
 
         switch (activeAura) {
-            case 'Aşk': return 'rgba(232, 90, 120, 0.55)';    // Strong Pink
-            case 'Para': return 'rgba(220, 180, 60, 0.50)';     // Strong Gold
-            case 'Kariyer': return 'rgba(80, 150, 240, 0.50)';   // Strong Blue
-            case 'Yaratıcılık': return 'rgba(60, 200, 230, 0.50)'; // Strong Cyan
+            case 'Aşk': return 'rgba(120, 30, 50, 0.65)';      // Deep dark crimson
+            case 'Para': return 'rgba(100, 80, 20, 0.55)';      // Dark antique gold
+            case 'Kariyer': return 'rgba(20, 40, 100, 0.55)';    // Deep midnight blue
+            case 'Yaratıcılık': return 'rgba(15, 60, 80, 0.55)'; // Dark ocean teal
             case 'Ruhsal':
             default:
-                return 'rgba(160, 130, 240, 0.40)';              // Strong Purple
+                return 'rgba(50, 30, 90, 0.50)';                 // Deep indigo
         }
     }, [clientProfile?.focus, currentAura]);
 
