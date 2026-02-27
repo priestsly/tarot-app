@@ -12,6 +12,7 @@ import { TopBar } from './components/TopBar';
 import { RightSidebar } from './components/RightSidebar';
 import { ChatPanel } from './components/ChatPanel';
 import { ExitModal } from './components/ExitModal';
+import { ShareModal } from './components/ShareModal';
 import { FogOverlay } from './components/FogOverlay';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
@@ -30,11 +31,11 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
-        linkCopied, isAmbientOn, isFullscreen, auraColor,
+        linkCopied, isAmbientOn, isFullscreen, auraColor, showShareModal, fullShareUrl,
 
         // Setters
         setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
-        setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
+        setShowExitModal, setShowShareModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
 
         // Refs
         messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
@@ -120,6 +121,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     captureScreenshot={captureScreenshot}
                     setIsSidebarOpen={setIsSidebarOpen}
                     setShowExitModal={setShowExitModal}
+                    setShowShareModal={setShowShareModal}
                 />
 
                 {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
@@ -276,6 +278,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         </>
                     )}
                 </div>
+
+                {/* ═══ SHARE MODAL COMPONENT ═══ */}
+                <ShareModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    shareUrl={fullShareUrl}
+                />
 
                 {/* ═══ EXIT MODAL COMPONENT ═══ */}
                 <ExitModal

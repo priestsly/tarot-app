@@ -6,8 +6,9 @@ import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Sta
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { MagicWheel } from "@/components/MagicWheel";
 
-function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
@@ -447,6 +448,10 @@ function HomeContent() {
             <span className="w-1 h-1 rounded-full bg-accent/20" />
             <span>Güvenli</span>
           </div>
+
+          <div className="mt-16 w-full max-w-sm mx-auto">
+            <MagicWheel />
+          </div>
         </div>
       </div>
 
@@ -477,9 +482,13 @@ function HomeContent() {
 
           {renderProgress()}
 
-          <p className="text-center text-[10px] text-text-muted/40 tracking-[0.15em] uppercase mt-8">
+          <p className="text-center text-[10px] text-text-muted/40 tracking-[0.15em] uppercase mt-8 mb-8 lg:mb-0">
             Şifreli Bağlantı · Gerçek Zamanlı
           </p>
+
+          <div className="mt-12 lg:hidden w-full max-w-sm mx-auto">
+            <MagicWheel />
+          </div>
         </div>
       </div>
     </div>

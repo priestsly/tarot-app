@@ -17,6 +17,7 @@ interface TopBarProps {
     captureScreenshot: () => void;
     setIsSidebarOpen: (v: boolean) => void;
     setShowExitModal: (v: boolean) => void;
+    setShowShareModal?: (v: boolean) => void;
 }
 
 export const TopBar = ({
@@ -34,7 +35,8 @@ export const TopBar = ({
     toggleAmbient,
     captureScreenshot,
     setIsSidebarOpen,
-    setShowExitModal
+    setShowExitModal,
+    setShowShareModal
 }: TopBarProps) => {
     return (
         <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 pointer-events-none">
@@ -70,9 +72,9 @@ export const TopBar = ({
                 {/* Desktop-only tools */}
                 <div className="hidden md:flex items-center gap-1">
                     {isConsultant && (
-                        <button onClick={copyShareLink} className="glass rounded-xl px-3 py-2 flex items-center gap-1.5 text-text-muted hover:text-accent transition-colors" title="Müşteri davet linki kopyala">
+                        <button onClick={() => setShowShareModal?.(true)} className="glass rounded-xl px-3 py-2 flex items-center gap-1.5 text-text-muted hover:text-accent transition-colors" title="Müşteri davet göster">
                             <Share2 className="w-3.5 h-3.5" />
-                            <span className="text-[9px] font-semibold tracking-wider uppercase">{linkCopied ? 'Kopyalandı!' : 'Davet'}</span>
+                            <span className="text-[9px] font-semibold tracking-wider uppercase">Davet</span>
                         </button>
                     )}
                     <button onClick={toggleAmbient} className={cn("glass rounded-xl p-2.5 transition-colors", isAmbientOn ? "text-accent" : "text-text-muted hover:text-accent")} title={isAmbientOn ? "Sesi Kapat" : "Ortam Sesi"}>

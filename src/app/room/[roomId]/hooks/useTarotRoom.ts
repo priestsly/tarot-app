@@ -27,6 +27,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const [copied, setCopied] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [fullShareUrl, setFullShareUrl] = useState("");
 
     // Real-time State
     const [cards, setCards] = useState<CardState[]>([]);
@@ -189,12 +191,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return 'rgba(184, 164, 232, 0.12)'; // Default Purple
     }, [clientProfile?.focus, searchParams]);
 
-    const copyShareLink = () => {
+    const copyShareLink = useCallback(() => {
         const url = `${window.location.origin}/?room=${roomId}`;
         navigator.clipboard.writeText(url);
         setLinkCopied(true);
-        setTimeout(() => setLinkCopied(false), 2500);
-    };
+        setFullShareUrl(url);
+        setShowShareModal(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+        appendLog("Davet linki kopyalandı");
+    }, [roomId, appendLog]);
 
     // ── Screenshot ──
     const captureScreenshot = async () => {
@@ -626,6 +631,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             audioUrl: base64Audio,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
+
         setMessages(prev => [...prev, msg]);
         socketRef.current?.emit("chat-message", roomId, msg);
     };
@@ -828,9 +834,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,
 
+        showShareModal,
+        fullShareUrl,
+
         // Setters
-        setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
+        setIsSidebarOpen,
+        setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
+        setShowShareModal,
 
         // Refs
         messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
