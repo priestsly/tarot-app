@@ -1,7 +1,8 @@
 "use client";
 
 import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame } from "lucide-react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Instagram } from "lucide-react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
@@ -15,6 +16,7 @@ import { ExitModal } from './components/ExitModal';
 import { ShareModal } from './components/ShareModal';
 import { FogOverlay } from './components/FogOverlay';
 import { AurasPanel } from './components/AurasPanel';
+import { StoryGenerator } from '@/components/StoryGenerator';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -49,6 +51,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
     } = useTarotRoom(roomId, searchParams);
+
+    const [showStoryGen, setShowStoryGen] = useState(false);
 
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
@@ -293,6 +297,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <button onClick={handleClearTable} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-danger hover:bg-danger/10 transition-all" title="Temizle">
                                 <Trash2 className="w-4 h-4" />
                             </button>
+                            <button onClick={() => setShowStoryGen(true)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-pink-400 hover:bg-pink-400/10 transition-all" title="Story Oluştur">
+                                <Instagram className="w-4 h-4" />
+                            </button>
                         </>
                     )}
                 </div>
@@ -310,6 +317,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     onClose={() => setShowAurasPanel(false)}
                     currentAura={currentAura}
                     setAuraFocus={handleAuraChange}
+                />
+
+                {/* ═══ STORY GENERATOR ═══ */}
+                <StoryGenerator
+                    isOpen={showStoryGen}
+                    onClose={() => setShowStoryGen(false)}
+                    cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : undefined}
+                    cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : undefined}
+                    cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : undefined}
                 />
 
                 {/* ═══ EXIT MODAL COMPONENT ═══ */}
