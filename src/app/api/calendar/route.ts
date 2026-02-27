@@ -10,8 +10,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "API Key eksik" }, { status: 500 });
         }
 
-        const genAI = new GoogleGenAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
             Sen profesyonel bir astrolog ve astronom veri uzmanısın. 
@@ -41,16 +40,32 @@ export async function POST(req: Request) {
             }
         `;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+        let lastError = null;
 
-        // Clean possible markdown backticks
-        const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-        const data = JSON.parse(cleanJson);
+        for (const model of models) {
+            try {
+                const result = await ai.models.generateContent({
+                    model: model,
+                    contents: prompt
+                });
 
-        return NextResponse.json(data);
+                const responseText = result.text || "";
+                const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+                const data = JSON.parse(cleanJson);
+                return NextResponse.json(data);
+            } catch (err: any) {
+                lastError = err;
+                console.warn(`${model} failed, trying next...`, err.message);
+                if (err.status !== 429) break; // If it's not a quota error, stop
+            }
+        }
+
+        throw lastError;
     } catch (error: any) {
-        console.error("Calendar API Error:", error);
-        return NextResponse.json({ error: "Veriler alınamadı" }, { status: 500 });
+        console.error("Calendar API Final Error:", error);
+        return NextResponse.json({
+            error: error.status === 429 ? "AI Kotası Doldu (Lütfen biraz bekleyin)" : "Veriler alınamadı"
+        }, { status: error.status || 500 });
     }
 }
