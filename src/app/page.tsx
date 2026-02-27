@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -111,6 +111,7 @@ function HomeContent() {
   const [birthTime, setBirthTime] = useState("");
   const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [readingFocus, setReadingFocus] = useState("");
+  const [isWheelOpen, setIsWheelOpen] = useState(false);
 
   useEffect(() => {
     if (initialRoom) {
@@ -448,10 +449,6 @@ function HomeContent() {
             <span className="w-1 h-1 rounded-full bg-accent/20" />
             <span>Güvenli</span>
           </div>
-
-          <div className="mt-16 w-full max-w-sm mx-auto">
-            <MagicWheel />
-          </div>
         </div>
       </div>
 
@@ -485,12 +482,39 @@ function HomeContent() {
           <p className="text-center text-[10px] text-text-muted/40 tracking-[0.15em] uppercase mt-8 mb-8 lg:mb-0">
             Şifreli Bağlantı · Gerçek Zamanlı
           </p>
-
-          <div className="mt-12 lg:hidden w-full max-w-sm mx-auto">
-            <MagicWheel />
-          </div>
         </div>
       </div>
+
+      {/* FLOATING MAGIC WHEEL BUTTON */}
+      <button
+        onClick={() => setIsWheelOpen(true)}
+        className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 z-40 bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-500/20 px-4 py-3 rounded-full flex items-center gap-2 font-semibold tracking-wide hover:scale-105 active:scale-95 transition-all border border-purple-400/30"
+      >
+        <Sparkles className="w-5 h-5 text-amber-300" />
+        <span className="hidden sm:inline">Kader Çarkı</span>
+      </button>
+
+      {/* MAGIC WHEEL MODAL */}
+      <AnimatePresence>
+        {isWheelOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md pointer-events-auto"
+            >
+              <button
+                onClick={() => setIsWheelOpen(false)}
+                className="absolute -top-12 right-0 text-white/70 hover:text-white bg-white/10 p-2 rounded-full transition-colors z-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <MagicWheel />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
