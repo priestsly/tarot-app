@@ -191,6 +191,26 @@ function HomeContent() {
         </div>
         <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-gold transition-colors" />
       </button>
+
+      {/* Meditation Room */}
+      <div className="relative my-2">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+        <div className="relative flex justify-center"><span className="bg-bg px-3 text-[9px] text-text-muted/40 uppercase tracking-[0.2em]">veya</span></div>
+      </div>
+
+      <button
+        onClick={() => router.push("/meditation")}
+        className="group w-full relative overflow-hidden rounded-xl border border-purple-500/10 bg-surface/50 p-4 flex items-center gap-4 transition-all hover:border-purple-500/20 hover:bg-purple-500/5"
+      >
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/30 to-indigo-600/20 flex items-center justify-center shrink-0">
+          <Moon className="w-4 h-4 text-purple-300/70" />
+        </div>
+        <div className="text-left flex-1">
+          <h3 className="text-sm font-semibold text-text/70">Meditasyon Odası</h3>
+          <p className="text-[10px] text-text-muted/60 mt-0.5">Nefes egzersizi ve niyet belirleme.</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-text-muted/30 group-hover:text-purple-400/50 transition-colors" />
+      </button>
     </motion.div>
   );
 
