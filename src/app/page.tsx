@@ -206,6 +206,8 @@ function HomeContent() {
           { href: "/candle", name: "Mum Ritüeli", desc: "Niyet & ritüel", icon: "🕯️", border: "border-orange-500/10", hover: "hover:border-orange-500/20 hover:bg-orange-500/5" },
           { href: "/numerology", name: "Numeroloji", desc: "Sayıların gücü", icon: "🔢", border: "border-amber-500/10", hover: "hover:border-amber-500/20 hover:bg-amber-500/5" },
           { href: "/coffee", name: "Kahve Falı", desc: "Fotoğraf ile", icon: "☕", border: "border-yellow-600/10", hover: "hover:border-yellow-600/20 hover:bg-yellow-600/5" },
+          { href: "/compatibility", name: "Burç Uyumu", desc: "İki burcun kimyası", icon: "💕", border: "border-pink-500/10", hover: "hover:border-pink-500/20 hover:bg-pink-500/5" },
+          { href: "/calendar", name: "Kozmik Takvim", desc: "Ay & retrograd", icon: "📅", border: "border-cyan-500/10", hover: "hover:border-cyan-500/20 hover:bg-cyan-500/5" },
         ].map(item => (
           <button key={item.href} onClick={() => router.push(item.href)}
             className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
