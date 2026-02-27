@@ -241,6 +241,7 @@ function HomeContent() {
           { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
           { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
           { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
+          { href: "/mind-question", name: "Aklımdaki Soru", desc: "Cevaplar Kitabı", icon: "📖", border: "border-emerald-500/10", hover: "hover:border-emerald-500/20 hover:bg-emerald-500/5" },
         ].map(item => (
           <button key={item.href} onClick={() => router.push(item.href)}
             className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
