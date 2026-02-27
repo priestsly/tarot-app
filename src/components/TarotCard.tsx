@@ -13,7 +13,7 @@ function cn(...inputs: ClassValue[]) {
 export interface CardState {
     id: string;
     cardIndex: number;
-    deckType?: 'tarot' | 'rumi';
+    deckType?: 'tarot' | 'rumi' | 'eril' | 'disil';
     x: number;       // percentage 0-100
     y: number;       // percentage 0-100
     isFlipped: boolean;
@@ -30,7 +30,10 @@ interface TarotCardProps {
     constraintsRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-const getCardName = (index: number) => {
+const getCardName = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'disil') => {
+    if (deckType === 'eril') return `Eril Enerji ${index}`;
+    if (deckType === 'disil') return `Dişil Enerji ${index}`;
+
     const majorArcana = [
         "Deli", "Büyücü", "Başrahibe", "İmparatoriçe", "İmparator",
         "Başkeşiş", "Âşıklar", "Savaş Arabası", "Güç", "Ermiş",
@@ -48,7 +51,10 @@ const getCardName = (index: number) => {
     return `${suits[suit]} ${ranks[rank - 1]}`;
 };
 
-const getCardImage = (index: number): string => {
+const getCardImage = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'disil'): string => {
+    if (deckType === 'eril') return `/assets/eril-disil/${String(index).padStart(2, '0')}.jpg`;
+    if (deckType === 'disil') return `/assets/disil/${String(index).padStart(2, '0')}.jpg`;
+
     // Major Arcana: 0-21
     const majorFiles = [
         "00-TheFool", "01-TheMagician", "02-TheHighPriestess", "03-TheEmpress", "04-TheEmperor",
@@ -187,6 +193,9 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
     }, [card.id, card.isFlipped, card.isReversed, onFlipEnd]);
 
     const isRumi = card.deckType === 'rumi';
+    const isEril = card.deckType === 'eril';
+    const isDisil = card.deckType === 'disil';
+    const isSpecialDeck = isRumi || isEril || isDisil;
 
     return (
         <motion.div
@@ -254,8 +263,8 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                     <>
                         {/* Full-bleed card image */}
                         <img
-                            src={getCardImage(card.cardIndex)}
-                            alt={getCardName(card.cardIndex)}
+                            src={getCardImage(card.cardIndex, card.deckType)}
+                            alt={getCardName(card.cardIndex, card.deckType)}
                             className="absolute inset-0 w-full h-full object-cover rounded-xl"
                             draggable={false}
                         />
@@ -263,7 +272,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                         {/* Bottom gradient overlay for name + badge */}
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
                             <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
-                                {getCardName(card.cardIndex)}
+                                {getCardName(card.cardIndex, card.deckType)}
                             </span>
                             <div className={cn(
                                 "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
@@ -279,20 +288,36 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
             {/* Back of Card (shown initially) */}
             <div
                 className={cn("absolute inset-0 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center justify-center p-1.5 border-2 backface-hidden overflow-hidden",
-                    isRumi ? "bg-gradient-to-b from-red-950 to-orange-950 border-amber-600/40" : "bg-gradient-to-b from-purple-900 to-indigo-950 border-amber-500/30")}
+                    isRumi ? "bg-gradient-to-b from-red-950 to-orange-950 border-amber-600/40"
+                        : isDisil ? "bg-gradient-to-b from-yellow-500 to-amber-600 border-yellow-200/50"
+                            : isEril ? "bg-gradient-to-b from-zinc-900 to-black border-zinc-500/50"
+                                : "bg-gradient-to-b from-purple-900 to-indigo-950 border-amber-500/30"
+                )}
                 style={{ backfaceVisibility: "hidden" }}
             >
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay pointer-events-none" />
 
                 <div className={cn("w-full h-full border rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner",
-                    isRumi ? "border-amber-500/30 bg-gradient-to-br from-red-950 to-midnight" : "border-amber-500/20 bg-gradient-to-br from-purple-950 to-midnight")}>
+                    isRumi ? "border-amber-500/30 bg-gradient-to-br from-red-950 to-midnight"
+                        : isDisil ? "border-yellow-200/30 bg-gradient-to-br from-yellow-600 to-amber-800"
+                            : isEril ? "border-zinc-700/50 bg-gradient-to-br from-zinc-800 to-black"
+                                : "border-amber-500/20 bg-gradient-to-br from-purple-950 to-midnight"
+                )}>
 
                     <div className={cn("w-24 h-24 rounded-full blur-xl absolute animate-pulse-slow pointer-events-none",
-                        isRumi ? "bg-gradient-to-tr from-amber-600/30 to-red-600/30" : "bg-gradient-to-tr from-amber-500/20 to-purple-500/30")} />
+                        isRumi ? "bg-gradient-to-tr from-amber-600/30 to-red-600/30"
+                            : isDisil ? "bg-gradient-to-tr from-yellow-300/40 to-amber-400/30"
+                                : isEril ? "bg-gradient-to-tr from-zinc-600/20 to-zinc-400/10"
+                                    : "bg-gradient-to-tr from-amber-500/20 to-purple-500/30"
+                    )} />
 
                     <svg viewBox="0 0 100 100" className={cn("w-[85%] h-[85%] opacity-90 relative z-10 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]",
-                        isRumi ? "text-amber-400" : "text-amber-300")}>
-                        {isRumi ? (
+                        isRumi ? "text-amber-400"
+                            : isDisil ? "text-yellow-100"
+                                : isEril ? "text-zinc-600"
+                                    : "text-amber-300"
+                    )}>
+                        {isRumi || isDisil || isEril ? (
                             <g>
                                 <circle fill="none" stroke="currentColor" strokeWidth="0.5" cx="50" cy="50" r="46" opacity="0.8" />
                                 <circle fill="none" stroke="currentColor" strokeWidth="1" cx="50" cy="50" r="32" opacity="0.4" strokeDasharray="1 2" />

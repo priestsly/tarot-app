@@ -112,6 +112,7 @@ function HomeContent() {
   const [birthTime, setBirthTime] = useState("");
   const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [readingFocus, setReadingFocus] = useState("");
+  const [gender, setGender] = useState("");
   const [isWheelOpen, setIsWheelOpen] = useState(false);
 
   // Dynamic background based on moon phase
@@ -148,17 +149,28 @@ function HomeContent() {
   };
 
   const submitClientForm = () => {
-    if (!roomId || !clientName || !birthDate || !selectedPackage) return;
-    const pkg = PACKAGES.find(p => p.id === selectedPackage);
-    const cardCount = pkg ? pkg.cards : 3;
+    if (!roomId || !clientName || !birthDate) return;
+
     const params = new URLSearchParams();
     params.set("role", "client");
     params.set("name", clientName);
     params.set("birth", birthDate);
     if (birthTime) params.set("time", birthTime);
-    params.set("pkgId", selectedPackage);
-    params.set("cards", String(cardCount));
     if (readingFocus) params.set("focus", readingFocus);
+
+    if (readingFocus === "İlişki Danışmanı") {
+      if (!gender) return;
+      params.set("pkgId", "relation");
+      params.set("cards", "1");
+      params.set("gender", gender);
+    } else {
+      if (!selectedPackage) return;
+      const pkg = PACKAGES.find(p => p.id === selectedPackage);
+      const cardCount = pkg ? pkg.cards : 3;
+      params.set("pkgId", selectedPackage);
+      params.set("cards", String(cardCount));
+    }
+
     router.push(`/room/${roomId}?${params.toString()}`);
   };
 
@@ -167,7 +179,7 @@ function HomeContent() {
     : step === "client_step1_name" ? 1
       : step === "client_step2_birth" ? 2
         : step === "client_step3_focus" ? 3
-          : step === "client_step4_package" ? 4 : -1;
+          : step === "client_step_gender" || step === "client_step4_package" ? 4 : -1;
 
   // ─── INPUT STYLE ────────────────────────────────────────────────
   const inputClass = "w-full bg-surface border border-border rounded-xl px-5 py-4 text-text placeholder:text-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/20 transition-all text-base";
@@ -365,16 +377,85 @@ function HomeContent() {
             </button>
           ))}
         </div>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+          <div className="relative flex justify-center"><span className="bg-bg px-3 text-[10px] text-text-muted/40 uppercase tracking-[0.2em] font-bold">Veya</span></div>
+        </div>
+
+        <button
+          onClick={() => setReadingFocus("İlişki Danışmanı")}
+          className={cn(
+            "w-full px-4 py-3 rounded-xl border flex items-center justify-center gap-3 transition-all",
+            readingFocus === "İlişki Danışmanı" ? "bg-rose-500/10 border-rose-500/50 text-rose-400" : "bg-surface border-border hover:border-rose-500/30 text-text-muted"
+          )}
+        >
+          <span className="text-xl">💞</span>
+          <span className="text-sm font-semibold">İlişki Danışmanı (Özel Kart)</span>
+        </button>
+
         <textarea
-          value={readingFocus}
-          onChange={(e) => setReadingFocus(e.target.value)}
+          value={readingFocus === "İlişki Danışmanı" ? "" : readingFocus}
+          onChange={(e) => {
+            if (readingFocus === "İlişki Danışmanı") setReadingFocus(""); // Reset if user starts typing manually
+            setReadingFocus(e.target.value);
+          }}
           placeholder="Veya spesifik bir soru yazın (örn: Bu iş teklifini kabul etmeli miyim?)"
           className={inputClass + " h-24 resize-none text-sm"}
         />
-        <button onClick={() => setStep("client_step4_package")} className={btnPrimary}>
+        <button
+          onClick={() => {
+            if (readingFocus === "İlişki Danışmanı") {
+              setStep("client_step_gender");
+            } else {
+              setStep("client_step4_package");
+            }
+          }}
+          className={btnPrimary}
+        >
           İleri <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+    </motion.div>
+  );
+
+  // ─── STEP GENDER (Only for İlişki Danışmanı) ────────────────────
+  const renderClientStepGender = () => (
+    <motion.div key="client_step_gender" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+      <button onClick={() => setStep("client_step3_focus")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
+      </button>
+      <div className="text-center space-y-2 mb-6">
+        <h2 className="text-2xl font-heading text-text">Hangi Enerji?</h2>
+        <p className="text-sm text-text-muted">Size en çok hitap eden enerjiyi seçin.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <button
+          onClick={() => setGender("Kadın")}
+          className={`flex flex-col items-center justify-center gap-3 py-6 px-4 rounded-xl border transition-all ${gender === "Kadın" ? "bg-amber-500/10 border-amber-500/50 text-amber-500" : "bg-surface border-border hover:border-amber-500/30 text-text-muted hover:text-white"
+            }`}
+        >
+          <span className="text-3xl text-amber-500">👩</span>
+          <span className="text-sm font-bold tracking-wide">Dişil Enerji</span>
+        </button>
+        <button
+          onClick={() => setGender("Erkek")}
+          className={`flex flex-col items-center justify-center gap-3 py-6 px-4 rounded-xl border transition-all ${gender === "Erkek" ? "bg-slate-800/50 border-slate-500/50 text-white" : "bg-surface border-border hover:border-slate-500/30 text-text-muted hover:text-white"
+            }`}
+        >
+          <span className="text-3xl grayscale">👨</span>
+          <span className="text-sm font-bold tracking-wide">Eril Enerji</span>
+        </button>
+      </div>
+
+      <button
+        onClick={submitClientForm}
+        disabled={!gender}
+        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-rose-500/80 to-pink-500/70 text-white/90 font-bold rounded-xl tracking-wide transition-all hover:brightness-105 hover:shadow-lg hover:shadow-rose-500/10 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+      >
+        Odaya Katıl <Sparkles className="w-5 h-5" />
+      </button>
     </motion.div>
   );
 
@@ -525,6 +606,7 @@ function HomeContent() {
                 {step === "client_step1_name" && renderClientStep1()}
                 {step === "client_step2_birth" && renderClientStep2()}
                 {step === "client_step3_focus" && renderClientStep3Focus()}
+                {step === "client_step_gender" && renderClientStepGender()}
                 {step === "client_step4_package" && renderClientStep4()}
               </AnimatePresence>
             </div>

@@ -20,6 +20,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         pkgId: string;
         cards: number;
         focus?: string;
+        gender?: string;
     } | null>(null);
     const clientProfileRef = useRef(clientProfile);
     useEffect(() => { clientProfileRef.current = clientProfile; }, [clientProfile]);
@@ -801,45 +802,63 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         const usedIndices = new Set<number>();
         const spread: CardState[] = [];
-        for (let i = 0; i < count; i++) {
-            let idx: number;
-            do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
-            usedIndices.add(idx);
 
-            // Positioning logic based on popular spreads
-            let xPos = 50;
-            let yPos = 45;
-
-            if (pkgId === 'standard') {
-                xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
-            } else if (pkgId === 'synastry') {
-                // Heart-ish shape or two columns
-                xPos = i < 3 ? 30 : (i < 6 ? 70 : 50);
-                yPos = 30 + (i % 3) * 20;
-            } else if (pkgId === 'celtic') {
-                // Cross + Pillar
-                const crossX = [50, 50, 50, 50, 35, 65];
-                const crossY = [45, 45, 25, 65, 45, 45];
-                const pillarX = [85, 85, 85, 85];
-                const pillarY = [75, 55, 35, 15];
-                if (i < 6) { xPos = crossX[i]; yPos = crossY[i]; }
-                else { xPos = pillarX[i - 6]; yPos = pillarY[i - 6]; }
-            } else {
-                xPos = 15 + (Math.random() * 70);
-                yPos = 20 + (Math.random() * 50);
-            }
-
+        // Handle special "relation" mode for Single Eril/Disil card
+        if (pkgId === 'relation') {
+            const deckType = clientProfile?.gender === "Kadın" ? "disil" : "eril";
+            const maxIdx = 54;
+            const idx = Math.floor(Math.random() * maxIdx) + 1; // 1 to 54
             spread.push({
                 id: Math.random().toString(36).substring(2, 9),
                 cardIndex: idx,
-                x: xPos,
-                y: yPos,
+                deckType,
+                x: 50,
+                y: 45,
                 isFlipped: false,
-                isReversed: Math.random() > 0.3, // 30% chance of being reversed
-                zIndex: maxZIndex + i + 1
+                isReversed: false, // Or allow reversed if you want
+                zIndex: maxZIndex + 1
             });
+        } else {
+            for (let i = 0; i < count; i++) {
+                let idx: number;
+                do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+                usedIndices.add(idx);
+
+                // Positioning logic based on popular spreads
+                let xPos = 50;
+                let yPos = 45;
+
+                if (pkgId === 'standard') {
+                    xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+                } else if (pkgId === 'synastry') {
+                    // Heart-ish shape or two columns
+                    xPos = i < 3 ? 30 : (i < 6 ? 70 : 50);
+                    yPos = 30 + (i % 3) * 20;
+                } else if (pkgId === 'celtic') {
+                    // Cross + Pillar
+                    const crossX = [50, 50, 50, 50, 35, 65];
+                    const crossY = [45, 45, 25, 65, 45, 45];
+                    const pillarX = [85, 85, 85, 85];
+                    const pillarY = [75, 55, 35, 15];
+                    if (i < 6) { xPos = crossX[i]; yPos = crossY[i]; }
+                    else { xPos = pillarX[i - 6]; yPos = pillarY[i - 6]; }
+                } else {
+                    xPos = 15 + (Math.random() * 70);
+                    yPos = 20 + (Math.random() * 50);
+                }
+
+                spread.push({
+                    id: Math.random().toString(36).substring(2, 9),
+                    cardIndex: idx,
+                    x: xPos,
+                    y: yPos,
+                    isFlipped: false,
+                    isReversed: Math.random() > 0.3, // 30% chance of being reversed
+                    zIndex: maxZIndex + i + 1
+                });
+            }
         }
-        setMaxZIndex(prev => prev + count);
+        setMaxZIndex(prev => prev + (pkgId === 'relation' ? 1 : count));
         setCards(prev => [...prev, ...spread]);
         spread.forEach(c => socketRef.current?.emit("add-card", roomId, c));
     }, [isConsultant, clientProfile, maxZIndex, roomId, appendLog]);
@@ -858,6 +877,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     pkgId: searchParams.get('pkgId') || '',
                     cards: Number(searchParams.get('cards')) || 0,
                     focus: searchParams.get('focus') || '',
+                    gender: searchParams.get('gender') || '',
                 };
                 socket.emit("update-client-profile", roomId, data);
             }
