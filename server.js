@@ -150,6 +150,10 @@ app.prepare().then(() => {
         io.to(roomId).emit("client-profile-updated", profile);
       }
     });
+
+    socket.on("update-aura", (roomId, aura) => {
+      socket.to(roomId).emit("aura-updated", aura);
+    });
   });
 
   server.once("error", (err) => {

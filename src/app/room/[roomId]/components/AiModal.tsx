@@ -17,6 +17,9 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
     useEffect(() => {
+        // Pre-load voices for browsers that need it
+        window.speechSynthesis.getVoices();
+
         return () => {
             if (speaking) {
                 window.speechSynthesis.cancel();
@@ -37,13 +40,21 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
 
         const utterance = new SpeechSynthesisUtterance(aiResponse);
         utterance.lang = "tr-TR";
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
 
-        // Try to find a Turkish voice
+        // Mistik ve akıcı bir tempo için ayarlar
+        utterance.rate = 0.85; // Biras yavaşlatarak daha bilge bir hava
+        utterance.pitch = 0.95; // Hafif kalınlaştırarak daha mistik bir hava
+
+        // En iyi Türkçe sesi bulma (Google Türkçe genelde en akıcısıdır)
         const voices = window.speechSynthesis.getVoices();
-        const trVoice = voices.find(v => v.lang.includes("tr"));
-        if (trVoice) utterance.voice = trVoice;
+        const trVoices = voices.filter(v => v.lang.includes("tr"));
+
+        // Tercih sırası: Google > Microsoft > Diğer
+        const bestVoice = trVoices.find(v => v.name.includes("Google")) ||
+            trVoices.find(v => v.name.includes("Microsoft")) ||
+            trVoices[0];
+
+        if (bestVoice) utterance.voice = bestVoice;
 
         utterance.onend = () => setSpeaking(false);
         utterance.onerror = () => setSpeaking(false);
@@ -100,8 +111,8 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
                                 <button
                                     onClick={handleSpeak}
                                     className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all border ${speaking
-                                            ? "bg-amber-500/20 border-amber-500/30 text-amber-200"
-                                            : "bg-white/[0.03] border-white/[0.08] text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
+                                        ? "bg-amber-500/20 border-amber-500/30 text-amber-200"
+                                        : "bg-white/[0.03] border-white/[0.08] text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
                                         }`}
                                 >
                                     {speaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}

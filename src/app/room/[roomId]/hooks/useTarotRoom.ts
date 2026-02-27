@@ -257,11 +257,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const handleAuraChange = useCallback((newAura: string) => {
         setCurrentAura(newAura);
         playAuraChangeSound();
+        socketRef.current?.emit("update-aura", roomId, newAura);
         if (isConsultant && clientProfile) {
             setClientProfile(prev => prev ? { ...prev, focus: newAura } : null);
-            socketRef.current?.emit("sync-client-profile", { ...clientProfile, focus: newAura });
         }
-    }, [isConsultant, clientProfile, playAuraChangeSound]);
+    }, [isConsultant, clientProfile, playAuraChangeSound, roomId]);
 
     // Initialize fullShareUrl on mount so it's always ready
     useEffect(() => {
@@ -568,6 +568,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         socket.on("client-profile-updated", (profile: any) => {
             setClientProfile(profile);
+        });
+
+        socket.on("aura-updated", (aura: string) => {
+            setCurrentAura(aura);
         });
 
         return () => {
