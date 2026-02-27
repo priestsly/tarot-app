@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { MagicWheel } from "@/components/MagicWheel";
+import { getMoonPhase } from "@/lib/astrology";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -113,6 +114,22 @@ function HomeContent() {
   const [readingFocus, setReadingFocus] = useState("");
   const [isWheelOpen, setIsWheelOpen] = useState(false);
 
+  // Dynamic background based on moon phase
+  const moonBg = useMemo(() => {
+    const moon = getMoonPhase(new Date());
+    const colors: Record<string, string> = {
+      "Yeni Ay": "rgba(30,30,80,0.08)",
+      "Hilal (Büyüyen)": "rgba(50,40,100,0.06)",
+      "İlk Dördün": "rgba(60,50,120,0.07)",
+      "Şişkin Ay (Büyüyen)": "rgba(80,60,140,0.08)",
+      "Dolunay": "rgba(180,150,50,0.06)",
+      "Şişkin Ay (Küçülen)": "rgba(100,70,130,0.07)",
+      "Son Dördün": "rgba(80,50,110,0.06)",
+      "Hilal (Küçülen)": "rgba(40,30,90,0.06)",
+    };
+    return colors[moon.name] || "rgba(60,40,120,0.06)";
+  }, []);
+
   useEffect(() => {
     if (initialRoom) {
       setRoomId(initialRoom);
@@ -208,6 +225,11 @@ function HomeContent() {
           { href: "/coffee", name: "Kahve Falı", desc: "Fotoğraf ile", icon: "☕", border: "border-yellow-600/10", hover: "hover:border-yellow-600/20 hover:bg-yellow-600/5" },
           { href: "/compatibility", name: "Burç Uyumu", desc: "İki burcun kimyası", icon: "💕", border: "border-pink-500/10", hover: "hover:border-pink-500/20 hover:bg-pink-500/5" },
           { href: "/calendar", name: "Kozmik Takvim", desc: "Ay & retrograd", icon: "📅", border: "border-cyan-500/10", hover: "hover:border-cyan-500/20 hover:bg-cyan-500/5" },
+          { href: "/affirmations", name: "Afirmasyonlar", desc: "Günlük olumlamalar", icon: "✨", border: "border-violet-500/10", hover: "hover:border-violet-500/20 hover:bg-violet-500/5" },
+          { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
+          { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
+          { href: "/altar", name: "Dijital Sunak", desc: "Kişisel ritüel alanı", icon: "🏛️", border: "border-stone-500/10", hover: "hover:border-stone-500/20 hover:bg-stone-500/5" },
+          { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
         ].map(item => (
           <button key={item.href} onClick={() => router.push(item.href)}
             className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
@@ -429,6 +451,8 @@ function HomeContent() {
         <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-400/4 rounded-full blur-[200px]" />
         <div className="absolute bottom-[-5%] right-[20%] w-[500px] h-[500px] bg-amber-300/3 rounded-full blur-[180px]" />
         <div className="absolute top-[40%] right-[40%] w-[400px] h-[400px] bg-indigo-400/3 rounded-full blur-[200px]" />
+        {/* Moon phase dynamic glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] rounded-full blur-[300px]" style={{ backgroundColor: moonBg }} />
       </div>
       <Particles />
 
@@ -516,7 +540,7 @@ function HomeContent() {
       {/* FLOATING MAGIC WHEEL BUTTON */}
       <button
         onClick={() => setIsWheelOpen(true)}
-        className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 z-40 bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-500/20 px-4 py-3 rounded-full flex items-center gap-2 font-semibold tracking-wide hover:scale-105 active:scale-95 transition-all border border-purple-400/30"
+        className="fixed bottom-6 left-6 lg:bottom-10 lg:left-10 z-40 bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-500/20 px-4 py-3 rounded-full flex items-center gap-2 font-semibold tracking-wide hover:scale-105 active:scale-95 transition-all border border-purple-400/30"
       >
         <Sparkles className="w-5 h-5 text-amber-300" />
         <span className="hidden sm:inline">Kader Çarkı</span>

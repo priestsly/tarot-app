@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Cinzel } from "next/font/google";
 import "./globals.css";
+import { MusicPlayerWrapper } from "@/components/MusicPlayerWrapper";
 
 const body = DM_Sans({
   variable: "--font-inter",
@@ -51,6 +52,7 @@ export default function RootLayout({
       </head>
       <body className={`${body.variable} ${heading.variable} antialiased bg-[#0C0B14] text-neutral-50`}>
         {children}
+        <MusicPlayerWrapper />
         <script
           dangerouslySetInnerHTML={{
             __html: `
