@@ -141,3 +141,34 @@ export function getElementAnalysis(element: string): { strength: string; advice:
         default: return { strength: "", advice: "", color: "" };
     }
 }
+
+// ── Rising Sign (Yükselen Burç) Calculation ──
+// Simplified: Each sign rises for ~2 hours. Starting sign depends on birth month.
+export function getRisingSign(birthMonth: number, birthDay: number, birthHour: number, birthMinute: number): ZodiacSign {
+    // Get the sun sign index at birth
+    const sunSign = getZodiacSign(birthMonth, birthDay);
+    const sunIdx = ZODIAC_SIGNS.findIndex(s => s.id === sunSign.id);
+
+    // Convert birth time to decimal hours
+    const timeDecimal = birthHour + birthMinute / 60;
+
+    // The Ascendant sign at sunrise (~6:00) is the same as the Sun sign.
+    // Each 2 hours after sunrise, the Ascendant moves one sign forward.
+    const hoursSinceSunrise = ((timeDecimal - 6) + 24) % 24;
+    const signOffset = Math.floor(hoursSinceSunrise / 2);
+
+    const risingIdx = (sunIdx + signOffset) % 12;
+    return ZODIAC_SIGNS[risingIdx];
+}
+
+// ── AI Horoscope Response Type ──
+export interface AIHoroscope {
+    general: string;
+    love: string;
+    career: string;
+    health: string;
+    advice: string;
+    luckyHour: string;
+    energy: number;
+    mood: string;
+}
