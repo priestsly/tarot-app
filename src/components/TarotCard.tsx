@@ -74,9 +74,22 @@ const getCardImage = (index: number, deckType?: 'tarot' | 'rumi' | 'eril' | 'dis
     return `/Cards/${suitNames[suit]}${paddedRank}.jpg`;
 };
 
-// Card dimensions — responsive
-const CARD_W = typeof window !== 'undefined' && window.innerWidth < 640 ? 108 : 144;
-const CARD_H = typeof window !== 'undefined' && window.innerWidth < 640 ? 168 : 224;
+// Card dimensions — helper
+const getDimensions = (deckType?: string) => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isLarge = deckType === 'eril' || deckType === 'disil';
+
+    if (isLarge) {
+        return {
+            w: isMobile ? 220 : 340,
+            h: isMobile ? 320 : 500
+        };
+    }
+    return {
+        w: isMobile ? 108 : 144,
+        h: isMobile ? 168 : 224
+    };
+};
 
 export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, isLocal, constraintsRef }: TarotCardProps) {
     // Local drag offset in pixels (resets to 0 when not dragging)
@@ -108,18 +121,20 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         const dx = e.clientX - dragStart.current.px;
         const dy = e.clientY - dragStart.current.py;
 
+        const { w, h } = getDimensions(card.deckType);
+
         // Compute tentative new position to enforce table boundaries
         if (constraintsRef?.current) {
             const rect = constraintsRef.current.getBoundingClientRect();
-            const currentLeftPx = (card.x / 100) * rect.width - CARD_W / 2;
-            const currentTopPx = (card.y / 100) * rect.height - CARD_H / 2;
+            const currentLeftPx = (card.x / 100) * rect.width - w / 2;
+            const currentTopPx = (card.y / 100) * rect.height - h / 2;
 
             let newLeft = currentLeftPx + dx;
             let newTop = currentTopPx + dy;
 
             // Clamp to table boundaries
-            newLeft = Math.max(0, Math.min(rect.width - CARD_W, newLeft));
-            newTop = Math.max(0, Math.min(rect.height - CARD_H, newTop));
+            newLeft = Math.max(0, Math.min(rect.width - w, newLeft));
+            newTop = Math.max(0, Math.min(rect.height - h, newTop));
 
             setDragOffset({
                 x: newLeft - currentLeftPx,
@@ -128,7 +143,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         } else {
             setDragOffset({ x: dx, y: dy });
         }
-    }, [card.x, card.y, constraintsRef]);
+    }, [card.x, card.y, card.deckType, constraintsRef]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
         if (!isDragging.current) return;
@@ -142,22 +157,23 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         }
 
         const rect = constraintsRef.current.getBoundingClientRect();
+        const { w, h } = getDimensions(card.deckType);
 
         // Current CSS anchor in pixels
-        const currentLeftPx = (card.x / 100) * rect.width - CARD_W / 2;
-        const currentTopPx = (card.y / 100) * rect.height - CARD_H / 2;
+        const currentLeftPx = (card.x / 100) * rect.width - w / 2;
+        const currentTopPx = (card.y / 100) * rect.height - h / 2;
 
         // New top-left corner in pixels
         let newLeft = currentLeftPx + dragOffset.x;
         let newTop = currentTopPx + dragOffset.y;
 
         // Clamp to table
-        newLeft = Math.max(0, Math.min(rect.width - CARD_W, newLeft));
-        newTop = Math.max(0, Math.min(rect.height - CARD_H, newTop));
+        newLeft = Math.max(0, Math.min(rect.width - w, newLeft));
+        newTop = Math.max(0, Math.min(rect.height - h, newTop));
 
         // Convert to center-based percentages
-        const newCenterX = newLeft + CARD_W / 2;
-        const newCenterY = newTop + CARD_H / 2;
+        const newCenterX = newLeft + w / 2;
+        const newCenterY = newTop + h / 2;
 
         const newPercentX = (newCenterX / rect.width) * 100;
         const newPercentY = (newCenterY / rect.height) * 100;
@@ -166,7 +182,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
         setDragOffset({ x: 0, y: 0 });
 
         onDragEnd(card.id, newPercentX, newPercentY);
-    }, [card.id, card.x, card.y, constraintsRef, dragOffset, onDragEnd]);
+    }, [card.id, card.x, card.y, card.deckType, constraintsRef, dragOffset, onDragEnd]);
 
     // Detect taps (pointerUp with minimal movement) and double-tap to flip
     const handleTapDetection = useCallback((e: React.PointerEvent) => {
@@ -195,7 +211,11 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
     const isRumi = card.deckType === 'rumi';
     const isEril = card.deckType === 'eril';
     const isDisil = card.deckType === 'disil';
-    const isSpecialDeck = isRumi || isEril || isDisil;
+    const isLarge = isEril || isDisil;
+    const isSpecialDeck = isRumi || isLarge;
+
+    const { w, h } = getDimensions(card.deckType);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
     return (
         <motion.div
@@ -221,13 +241,13 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateY: { duration: 0.8, ease: "easeInOut" },
                 rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
-            className={cn("rounded-xl select-none touch-none",
-                typeof window !== 'undefined' && window.innerWidth < 640 ? "w-[108px] h-[168px]" : "w-36 h-56"
-            )}
+            className={cn("rounded-xl select-none touch-none", isLarge ? "rounded-2xl border-2" : "rounded-xl border")}
             style={{
                 position: 'absolute',
-                left: `calc(${card.x}% - ${CARD_W / 2}px + ${dragOffset.x}px)`,
-                top: `calc(${card.y}% - ${CARD_H / 2}px + ${dragOffset.y}px)`,
+                width: isMobile ? `${w}px` : `${w}px`,
+                height: isMobile ? `${h}px` : `${h}px`,
+                left: `calc(${card.x}% - ${w / 2}px + ${dragOffset.x}px)`,
+                top: `calc(${card.y}% - ${h / 2}px + ${dragOffset.y}px)`,
                 cursor: isDragging.current ? 'grabbing' : 'grab',
                 transformStyle: "preserve-3d",
                 willChange: "left, top, transform",
@@ -269,18 +289,20 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                             draggable={false}
                         />
 
-                        {/* Bottom gradient overlay for name + badge */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
-                            <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
-                                {getCardName(card.cardIndex, card.deckType)}
-                            </span>
-                            <div className={cn(
-                                "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
-                                "text-purple-300 border-purple-400/50 bg-purple-500/20"
-                            )}>
-                                Düz
+                        {/* Bottom gradient overlay for name + badge (Hiding for Eril/Disil as requested) */}
+                        {!isLarge && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2 z-10 flex flex-col items-center gap-1">
+                                <span className="text-center font-heading text-white font-bold leading-tight text-[11px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                                    {getCardName(card.cardIndex, card.deckType)}
+                                </span>
+                                <div className={cn(
+                                    "text-[7px] font-inter tracking-[0.15em] uppercase font-bold px-2.5 py-0.5 rounded-full border",
+                                    "text-purple-300 border-purple-400/50 bg-purple-500/20"
+                                )}>
+                                    Düz
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </>
                 )}
             </div>
