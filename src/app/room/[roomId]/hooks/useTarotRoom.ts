@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
-import { io, Socket } from "socket.io-client";
+import { createClient } from "@/utils/supabase/client";
 import Peer from "peerjs";
 import { ActivityLog, CursorData, ChatMessage } from "../types";
 import { CardState } from "@/components/TarotCard";
@@ -34,12 +34,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     // Real-time State
     const [cards, setCards] = useState<CardState[]>([]);
+    const cardsRef = useRef(cards); useEffect(() => { cardsRef.current = cards; }, [cards]);
     const [maxZIndex, setMaxZIndex] = useState(1);
 
     // Premium UI State
     const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const logsRef = useRef(logs); useEffect(() => { logsRef.current = logs; }, [logs]);
     const [cursors, setCursors] = useState<Record<string, CursorData>>({});
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const messagesRef = useRef(messages); useEffect(() => { messagesRef.current = messages; }, [messages]);
     const [chatInput, setChatInput] = useState("");
     const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -53,7 +56,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const lastCursorEmit = useRef<number>(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const socketRef = useRef<Socket | null>(null);
+    const socketRef = useRef<any>(null);
 
     // Notification beep
     const playNotifSound = useCallback(() => {
@@ -361,9 +364,45 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     useEffect(() => {
-        // 1. Initialize Socket
+        // 1. Initialize Supabase Realtime "Socket"
         if (!socketRef.current) {
-            socketRef.current = io();
+            const supabase = createClient();
+            const channel = supabase.channel(`room:${roomId}`, {
+                config: {
+                    broadcast: { self: false },
+                    presence: { key: 'pending' } // will update when peer connects
+                }
+            });
+
+            const fakeSocket: any = {
+                id: "",
+                channel,
+                connected: false,
+                emit: (event: string, ...args: any[]) => {
+                    channel.send({
+                        type: "broadcast",
+                        event: event,
+                        payload: args
+                    });
+                },
+                on: (event: string, callback: (...args: any[]) => void) => {
+                    channel.on("broadcast", { event }, ({ payload }) => {
+                        // Support existing socket.emit("event", roomId, arg1, ...) pattern
+                        let args = Array.isArray(payload) ? payload : [payload];
+                        if (args.length > 0 && args[0] === roomId) {
+                            args = args.slice(1);
+                        }
+                        callback(...args);
+                    });
+                },
+                disconnect: () => {
+                    supabase.removeChannel(channel);
+                }
+            };
+            socketRef.current = fakeSocket;
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') fakeSocket.connected = true;
+            });
         }
         const socket = socketRef.current;
 
@@ -381,7 +420,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             peerRef.current.on('open', (id) => {
                 setMyPeerId(id);
                 console.log('My peer ID is: ' + id);
-                socket.emit("join-room", roomId, id);
+                socket.id = id;
+                // Tracking presence
+                socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
             });
 
             // Answer incoming calls
@@ -407,19 +448,61 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 });
             });
 
-            // Listen for new users connecting
-            socket.on("user-connected", (userId: string) => {
-                console.log("User connected:", userId);
-                setRemotePeerId(userId);
-                connectToNewUser(userId, mediaStream);
+            // Listen for NEW users connecting via Presence
+            socket.channel?.on('presence', { event: 'join' }, ({ newPresences }: any) => {
+                newPresences.forEach((p: any) => {
+                    if (p.peerId && p.peerId !== socket.id) {
+                        console.log("User connected (presence):", p.peerId);
+                        setRemotePeerId(p.peerId);
+                        connectToNewUser(p.peerId, mediaStream);
 
-                // Join notification toast
-                const profile = clientProfileRef.current;
-                const joinName = profile?.name || "Bir kullanıcı";
-                appendLog(`${joinName} odaya giriş yaptı`);
-                setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
-                if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+                        // Join notification toast
+                        const profile = clientProfileRef.current;
+                        const joinName = profile?.name || "Bir kullanıcı";
+                        appendLog(`${joinName} odaya giriş yaptı`);
+                        setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
+                        if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                        toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+
+                        // Only the consultant (or whoever has the data) should broadcast the state
+                        // to the newcomer to avoid race conditions.
+                        if (cardsRef.current.length > 0) {
+                            socket.emit("sync-state", roomId, cardsRef.current);
+                            socket.emit("sync-logs", roomId, logsRef.current);
+                            socket.emit("sync-messages", roomId, messagesRef.current);
+                            if (clientProfileRef.current) {
+                                socket.emit("sync-client-profile", roomId, clientProfileRef.current);
+                            }
+                        }
+                    }
+                });
+            });
+
+            // Handle user disconnect via Presence
+            socket.channel?.on('presence', { event: 'leave' }, ({ leftPresences }: any) => {
+                leftPresences.forEach((p: any) => {
+                    if (p.peerId && p.peerId !== socket.id) {
+                        console.log("User disconnected (presence):", p.peerId);
+                        if (remoteVideoRef.current) {
+                            remoteVideoRef.current.srcObject = null;
+                        }
+
+                        // Disconnect notification toast
+                        const profile = clientProfileRef.current;
+                        const leaveName = profile?.name || "Bir kullanıcı";
+                        appendLog(`${leaveName} odadan ayrıldı`);
+                        setToastMsg({ text: `${leaveName} odadan ayrıldı 👋`, sender: "Sistem" });
+                        if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                        toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+
+                        setRemotePeerId("");
+                        setCursors(prev => {
+                            const next = { ...prev };
+                            delete next[p.peerId];
+                            return next;
+                        });
+                    }
+                });
             });
         };
 
@@ -471,28 +554,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         }
 
-        // Handle user disconnect
-        socket.on("user-disconnected", (userId: string) => {
-            console.log("User disconnected:", userId);
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = null;
-            }
-
-            // Disconnect notification toast
-            const profile = clientProfileRef.current;
-            const leaveName = profile?.name || "Bir kullanıcı";
-            appendLog(`${leaveName} odadan ayrıldı`);
-            setToastMsg({ text: `${leaveName} odadan ayrıldı 👋`, sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
-
-            setRemotePeerId("");
-            setCursors(prev => {
-                const next = { ...prev };
-                delete next[userId];
-                return next;
-            });
-        });
+        // Note: Disconnect is now handled by Supabase Presence ^
 
         // ========== PREMIUM FEATURES SYNC ==========
         socket.on("sync-logs", (serverLogs: ActivityLog[]) => {
@@ -883,10 +945,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         };
 
-        if (socket.connected) syncProfile();
-        else socket.on('connect', syncProfile);
-
-        return () => { socket.off('connect', syncProfile); };
+        if (socket.connected) {
+            syncProfile();
+        } else {
+            const int = setInterval(() => {
+                if (socketRef.current?.connected) {
+                    syncProfile();
+                    clearInterval(int);
+                }
+            }, 500);
+            return () => clearInterval(int);
+        }
     }, [isConsultant, searchParams, roomId]);
 
     const handlePointerDown = useCallback((id: string) => {
