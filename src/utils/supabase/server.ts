@@ -2,24 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function createClient() {
-    // Railway'den gelen değerleri al ve tırnaklardan temizle (RegEx: /['"]/g)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/['"]/g, '')
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.replace(/['"]/g, '')
+    // Railway'den gelen değerleri al, tırnakları ve boşlukları temizle
+    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-    // EĞER ANAHTARLAR YOKSA (BUILD AŞAMASINDAYIZ), KÜTÜPHANEYİ ÇAĞIRMA!
-    if (!supabaseUrl || !supabaseKey) {
-        return new Proxy({}, {
-            get: (_, prop) => {
-                if (prop === 'auth') return {
-                    getUser: async () => ({ data: { user: null } }),
-                    exchangeCodeForSession: async () => ({ data: {}, error: null })
-                };
-                return () => ({
-                    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) })
-                });
-            }
-        }) as any;
-    }
+    const supabaseUrl = rawUrl.replace(/['"]/g, '').trim();
+    const supabaseKey = rawKey.replace(/['"]/g, '').trim();
 
     const cookieStore = await cookies()
 
