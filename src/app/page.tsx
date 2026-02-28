@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -123,7 +123,6 @@ function HomeContent() {
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log("Home Page: Initial user check:", user?.email || "No user");
       setUser(user);
       if (user) {
         const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
@@ -141,7 +140,6 @@ function HomeContent() {
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Home Page: Auth state change:", _event, session?.user?.email || "No user");
       setUser(session?.user ?? null);
       if (session?.user) {
         const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
@@ -445,7 +443,7 @@ function HomeContent() {
         <div className="space-y-4">
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <UserIcon className="w-4 h-4 text-text-muted group-focus-within:text-gold transition-colors" />
+              <User className="w-4 h-4 text-text-muted group-focus-within:text-gold transition-colors" />
             </div>
             <input
               type="text"
