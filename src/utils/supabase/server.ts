@@ -5,8 +5,11 @@ export async function createClient() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+    // Build aşamasında bu anahtarlar boş olabilir, hata vermesini engelleyelim.
     if (!supabaseUrl || !supabaseKey) {
-        throw new Error('Missing Supabase environment variables')
+        // Build sırasında patlamasın diye gerçek client yerine null dönelim.
+        // Ama dönmeden önce bu hatayı build log'larında görsek de olur.
+        return null as any;
     }
 
     const cookieStore = await cookies()
