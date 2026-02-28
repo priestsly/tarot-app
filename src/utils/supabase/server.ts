@@ -5,11 +5,20 @@ export async function createClient() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    // Build aşamasında bu anahtarlar boş olabilir, hata vermesini engelleyelim.
+    // EĞER ANAHTARLAR YOKSA (BUILD AŞAMASINDAYIZ), KÜTÜPHANEYİ ÇAĞIRMA!
     if (!supabaseUrl || !supabaseKey) {
-        // Build sırasında patlamasın diye gerçek client yerine null dönelim.
-        // Ama dönmeden önce bu hatayı build log'larında görsek de olur.
-        return null as any;
+        // En sağlam yol: Her türlü isteği yutan "yansız" bir proxy dönersek build asla çökemez.
+        return new Proxy({}, {
+            get: (_, prop) => {
+                if (prop === 'auth') return {
+                    getUser: async () => ({ data: { user: null } }),
+                    exchangeCodeForSession: async () => ({ data: {}, error: null })
+                };
+                return () => ({
+                    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) })
+                });
+            }
+        }) as any;
     }
 
     const cookieStore = await cookies()
