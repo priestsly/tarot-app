@@ -2,21 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
 export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url)
-    const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/'
-    const error = searchParams.get('error')
-    const error_description = searchParams.get('error_description')
+    const requestUrl = new URL(request.url)
+    const code = requestUrl.searchParams.get('code')
+    const next = requestUrl.searchParams.get('next') ?? '/'
+    const error = requestUrl.searchParams.get('error')
+    const error_description = requestUrl.searchParams.get('error_description')
 
-    // Railway veya local ortamda doğru ana dizini bulmak için
-    const origin = request.headers.get('x-forwarded-proto')
-        ? `${request.headers.get('x-forwarded-proto')}://${request.headers.get('x-forwarded-host')}`
-        : new URL(request.url).origin;
-
-    // Handle OAuth errors
+    // Handle OAuth/Magic Link errors
     if (error) {
         console.error('OAuth error:', error, error_description)
-        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error_description || error)}`)
+        return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error_description || error)}`, request.url))
     }
 
     if (code) {
@@ -25,13 +20,14 @@ export async function GET(request: Request) {
 
         if (!error) {
             // Başarılı giriş sonrası yönlendir
-            return NextResponse.redirect(`${origin}${next}`)
+            return NextResponse.redirect(new URL(next, request.url))
         } else {
             console.error('Code exchange error:', error)
-            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
+            return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url))
         }
     }
 
     // No code, redirect to login
-    return NextResponse.redirect(`${origin}/login?error=Giriş%20sırasında%20bir%20hata%20oluştu`)
+    return NextResponse.redirect(new URL(`/login?error=Giriş%20sırasında%20bir%20hata%20oluştu`, request.url))
 }
+
