@@ -382,13 +382,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     channel.send({
                         type: "broadcast",
                         event: event,
-                        payload: args
+                        payload: { args }
                     });
                 },
                 on: (event: string, callback: (...args: any[]) => void) => {
                     channel.on("broadcast", { event }, ({ payload }) => {
                         // Support existing socket.emit("event", roomId, arg1, ...) pattern
-                        let args = Array.isArray(payload) ? payload : [payload];
+                        let args = payload?.args || [];
                         if (args.length > 0 && args[0] === roomId) {
                             args = args.slice(1);
                         }
@@ -421,6 +421,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 setMyPeerId(id);
                 console.log('My peer ID is: ' + id);
                 socket.id = id;
+                socket.emit("user-connected", id); // Broadcast arrival explicitly
                 // Tracking presence
                 socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
             });
@@ -448,34 +449,32 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 });
             });
 
-            // Listen for NEW users connecting via Presence
-            socket.channel?.on('presence', { event: 'join' }, ({ newPresences }: any) => {
-                newPresences.forEach((p: any) => {
-                    if (p.peerId && p.peerId !== socket.id) {
-                        console.log("User connected (presence):", p.peerId);
-                        setRemotePeerId(p.peerId);
-                        connectToNewUser(p.peerId, mediaStream);
+            // Listen for NEW users connecting explicitly via broadcast
+            socket.on('user-connected', (userId: string) => {
+                if (userId && userId !== socket.id) {
+                    console.log("User connected (broadcast):", userId);
+                    setRemotePeerId(userId);
+                    connectToNewUser(userId, mediaStream);
 
-                        // Join notification toast
-                        const profile = clientProfileRef.current;
-                        const joinName = profile?.name || "Bir kullanıcı";
-                        appendLog(`${joinName} odaya giriş yaptı`);
-                        setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
-                        if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                        toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+                    // Join notification toast
+                    const profile = clientProfileRef.current;
+                    const joinName = profile?.name || "Bir kullanıcı";
+                    appendLog(`${joinName} odaya giriş yaptı`);
+                    setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
+                    if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                    toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
 
-                        // Only the consultant (or whoever has the data) should broadcast the state
-                        // to the newcomer to avoid race conditions.
-                        if (cardsRef.current.length > 0) {
-                            socket.emit("sync-state", roomId, cardsRef.current);
-                            socket.emit("sync-logs", roomId, logsRef.current);
-                            socket.emit("sync-messages", roomId, messagesRef.current);
-                            if (clientProfileRef.current) {
-                                socket.emit("sync-client-profile", roomId, clientProfileRef.current);
-                            }
-                        }
+                    // Only the consultant (or whoever has the data) should broadcast the state
+                    // to the newcomer to avoid race conditions.
+                    if (cardsRef.current.length > 0) {
+                        socket.emit("sync-state", roomId, cardsRef.current);
+                        socket.emit("sync-logs", roomId, logsRef.current);
+                        socket.emit("sync-messages", roomId, messagesRef.current);
                     }
-                });
+                    if (clientProfileRef.current) {
+                        socket.emit("sync-client-profile", roomId, clientProfileRef.current);
+                    }
+                }
             });
 
             // Handle user disconnect via Presence
