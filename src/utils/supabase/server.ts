@@ -3,9 +3,10 @@ import { cookies } from 'next/headers'
 
 export async function createClient() {
     // Railway'den gelen değerleri al, tırnakları ve boşlukları temizle
-    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+    const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
+    // Build aşamasında hata vermemesi için
     const supabaseUrl = rawUrl.replace(/['"]/g, '').trim();
     const supabaseKey = rawKey.replace(/['"]/g, '').trim();
 
