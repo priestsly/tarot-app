@@ -123,6 +123,8 @@ function HomeContent() {
   const supabase = createClient();
 
   useEffect(() => {
+    if (!supabase) return;
+
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -141,6 +143,7 @@ function HomeContent() {
     };
     getUser();
 
+    // @ts-ignore
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -158,7 +161,7 @@ function HomeContent() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   const handleUseProfile = () => {

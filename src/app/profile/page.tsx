@@ -37,6 +37,7 @@ export default function ProfilePage() {
     const router = useRouter();
 
     useEffect(() => {
+        if (!supabase) return;
         async function loadProfile() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
