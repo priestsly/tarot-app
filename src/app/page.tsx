@@ -2,12 +2,13 @@
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { MagicWheel } from "@/components/MagicWheel";
 import { getMoonPhase } from "@/lib/astrology";
+import { createClient } from "@/utils/supabase/client";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -114,6 +115,74 @@ function HomeContent() {
   const [readingFocus, setReadingFocus] = useState("");
   const [gender, setGender] = useState("");
   const [isWheelOpen, setIsWheelOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Home Page: Initial user check:", user?.email || "No user");
+      setUser(user);
+      if (user) {
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+        if (data) {
+          setProfile(data);
+        } else {
+          // Fallback to user metadata if profile row missing
+          setProfile({
+            full_name: user.user_metadata?.full_name || "",
+            birth_date: user.user_metadata?.birth_date || "",
+          });
+        }
+      }
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Home Page: Auth state change:", _event, session?.user?.email || "No user");
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+        if (data) {
+          setProfile(data);
+        } else {
+          setProfile({
+            full_name: session.user.user_metadata?.full_name || "",
+            birth_date: session.user.user_metadata?.birth_date || "",
+          });
+        }
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleUseProfile = () => {
+    if (!profile) return;
+
+    const name = profile.full_name || user?.user_metadata?.full_name || "";
+    const birth = profile.birth_date || user?.user_metadata?.birth_date || "";
+    const time = profile.birth_time || "";
+
+    if (!name || !birth) {
+      alert("Profil bilgileriniz eksik. Lütfen profil sayfasından adınızı ve doğum tarihinizi doldurun veya manuel giriş yapın.");
+      return;
+    }
+
+    setClientName(name);
+    setBirthDate(birth);
+    setBirthTime(time);
+    setStep("client_step3_focus");
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+  };
 
   // Dynamic background based on moon phase
   const moonBg = useMemo(() => {
@@ -149,7 +218,16 @@ function HomeContent() {
   };
 
   const submitClientForm = () => {
-    if (!roomId || !clientName || !birthDate) return;
+    console.log("Submitting form with:", { roomId, clientName, birthDate, readingFocus, selectedPackage });
+
+    if (!roomId) {
+      alert("Oda kodu eksik. Lütfen ana sayfaya dönüp oda kodunu tekrar girin.");
+      return;
+    }
+    if (!clientName || !birthDate) {
+      alert("İsim veya doğum tarihi eksik. Lütfen bilgilerinizi kontrol edin.");
+      return;
+    }
 
     const params = new URLSearchParams();
     params.set("role", "client");
@@ -159,18 +237,25 @@ function HomeContent() {
     if (readingFocus) params.set("focus", readingFocus);
 
     if (readingFocus === "İlişki Danışmanı") {
-      if (!gender) return;
+      if (!gender) {
+        alert("Lütfen enerji seçimi yapın.");
+        return;
+      }
       params.set("pkgId", "relation");
       params.set("cards", "1");
       params.set("gender", gender);
     } else {
-      if (!selectedPackage) return;
+      if (!selectedPackage) {
+        alert("Lütfen bir paket seçin.");
+        return;
+      }
       const pkg = PACKAGES.find(p => p.id === selectedPackage);
       const cardCount = pkg ? pkg.cards : 3;
       params.set("pkgId", selectedPackage);
       params.set("cards", String(cardCount));
     }
 
+    console.log("Redirecting to room with params:", params.toString());
     router.push(`/room/${roomId}?${params.toString()}`);
   };
 
@@ -188,14 +273,41 @@ function HomeContent() {
 
   // ─── WELCOME ────────────────────────────────────────────────────
   const renderWelcome = () => (
-    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
-      <div className="text-center space-y-2 mb-8">
-        <p className="text-sm text-text-muted">Nasıl devam etmek istersiniz?</p>
+    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
+      {user ? (
+        <button
+          onClick={() => router.push("/profile")}
+          className="w-full bg-surface/40 border border-accent/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-surface/60 transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+              {user.email?.[0].toUpperCase()}
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] text-accent uppercase tracking-widest font-bold">Profilim</p>
+              <p className="text-sm text-text font-medium truncate max-w-[12rem]">{user.email}</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
+        </button>
+      ) : (
+        <button
+          onClick={() => router.push("/login")}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold transition-all hover:bg-white/10 active:scale-[0.98] group"
+        >
+          <LogIn className="w-5 h-5 text-accent group-hover:rotate-12 transition-transform" />
+          <span>Giriş Yap / Üye Ol</span>
+        </button>
+      )}
+
+      <div className="relative my-2 opacity-50">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+        <div className="relative flex justify-center"><span className="bg-bg px-3 text-[9px] text-text-muted/40 uppercase tracking-[0.2em]">veya</span></div>
       </div>
 
       <button
         onClick={handleConsultantLogin}
-        className="group w-full relative overflow-hidden rounded-xl border border-accent/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/25 hover:bg-accent-dim/60"
+        className="group w-full relative overflow-hidden rounded-xl border border-accent/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/25 hover:bg-accent-dim/60 shadow-sm"
       >
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-400/60 to-indigo-500/50 flex items-center justify-center shrink-0 shadow-md shadow-purple-400/10">
           <Shield className="w-5 h-5 text-white/80" />
@@ -209,7 +321,7 @@ function HomeContent() {
 
       <button
         onClick={() => setStep("room_input")}
-        className="group w-full relative overflow-hidden rounded-xl border border-gold/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/25 hover:bg-gold-dim/60"
+        className="group w-full relative overflow-hidden rounded-xl border border-gold/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/25 hover:bg-gold-dim/60 shadow-sm"
       >
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-400/50 to-yellow-500/40 flex items-center justify-center shrink-0 shadow-md shadow-amber-400/10">
           <User className="w-5 h-5 text-white/80" />
@@ -284,27 +396,69 @@ function HomeContent() {
 
   // ─── STEP 1: NAME ───────────────────────────────────────────────
   const renderClientStep1 = () => (
-    <motion.div key="client_step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+    <motion.div key="client_step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
       {!initialRoom && (
         <button onClick={() => setStep("room_input")} className={backBtn}>
           <ArrowLeft className="w-4 h-4" /> Geri
         </button>
       )}
-      <div className="text-center space-y-2 mb-8">
+      <div className="text-center space-y-2 mb-4">
         <h2 className="text-2xl font-heading text-text">Sizi Tanıyalım</h2>
-        <p className="text-sm text-text-muted">Danışmanınıza nasıl hitap edeceğini bildirin.</p>
+        <p className="text-sm text-text-muted">Kartların enerjisini size bağlamak için.</p>
       </div>
+
       <div className="space-y-4">
-        <input
-          type="text"
-          value={clientName}
-          onChange={(e) => setClientName(e.target.value)}
-          placeholder="Adınız Soyadınız"
-          className={inputClass}
-        />
-        <button onClick={() => setStep("client_step2_birth")} disabled={!clientName.trim()} className={btnPrimary}>
-          İleri <ArrowRight className="w-4 h-4" />
-        </button>
+        {user && !profile && (
+          <div className="flex items-center justify-center p-4">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
+            <span className="ml-3 text-xs text-text-muted font-medium">Kozmik bilgileriniz getiriliyor...</span>
+          </div>
+        )}
+
+        {profile && (profile.full_name || user?.email) && (
+          <>
+            <button
+              onClick={handleUseProfile}
+              className="w-full group relative overflow-hidden rounded-2xl border border-accent/20 bg-accent-dim/30 p-5 flex items-center gap-4 transition-all hover:border-accent/40 hover:bg-accent-dim/50 shadow-md active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-accent/20 to-purple-500/10 flex items-center justify-center shrink-0 border border-accent/10">
+                <Sparkles className="w-6 h-6 text-accent" />
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-text mb-0.5">Kendim İçin</h3>
+                <p className="text-[10px] text-accent uppercase tracking-[0.2em] font-bold truncate opacity-80">
+                  {profile.full_name || user?.email}
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-surface/50 flex items-center justify-center group-hover:bg-accent/10 transition-colors">
+                <ChevronRight className="w-4 h-4 text-accent group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </button>
+
+            <div className="relative py-4 flex items-center justify-center">
+              <div className="absolute inset-x-0 h-px bg-white/5" />
+              <span className="relative px-4 bg-midnight text-[9px] text-text-muted uppercase tracking-[0.3em] font-bold">Veya Başkası Adına</span>
+            </div>
+          </>
+        )}
+
+        <div className="space-y-4">
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <UserIcon className="w-4 h-4 text-text-muted group-focus-within:text-gold transition-colors" />
+            </div>
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Fal Sahibinin Adı Soyadı"
+              className={inputClass + " pl-11"}
+            />
+          </div>
+          <button onClick={() => setStep("client_step2_birth")} disabled={!clientName.trim()} className={btnPrimary}>
+            Manuel Devam Et <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
