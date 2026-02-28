@@ -2,12 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function createClient() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Railway'den gelen değerleri al ve tırnaklardan temizle (RegEx: /['"]/g)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/['"]/g, '')
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.replace(/['"]/g, '')
 
     // EĞER ANAHTARLAR YOKSA (BUILD AŞAMASINDAYIZ), KÜTÜPHANEYİ ÇAĞIRMA!
     if (!supabaseUrl || !supabaseKey) {
-        // En sağlam yol: Her türlü isteği yutan "yansız" bir proxy dönersek build asla çökemez.
         return new Proxy({}, {
             get: (_, prop) => {
                 if (prop === 'auth') return {
