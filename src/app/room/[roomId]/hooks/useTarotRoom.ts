@@ -378,16 +378,36 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 id: "",
                 channel,
                 connected: false,
+                queue: [],
                 emit: (event: string, ...args: any[]) => {
-                    channel.send({
-                        type: "broadcast",
-                        event: event,
-                        payload: { args }
-                    });
+                    let outEvent = event;
+                    let outArgs = args;
+
+                    if (event === "add-card") outEvent = "card-added";
+                    else if (event === "update-card") outEvent = "card-updated";
+                    else if (event === "flip-card") outEvent = "card-flipped";
+                    else if (event === "clear-table") { outEvent = "sync-state"; outArgs = [roomId, []]; }
+                    else if (event === "sync-all-cards") outEvent = "sync-state";
+                    else if (event === "update-client-profile") outEvent = "client-profile-updated";
+                    else if (event === "update-aura") outEvent = "aura-updated";
+                    else if (event === "typing") outEvent = "user-typing";
+
+                    const sendPayload = () => {
+                        channel.send({
+                            type: "broadcast",
+                            event: outEvent,
+                            payload: { args: outArgs }
+                        });
+                    };
+
+                    if (fakeSocket.connected) {
+                        sendPayload();
+                    } else {
+                        fakeSocket.queue.push(sendPayload);
+                    }
                 },
                 on: (event: string, callback: (...args: any[]) => void) => {
                     channel.on("broadcast", { event }, ({ payload }) => {
-                        // Support existing socket.emit("event", roomId, arg1, ...) pattern
                         let args = payload?.args || [];
                         if (args.length > 0 && args[0] === roomId) {
                             args = args.slice(1);
@@ -401,7 +421,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             };
             socketRef.current = fakeSocket;
             channel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') fakeSocket.connected = true;
+                if (status === 'SUBSCRIBED') {
+                    fakeSocket.connected = true;
+                    if (fakeSocket.id) {
+                        channel.track({ peerId: fakeSocket.id, role: isConsultant ? 'consultant' : 'client' });
+                    }
+                    while (fakeSocket.queue.length > 0) {
+                        const sendPayload = fakeSocket.queue.shift();
+                        if (sendPayload) sendPayload();
+                    }
+                }
             });
         }
         const socket = socketRef.current;
@@ -421,9 +450,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 setMyPeerId(id);
                 console.log('My peer ID is: ' + id);
                 socket.id = id;
+                // Tracking presence implicitly triggers if subscribed already, otherwise queues
+                if (socket.connected) {
+                    socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
+                }
                 socket.emit("user-connected", id); // Broadcast arrival explicitly
-                // Tracking presence
-                socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
             });
 
             // Answer incoming calls
