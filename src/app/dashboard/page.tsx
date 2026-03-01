@@ -36,6 +36,9 @@ export default function DashboardPage() {
             Notification.requestPermission();
         }
 
+        let presenceChannel: any = null;
+        let inviteListener: any = null;
+
         const loadDashboard = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
@@ -43,37 +46,39 @@ export default function DashboardPage() {
                 return;
             }
 
-            // Fetch profile
-            const { data: profileData } = await supabase
+            const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', user.id)
-                .single();
+                .maybeSingle();
+
+            if (profileError) {
+                console.error("Profile fetch error:", profileError);
+                setLoading(false);
+                return;
+            }
 
             if (profileData) {
                 setProfile(profileData);
 
-                // If consultant, set online and listen for invites
                 if (profileData.role === 'consultant') {
-                    // 1. Set online globally via Presence
-                    const newChannel = supabase.channel('global:consultants', {
+                    presenceChannel = supabase.channel('global:consultants', {
                         config: { presence: { key: 'watcher' } }
                     });
 
-                    newChannel.on('presence', { event: 'sync' }, () => { });
+                    presenceChannel.on('presence', { event: 'sync' }, () => { });
 
-                    newChannel.subscribe(async (status) => {
+                    presenceChannel.subscribe(async (status: string) => {
                         if (status === 'SUBSCRIBED') {
-                            await newChannel.track({
+                            await presenceChannel.track({
                                 user_id: user.id,
                                 role: 'consultant',
                                 status: 'online'
                             });
-                            setPresenceChannel(newChannel);
+                            setPresenceChannel(presenceChannel);
                         }
                     });
 
-                    // 2. Fetch active pending invites
                     const { data: inviteData } = await supabase
                         .from('session_invites')
                         .select('*')
@@ -83,8 +88,7 @@ export default function DashboardPage() {
 
                     if (inviteData) setInvites(inviteData);
 
-                    // 3. Listen for NEW invites real-time
-                    const inviteListener = supabase.channel('consultant-invites')
+                    inviteListener = supabase.channel('consultant-invites')
                         .on(
                             'postgres_changes',
                             { event: 'INSERT', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${user.id}` },
@@ -104,24 +108,23 @@ export default function DashboardPage() {
                             'postgres_changes',
                             { event: 'UPDATE', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${user.id}` },
                             (payload) => {
-                                // Remove if status is no longer pending (cancelled by client, etc.)
                                 if (payload.new.status !== 'pending') {
                                     setInvites((prev) => prev.filter(inv => inv.id !== payload.new.id));
                                 }
                             }
                         )
                         .subscribe();
-
-                    return () => {
-                        supabase.removeChannel(newChannel);
-                        supabase.removeChannel(inviteListener);
-                    };
                 }
             }
             setLoading(false);
         };
 
         loadDashboard();
+
+        return () => {
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            if (inviteListener) supabase.removeChannel(inviteListener);
+        };
     }, [router, supabase]);
 
     useEffect(() => {
