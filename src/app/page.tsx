@@ -323,15 +323,15 @@ function HomeContent() {
       </button>
 
       <button
-        onClick={() => setStep("room_input")}
+        onClick={() => router.push("/consultants")}
         className="group w-full relative overflow-hidden rounded-xl border border-gold/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-gold/25 hover:bg-gold-dim/60 shadow-sm"
       >
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-400/50 to-yellow-500/40 flex items-center justify-center shrink-0 shadow-md shadow-amber-400/10">
           <User className="w-5 h-5 text-white/80" />
         </div>
         <div className="text-left flex-1">
-          <h3 className="text-base font-semibold text-text">Müşteri Girişi</h3>
-          <p className="text-xs text-text-muted mt-0.5">Oda kodunu girerek danışmanına bağlan.</p>
+          <h3 className="text-base font-semibold text-text">Danışmanları Keşfet</h3>
+          <p className="text-xs text-text-muted mt-0.5">Çevrimiçi danışmanları gör ve canlı seans başlat.</p>
         </div>
         <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-gold transition-colors" />
       </button>

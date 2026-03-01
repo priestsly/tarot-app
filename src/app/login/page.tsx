@@ -13,6 +13,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
     const [birthDate, setBirthDate] = useState("");
+    const role = 'client'; // Consultants are added manually by admins
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSignUp, setIsSignUp] = useState(false);
@@ -26,16 +27,16 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
 
-        const { error } = isSignUp
+        const { error, data } = isSignUp
             ? await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         full_name: fullName,
-                        birth_date: birthDate
-                    },
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                        birth_date: birthDate,
+                        role: role
+                    }
                 }
             })
             : await supabase.auth.signInWithPassword({ email, password });
@@ -44,12 +45,20 @@ export default function LoginPage() {
             setError(error.message);
             setLoading(false);
         } else {
-            if (isSignUp) {
+            // Check if user is automatically logged in (Email Confirmation is disabled)
+            const { data: userRes } = await supabase.auth.getUser();
+            if (userRes.user) {
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', userRes.user.id).single();
+                if (profile?.role === 'consultant') {
+                    router.push("/dashboard");
+                } else {
+                    router.push("/");
+                }
+                router.refresh();
+            } else {
+                // If not logged in immediately, they probably have email confirmation ON still.
                 setSuccess(true);
                 setLoading(false);
-            } else {
-                router.push("/");
-                router.refresh();
             }
         }
     };
@@ -62,7 +71,8 @@ export default function LoginPage() {
                 redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: isSignUp ? {
                     full_name: fullName,
-                    birth_date: birthDate
+                    birth_date: birthDate,
+                    role: role
                 } : undefined
             },
         });
@@ -143,19 +153,6 @@ export default function LoginPage() {
                                             <div className="group relative">
                                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                                     <UserPlus className="h-5 w-5 text-text-muted group-focus-within:text-purple-400 transition-colors" />
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    placeholder="Ad Soyad"
-                                                    className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500/50 transition-all font-inter"
-                                                    value={fullName}
-                                                    onChange={(e) => setFullName(e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="group relative">
-                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                    <Calendar className="h-5 w-5 text-text-muted group-focus-within:text-purple-400 transition-colors" />
                                                 </div>
                                                 <input
                                                     type="date"
