@@ -52,7 +52,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
-        isConnecting
+        isConnecting, isReady, setIsReady
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -143,9 +143,43 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     ))}
                 </div>
 
+                {/* ═══ READY BUTTON OVERLAY ═══ */}
+                <AnimatePresence>
+                    {!isReady && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-bg/90 backdrop-blur-md"
+                        >
+                            <div className="text-center max-w-md p-8 glass rounded-3xl border border-purple-500/20 shadow-2xl shadow-purple-900/20">
+                                <Sparkles className="w-12 h-12 text-gold mx-auto mb-6 animate-pulse" />
+                                <h2 className="text-3xl font-heading font-bold text-white mb-4 drop-shadow-lg">
+                                    Oda Hazır
+                                </h2>
+                                <p className="text-text-muted mb-8 leading-relaxed">
+                                    {isConsultant
+                                        ? "Müşteriniz ile bağlantı kurmak ve ruhani seansınızı başlatmak için hazır olduğunuzda aşağıdaki butona tıklayın."
+                                        : "Danışmanınız ile telepatik ağ kurmak ve seansınıza başlamak için hazır olduğunuzda butona tıklayın."}
+                                </p>
+                                <button
+                                    onClick={() => setIsReady(true)}
+                                    className="w-full py-4 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-purple-500/30 transition-all hover:scale-105 active:scale-95 text-lg uppercase tracking-wider flex justify-center items-center gap-3"
+                                >
+                                    <span>Bağlantıyı Başlat</span>
+                                    <Feather className="w-5 h-5 text-purple-200" />
+                                </button>
+                                <p className="text-[10px] text-text-muted/50 mt-6 uppercase tracking-widest font-semibold">
+                                    Kamera ve Mikrofon izni istenecektir
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* ═══ CONNECTING OVERLAY ═══ */}
                 <AnimatePresence>
-                    {isConnecting && (
+                    {isReady && isConnecting && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

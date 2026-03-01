@@ -51,6 +51,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const [isConnecting, setIsConnecting] = useState(true);
+    const [isReady, setIsReady] = useState(false);
 
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
@@ -366,6 +367,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     useEffect(() => {
+        if (!isReady) return; // Wait for user to manually click 'Ready'
+
         // 1. Initialize Supabase Realtime "Socket"
         if (!socketRef.current) {
             const supabase = createClient();
@@ -696,8 +699,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             peerRef.current?.destroy();
             const tracks = streamRef.current?.getTracks();
             tracks?.forEach(track => track.stop());
+            socketRef.current = null;
         };
-    }, [roomId, playNotifSound]);
+    }, [roomId, playNotifSound, isReady]);
 
     function connectToNewUser(userId: string, stream: MediaStream) {
         if (!peerRef.current || !stream) return;
@@ -1079,9 +1083,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         showAurasPanel,
         currentAura,
         isConnecting,
+        isReady,
 
         // Setters
         setIsSidebarOpen,
+        setIsReady,
         setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowShareModal,
