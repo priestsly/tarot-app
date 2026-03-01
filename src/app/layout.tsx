@@ -38,7 +38,6 @@ export const viewport: Viewport = {
 };
 
 import { GlobalPresence } from "@/components/GlobalPresence";
-import { Navigation } from "@/components/Navigation";
 
 export default function RootLayout({
   children,
@@ -53,10 +52,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={`${body.variable} ${heading.variable} antialiased bg-[#0C0B14] text-neutral-50`}>
-        <Navigation />
-        <div className="pt-0 min-h-screen">
-          {children}
-        </div>
+        {children}
         <GlobalPresence />
         <script
           dangerouslySetInnerHTML={{

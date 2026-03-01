@@ -4,14 +4,17 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon, Settings, Search, LayoutDashboard } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { MagicWheel } from "@/components/MagicWheel";
 import { getMoonPhase } from "@/lib/astrology";
 import { createClient } from "@/utils/supabase/client";
-import { cn } from "@/utils/cn";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // ─── TYPES & DATA ───────────────────────────────────────────────
 
@@ -290,188 +293,108 @@ function HomeContent() {
 
   // ─── WELCOME ────────────────────────────────────────────────────
   const renderWelcome = () => (
-    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+    <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
       {user ? (
-        /* AUTHENTICATED USER PORTAL */
-        <div className="space-y-6">
-          <div className="text-center space-y-2 mb-2">
-            <h2 className="text-3xl font-heading font-black text-white tracking-tight">Mistik Portal'a Hoş Geldiniz</h2>
-            <p className="text-sm text-purple-300/60 font-medium">Bugün kaderin hangi kapısını aralamak istersiniz?</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={() => router.push("/consultants")}
+            className="w-full sm:col-span-2 bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 rounded-3xl p-6 flex flex-col items-center justify-center group overflow-hidden relative cursor-pointer hover:bg-amber-500/30 transition-all active:scale-[0.98] shadow-lg shadow-amber-500/5 hover:shadow-amber-500/10"
+          >
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay group-hover:opacity-40 transition-opacity" />
+            <Sparkles className="w-10 h-10 text-amber-400 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-bold font-heading text-white tracking-wider">Fal Baktır</h3>
+            <p className="text-xs text-amber-200/80 mt-1 font-medium">Hemen Çevrimiçi Bir Danışmana Bağlan</p>
+          </button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => router.push("/consultants")}
-              className="group relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 flex flex-col items-center text-center gap-4 transition-all hover:bg-amber-500/10 hover:border-amber-500/40 active:scale-[0.98] shadow-lg shadow-amber-900/5"
-            >
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-xl shadow-amber-500/20">
-                <Search className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white mb-1">Danışman Bul</h3>
-                <p className="text-[10px] text-amber-500 uppercase tracking-widest font-black opacity-80">Canlı Bağlantı</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setStep("room_input")}
-              className="group relative overflow-hidden rounded-2xl border border-purple-500/20 bg-purple-500/5 p-6 flex flex-col items-center text-center gap-4 transition-all hover:bg-purple-500/10 hover:border-purple-500/40 active:scale-[0.98] shadow-lg shadow-purple-900/5"
-            >
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-purple-400 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-purple-500/20">
-                <LogIn className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white mb-1">Odaya Katıl</h3>
-                <p className="text-[10px] text-purple-400 uppercase tracking-widest font-black opacity-80">Oda Kodu ile</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Quick Stats / History Row */}
-          <div className="flex gap-2 h-20">
-            <button
-              onClick={() => router.push("/consultations")}
-              className="flex-1 bg-surface/40 hover:bg-surface/60 border border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-            >
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-emerald-400" />
+          <button
+            onClick={() => router.push("/consultations")}
+            className="w-full bg-surface/60 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between group hover:bg-emerald-500/10 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <Clock className="w-6 h-6" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-white leading-none mb-1">Geçmişim</p>
-                <p className="text-[9px] text-text-muted uppercase tracking-tighter">Seans Geçmişi</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => router.push("/profile")}
-              className="flex-1 bg-surface/40 hover:bg-surface/60 border border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-            >
-              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                <UserIcon className="w-4 h-4 text-accent" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-white leading-none mb-1">Profilim</p>
-                <p className="text-[9px] text-text-muted uppercase tracking-tighter">Düzenle</p>
-              </div>
-            </button>
-          </div>
-
-          {profile?.role === 'consultant' && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => router.push("/dashboard")}
-              className="w-full bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-6 flex items-center gap-6 group hover:border-purple-500/60 transition-all shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[60px] rounded-full" />
-              <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/40 shrink-0">
-                <LayoutDashboard className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-left flex-1 relative z-10">
-                <p className="text-[10px] text-purple-400 uppercase tracking-[0.3em] font-black mb-1">Professional Portal</p>
-                <h3 className="text-xl font-heading font-black text-white leading-tight">DANIŞMAN PANELİ</h3>
-                <p className="text-xs text-purple-200/50 mt-1 line-clamp-1">Gelen danışmanlık taleplerini yönetmek ve çevrimiçi olmak için buraya tıklayın.</p>
-              </div>
-              <ChevronRight className="w-6 h-6 text-purple-500 group-hover:translate-x-1 transition-transform" />
-            </motion.button>
-          )}
-        </div>
-      ) : (
-        /* GUEST / GUEST LANDING EXPERIENCE */
-        <div className="space-y-10 py-4">
-          <div className="text-center space-y-6">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-[10px] font-black uppercase tracking-[0.2em]"
-            >
-              <Sparkles className="w-3 h-3" /> Evrenin Işığı Sizinle
-            </motion.div>
-
-            <h2 className="text-5xl md:text-7xl font-heading font-black leading-[1.05] tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40">
-              Geleceği <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-amber-300">Görünür</span> Kılın
-            </h2>
-
-            <p className="text-sm md:text-lg text-purple-200/60 max-w-sm mx-auto font-medium leading-relaxed">
-              Dünyanın en yetenekli tarot danışmanlarıyla gerçek zamanlı bağlantı kurun, niyetinize odaklanın ve yolunuzu bulun.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              onClick={() => router.push("/login")}
-              className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex items-center justify-between transition-all hover:shadow-2xl hover:shadow-purple-500/20 active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white">
-                  <LogIn className="w-6 h-6" />
-                </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-bold text-white leading-tight">Yolculuğa Başla</h3>
-                  <p className="text-xs text-purple-100/60">Giriş yapın veya ücretsiz üye olun</p>
-                </div>
-              </div>
-              <ArrowRight className="w-6 h-6 text-white group-hover:translate-x-1 transition-transform" />
-            </button>
-
-            <button
-              onClick={() => router.push("/consultants")}
-              className="w-full relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 flex items-center justify-center gap-3 transition-all hover:bg-white/10 active:scale-[0.98]"
-            >
-              <Search className="w-5 h-5 text-amber-300" />
-              <span className="text-sm font-bold text-white uppercase tracking-widest">Danışmanları Gör</span>
-            </button>
-          </div>
-
-          <div className="pt-4 flex flex-col items-center gap-4">
-            <div className="flex -space-x-3">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0C0B14] bg-zinc-800 overflow-hidden shadow-xl">
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Reader${i}`} alt="reader" />
-                </div>
-              ))}
-              <div className="w-10 h-10 rounded-full border-2 border-[#0C0B14] bg-purple-900 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                +50
+                <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Geçmiş & Aktif</p>
+                <p className="text-base text-text font-bold">Oturumlarım</p>
               </div>
             </div>
-            <p className="text-[10px] text-purple-400 font-black uppercase tracking-[0.2em]">Çevrimiçi Uzman Danışmanlar</p>
-          </div>
+            <ChevronRight className="w-5 h-5 text-emerald-400 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+          </button>
+
+          <button
+            onClick={() => profile?.role === 'consultant' ? router.push("/dashboard") : router.push("/profile")}
+            className="w-full bg-surface/60 border border-purple-500/20 rounded-2xl p-5 flex items-center justify-between group hover:bg-purple-500/10 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                {profile?.role === 'consultant' ? <Shield className="w-6 h-6" /> : <User className="w-6 h-6" />}
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">{profile?.role === 'consultant' ? "Yönetim Paneli" : "Hesabım"}</p>
+                <p className="text-base text-text font-bold">{profile?.role === 'consultant' ? "Danışman Paneli" : "Profilim"}</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-purple-400 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <button
+            onClick={() => router.push("/consultants")}
+            className="group w-full relative overflow-hidden rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent p-6 flex flex-col items-center gap-3 transition-all hover:border-amber-500/40 hover:bg-amber-500/20 shadow-lg mb-6"
+          >
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <div className="text-center relative z-10">
+              <h3 className="text-xl font-bold font-heading text-white">Danışmanları Keşfet</h3>
+              <p className="text-sm text-text-muted mt-1">Sana özel atanmış kader bağlarını keşfetmeye başla.</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => router.push("/login")}
+            className="w-full flex items-center justify-center gap-3 px-6 py-5 bg-white/5 border border-white/10 text-white rounded-2xl font-bold transition-all hover:bg-white/10 active:scale-[0.98] group"
+          >
+            <LogIn className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+            <span>Giriş Yap veya Üye Ol</span>
+          </button>
         </div>
       )}
 
-      {/* Discover Section (Visible to all, formatted better) */}
-      <div className="relative pt-8">
-        <div className="relative flex items-center gap-4 mb-6">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-accent shrink-0">Mistik Araçlar</h3>
-          <div className="flex-1 h-px bg-gradient-to-r from-accent/20 to-transparent" />
-        </div>
+      {/* Keşfet */}
+      <div className="relative my-8">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+        <div className="relative flex justify-center"><span className="bg-[#0a0a0f] px-5 py-1 text-[10px] text-text-muted/60 uppercase tracking-[0.2em] font-bold border border-border/50 rounded-full">Keşfet</span></div>
+      </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-          {[
-            { href: "/meditation", name: "Meditasyon", desc: "Nefes & niyet", icon: "🧘", border: "border-purple-500/10", hover: "hover:border-purple-500/20 hover:bg-purple-500/5" },
-            { href: "/astrology", name: "Astroloji", desc: "Burç & gezegen", icon: "🪐", border: "border-indigo-500/10", hover: "hover:border-indigo-500/20 hover:bg-indigo-500/5" },
-            { href: "/dreams", name: "Rüya Yorumu", desc: "AI destekli", icon: "🌙", border: "border-blue-500/10", hover: "hover:border-blue-500/20 hover:bg-blue-500/5" },
-            { href: "/candle", name: "Mum Ritüeli", desc: "Niyet & ritüel", icon: "🕯️", border: "border-orange-500/10", hover: "hover:border-orange-500/20 hover:bg-orange-500/5" },
-            { href: "/numerology", name: "Numeroloji", desc: "Sayıların gücü", icon: "🔢", border: "border-amber-500/10", hover: "hover:border-amber-500/20 hover:bg-amber-500/5" },
-            { href: "/coffee", name: "Kahve Falı", desc: "Fotoğraf ile", icon: "☕", border: "border-yellow-600/10", hover: "hover:border-yellow-600/20 hover:bg-yellow-600/5" },
-            { href: "/compatibility", name: "Burç Uyumu", desc: "İki burcun kimyası", icon: "💕", border: "border-pink-500/10", hover: "hover:border-pink-500/20 hover:bg-pink-500/5" },
-            { href: "/calendar", name: "Kozmik Takvim", desc: "Ay & retrograd", icon: "📅", border: "border-cyan-500/10", hover: "hover:border-cyan-500/20 hover:bg-cyan-500/5" },
-            { href: "/affirmations", name: "Afirmasyonlar", desc: "Günlük olumlamalar", icon: "✨", border: "border-violet-500/10", hover: "hover:border-violet-500/20 hover:bg-violet-500/5" },
-            { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
-            { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
-            { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
-            { href: "/mind-question", name: "Aklımdaki Soru", desc: "Cevaplar Kitabı", icon: "📖", border: "border-emerald-500/10", hover: "hover:border-emerald-500/20 hover:bg-emerald-500/5" },
-          ].map(item => (
-            <button key={item.href} onClick={() => router.push(item.href)}
-              className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
-              <span className="text-xl">{item.icon}</span>
-              <div className="text-left flex-1 min-w-0">
-                <h3 className="text-xs font-semibold text-text/70 truncate">{item.name}</h3>
-                <p className="text-[9px] text-text-muted/50 mt-0.5">{item.desc}</p>
-              </div>
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { href: "/meditation", name: "Meditasyon", desc: "Nefes & niyet", icon: "🧘", border: "border-purple-500/10", hover: "hover:border-purple-500/20 hover:bg-purple-500/5" },
+          { href: "/astrology", name: "Astroloji", desc: "Burç & gezegen", icon: "🪐", border: "border-indigo-500/10", hover: "hover:border-indigo-500/20 hover:bg-indigo-500/5" },
+          { href: "/dreams", name: "Rüya Yorumu", desc: "AI destekli", icon: "🌙", border: "border-blue-500/10", hover: "hover:border-blue-500/20 hover:bg-blue-500/5" },
+          { href: "/candle", name: "Mum Ritüeli", desc: "Niyet & ritüel", icon: "🕯️", border: "border-orange-500/10", hover: "hover:border-orange-500/20 hover:bg-orange-500/5" },
+          { href: "/numerology", name: "Numeroloji", desc: "Sayıların gücü", icon: "🔢", border: "border-amber-500/10", hover: "hover:border-amber-500/20 hover:bg-amber-500/5" },
+          { href: "/coffee", name: "Kahve Falı", desc: "Fotoğraf ile", icon: "☕", border: "border-yellow-600/10", hover: "hover:border-yellow-600/20 hover:bg-yellow-600/5" },
+          { href: "/compatibility", name: "Burç Uyumu", desc: "İki burcun kimyası", icon: "💕", border: "border-pink-500/10", hover: "hover:border-pink-500/20 hover:bg-pink-500/5" },
+          { href: "/calendar", name: "Kozmik Takvim", desc: "Ay & retrograd", icon: "📅", border: "border-cyan-500/10", hover: "hover:border-cyan-500/20 hover:bg-cyan-500/5" },
+          { href: "/affirmations", name: "Afirmasyonlar", desc: "Günlük olumlamalar", icon: "✨", border: "border-violet-500/10", hover: "hover:border-violet-500/20 hover:bg-violet-500/5" },
+          { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
+          { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
+          { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
+          { href: "/mind-question", name: "Aklımdaki Soru", desc: "Cevaplar Kitabı", icon: "📖", border: "border-emerald-500/10", hover: "hover:border-emerald-500/20 hover:bg-emerald-500/5" },
+        ].map(item => (
+          <button key={item.href} onClick={() => router.push(item.href)}
+            className={`group w-full relative overflow-hidden rounded-xl border bg-surface/50 p-3.5 flex items-center gap-3 transition-all ${item.border} ${item.hover}`}>
+            <span className="text-xl">{item.icon}</span>
+            <div className="text-left flex-1 min-w-0">
+              <h3 className="text-xs font-semibold text-text/70 truncate">{item.name}</h3>
+              <p className="text-[9px] text-text-muted/50 mt-0.5">{item.desc}</p>
+            </div>
+          </button>
+        ))}
       </div>
     </motion.div>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Video, Settings, Bell, Clock, User, LogOut, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -175,8 +174,39 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] text-white font-inter">
-            {/* Removed redundant nav - using global Navigation */}
-            <div className="h-16" /> {/* Spacer for global nav */}
+            {/* Top Navigation */}
+            <nav className="border-b border-white/10 bg-[#11111a]/80 backdrop-blur-md sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-amber-200" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-heading font-bold leading-tight">Mystic Tarot</h1>
+                            <span className="text-[10px] text-purple-300/80 font-bold uppercase tracking-wider">{profile.role === 'consultant' ? 'Mistik Portal' : 'Danışan Portalı'}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-white/10 text-right">
+                            <div className="hidden md:block">
+                                <p className="text-sm font-bold">{profile.full_name}</p>
+                                <p className="text-xs text-zinc-400 capitalize">{profile.role === 'consultant' ? 'Danışman' : 'Danışan'}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
+                                {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" /> : <User className="w-5 h-5 text-zinc-400" />}
+                            </div>
+                        </div>
+                        <Link href="/consultations" className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-2 group">
+                            <Clock className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                            <span className="text-xs font-bold hidden md:inline">Oturumlarım</span>
+                        </Link>
+                        <button onClick={handleSignOut} className="p-2.5 rounded-xl bg-zinc-800/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors" title="Çıkış Yap">
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </nav>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {profile.role === 'consultant' ? (
@@ -283,12 +313,36 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-20">
-                        <h2 className="text-2xl font-bold mb-4">Danışan Portalı Yapım Aşamasında</h2>
-                        <p className="text-zinc-500 mb-8">Buradan favori danışmanlarını ve geçmiş seanslarını görebileceksin.</p>
-                        <button onClick={() => router.push('/consultants')} className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors">
-                            Danışmanları Keşfet
-                        </button>
+                    <div className="max-w-4xl mx-auto mt-8">
+                        <div className="bg-gradient-to-br from-purple-900/20 to-indigo-900/10 border border-purple-500/20 rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-2xl">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay pointer-events-none" />
+
+                            <div className="relative z-10">
+                                <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20">
+                                    <Sparkles className="w-10 h-10 text-white" />
+                                </div>
+                                <h2 className="text-3xl font-heading font-bold text-white mb-4">Mistik Yolculuğa Hazır Mısın?</h2>
+                                <p className="text-purple-200/70 text-lg mb-8 max-w-lg mx-auto">
+                                    Sorduğun soruların cevapları, ruhunun derinliklerinde gizli. Gerçek bir danışmanla bağlantı kur ve kaderini keşfet.
+                                </p>
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                                    <button
+                                        onClick={() => router.push('/consultants')}
+                                        className="px-8 py-4 bg-white text-[#0a0a0f] font-bold rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 shadow-xl shadow-white/10 w-full sm:w-auto group"
+                                    >
+                                        <Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                                        Danışmanları Keşfet
+                                    </button>
+                                    <button
+                                        onClick={() => router.push('/consultations')}
+                                        className="px-8 py-4 bg-purple-500/10 text-purple-300 font-bold rounded-2xl hover:bg-purple-500/20 hover:text-purple-200 transition-all flex items-center justify-center gap-2 border border-purple-500/20 w-full sm:w-auto"
+                                    >
+                                        <Clock className="w-5 h-5" />
+                                        Geçmiş Seanslarım
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>
