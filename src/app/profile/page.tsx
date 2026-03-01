@@ -113,7 +113,7 @@ export default function ProfilePage() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push("/");
+        window.location.href = "/";
     };
 
     if (loading) {
@@ -132,7 +132,7 @@ export default function ProfilePage() {
             <div className="max-w-2xl mx-auto px-4 pt-12 relative z-10">
                 {/* Header/Back */}
                 <button
-                    onClick={() => router.push("/")}
+                    onClick={() => window.location.href = "/"}
                     className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors mb-8 text-sm font-bold uppercase tracking-widest"
                 >
                     <ChevronRight className="w-4 h-4 rotate-180" />

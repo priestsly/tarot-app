@@ -5,14 +5,12 @@ export const dynamic = 'force-dynamic';
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Mail, Lock, Loader2, ArrowRight, UserPlus, LogIn, Calendar } from "lucide-react";
+import { Sparkles, Mail, Lock, Loader2, ArrowRight, LogIn, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [fullName, setFullName] = useState("");
-    const [birthDate, setBirthDate] = useState("");
     const role = 'client'; // Consultants are added manually by admins
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -33,8 +31,6 @@ export default function LoginPage() {
                 password,
                 options: {
                     data: {
-                        full_name: fullName,
-                        birth_date: birthDate,
                         role: role
                     }
                 }
@@ -70,8 +66,6 @@ export default function LoginPage() {
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: isSignUp ? {
-                    full_name: fullName,
-                    birth_date: birthDate,
                     role: role
                 } : undefined
             },
@@ -148,22 +142,6 @@ export default function LoginPage() {
                                 className="space-y-6"
                             >
                                 <div className="space-y-4">
-                                    {isSignUp && (
-                                        <>
-                                            <div className="group relative">
-                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                    <UserPlus className="h-5 w-5 text-text-muted group-focus-within:text-purple-400 transition-colors" />
-                                                </div>
-                                                <input
-                                                    type="date"
-                                                    required
-                                                    className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500/50 transition-all font-inter"
-                                                    value={birthDate}
-                                                    onChange={(e) => setBirthDate(e.target.value)}
-                                                />
-                                            </div>
-                                        </>
-                                    )}
                                     <div className="group relative">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                             <Mail className="h-5 w-5 text-text-muted group-focus-within:text-purple-400 transition-colors" />

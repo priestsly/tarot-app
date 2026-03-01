@@ -20,6 +20,7 @@ import { FogOverlay } from './components/FogOverlay';
 import { AurasPanel } from './components/AurasPanel';
 import { StoryGenerator } from '@/components/StoryGenerator';
 import { AiModal } from './components/AiModal';
+import { PreSessionForm } from './components/PreSessionForm';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -55,7 +56,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
-        isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
+        isConnecting, localReady, remoteReady, setLocalReady, setClientProfile, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -96,8 +97,23 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleCursorMove(e);
     };
 
+    const handlePreSessionComplete = async (data: any) => {
+        setClientProfile(data);
+        // Write it to session_invites (if we have access/it exists, else it just passes through socket)
+        try {
+            await supabase.from('session_invites').update({ client_context: data }).eq('room_id', roomId);
+        } catch (e) { console.error("Could not save context to db", e); }
+        setLocalReady(true);
+    };
+
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
+            {/* ═══ PRE SESSION FORM FOR CLIENTS ═══ */}
+            {!isConsultant && !localReady && (
+                <PreSessionForm onSubmit={handlePreSessionComplete} />
+            )}
+
+            {/* Ambient Base Level */}
 
             {/* ═══ FULL-BLEED TAROT TABLE ═══ */}
             <main

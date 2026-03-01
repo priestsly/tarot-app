@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/client";
 import Peer from "peerjs";
@@ -51,7 +52,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const [isConnecting, setIsConnecting] = useState(true);
-    const [localReady, setLocalReady] = useState(true);
+    const [localReady, setLocalReady] = useState(isConsultant); // Consultant is ready immediately, Client waits for form
     const localReadyRef = useRef(localReady);
     useEffect(() => { localReadyRef.current = localReady; }, [localReady]);
 
@@ -62,6 +63,34 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResponse, setAiResponse] = useState("");
+
+    const router = useRouter();
+
+    // Verify Session is Valid (Not Completed)
+    useEffect(() => {
+        const checkRoomStatus = async () => {
+            const supabase = createClient();
+            const { data } = await supabase
+                .from('session_invites')
+                .select('status, client_context')
+                .eq('room_id', roomId)
+                .maybeSingle();
+
+            if (data) {
+                if (data.status === 'completed' || data.status === 'declined') {
+                    alert("Bu oturum artık aktif değil (tamamlanmış veya iptal edilmiş).");
+                    router.push('/consultations');
+                    return;
+                }
+
+                // Pre-load client context if we're the consultant so it's ready immediately
+                if (isConsultant && data.client_context) {
+                    setClientProfile(data.client_context);
+                }
+            }
+        };
+        checkRoomStatus();
+    }, [roomId, router, isConsultant]);
 
     const lastCursorEmit = useRef<number>(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1251,6 +1280,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // Setters
         setIsSidebarOpen,
         setLocalReady,
+        setClientProfile,
         setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowShareModal,
