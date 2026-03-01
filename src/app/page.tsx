@@ -297,6 +297,22 @@ function HomeContent() {
       {user ? (
         <div className="space-y-3">
           <button
+            onClick={() => router.push("/consultations")}
+            className="w-full bg-surface/40 border border-emerald-500/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-emerald-500/10 transition-all active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center text-white">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Geçmiş & Aktif</p>
+                <p className="text-sm text-text font-medium">Oturumlarım</p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-emerald-400" />
+          </button>
+
+          <button
             onClick={() => router.push("/profile")}
             className="w-full bg-surface/40 border border-accent/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-surface/60 transition-all active:scale-[0.99]"
           >

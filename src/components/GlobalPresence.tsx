@@ -15,37 +15,46 @@ export function GlobalPresence() {
     const [acceptedInvite, setAcceptedInvite] = useState<any>(null);
 
     useEffect(() => {
-        const init = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            setUser(user);
+        let presenceChannel: any = null;
+        let inviteChannel: any = null;
 
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-            if (!profile) return;
-            setProfile(profile);
+        const setupChannels = async (currentUser: any) => {
+            if (!currentUser) {
+                setProfile(null);
+                setNewInvite(null);
+                setAcceptedInvite(null);
+                return;
+            }
+
+            setUser(currentUser);
+            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+            if (!profileData) return;
+            setProfile(profileData);
+
+            // Cleanup previous channels if any
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            if (inviteChannel) supabase.removeChannel(inviteChannel);
 
             // 1. If Consultant: Listen for NEW invites globally
-            if (profile.role === 'consultant') {
-                // Tracking presence globally on every page for consultants
-                const presenceChannel = supabase.channel('global:consultants', {
+            if (profileData.role === 'consultant') {
+                presenceChannel = supabase.channel('global:consultants', {
                     config: { presence: { key: 'watcher' } }
                 });
 
-                presenceChannel.subscribe(async (status) => {
+                presenceChannel.subscribe(async (status: string) => {
                     if (status === 'SUBSCRIBED') {
                         await presenceChannel.track({
-                            user_id: user.id,
+                            user_id: currentUser.id,
                             role: 'consultant',
                             status: 'online'
                         });
                     }
                 });
 
-                // Listen for INSERT on session_invites
-                const inviteChannel = supabase.channel('global-invites')
+                inviteChannel = supabase.channel('global-invites')
                     .on(
                         'postgres_changes',
-                        { event: 'INSERT', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${user.id}` },
+                        { event: 'INSERT', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${currentUser.id}` },
                         (payload) => {
                             setNewInvite(payload.new);
                             if ('Notification' in window && Notification.permission === 'granted') {
@@ -57,34 +66,45 @@ export function GlobalPresence() {
                         }
                     )
                     .subscribe();
-
-                return () => {
-                    supabase.removeChannel(presenceChannel);
-                    supabase.removeChannel(inviteChannel);
-                };
-            }
-
-            // 2. If Client: Check for recently accepted invites if they are wandering around
-            const inviteChannel = supabase.channel('client-invites')
-                .on(
-                    'postgres_changes',
-                    { event: 'UPDATE', schema: 'public', table: 'session_invites', filter: `client_id=eq.${user.id}` },
-                    (payload) => {
-                        if (payload.new.status === 'accepted' && payload.new.room_id) {
-                            setAcceptedInvite(payload.new);
+            } else {
+                // 2. If Client: Check for recently accepted invites
+                inviteChannel = supabase.channel('client-invites')
+                    .on(
+                        'postgres_changes',
+                        { event: 'UPDATE', schema: 'public', table: 'session_invites', filter: `client_id=eq.${currentUser.id}` },
+                        (payload) => {
+                            if (payload.new.status === 'accepted' && payload.new.room_id) {
+                                setAcceptedInvite(payload.new);
+                            }
                         }
-                    }
-                )
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(inviteChannel);
-            };
+                    )
+                    .subscribe();
+            }
         };
 
-        const cleanup = init();
+        // Initial setup
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setupChannels(user);
+        });
+
+        // Listen for auth changes (Login / Logout)
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                // Ensure complete disconnection
+                await supabase.removeAllChannels();
+                setProfile(null);
+                setUser(null);
+                setNewInvite(null);
+                setAcceptedInvite(null);
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                setupChannels(session.user);
+            }
+        });
+
         return () => {
-            // Clean up handled by internal returns or explicitly here if needed
+            authListener.subscription.unsubscribe();
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            if (inviteChannel) supabase.removeChannel(inviteChannel);
         };
     }, []);
 

@@ -4,7 +4,8 @@ import { use, Suspense } from "react";
 import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Instagram } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import TarotCard from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
 import { getRumiMeaning } from "@/lib/rumiData";
@@ -27,6 +28,8 @@ export function cn(...inputs: ClassValue[]) {
 
 function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const supabase = createClient();
     const roomId = use(params).roomId;
 
     const {
@@ -58,6 +61,23 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const [showStoryGen, setShowStoryGen] = useState(false);
     const [showAiModal, setShowAiModal] = useState(false);
     const [bottomConfirmClear, setBottomConfirmClear] = useState(false);
+
+    const handleLeaveTemp = () => {
+        router.push("/consultations");
+    };
+
+    const handleEndSession = async () => {
+        // Mark session as completed in database
+        try {
+            await supabase
+                .from('session_invites')
+                .update({ status: 'completed' })
+                .eq('room_id', roomId);
+        } catch (error) {
+            console.error("Error ending session:", error);
+        }
+        router.push("/consultations");
+    };
 
     const onBottomClearClick = () => {
         if (bottomConfirmClear) {
@@ -541,7 +561,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 <ExitModal
                     isOpen={showExitModal}
                     onClose={() => setShowExitModal(false)}
-                    onConfirm={() => window.location.href = "/"}
+                    onLeaveTemp={handleLeaveTemp}
+                    onEndSession={handleEndSession}
                 />
             </main >
         </div >
