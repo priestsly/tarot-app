@@ -57,6 +57,17 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
     const [showStoryGen, setShowStoryGen] = useState(false);
     const [showAiModal, setShowAiModal] = useState(false);
+    const [bottomConfirmClear, setBottomConfirmClear] = useState(false);
+
+    const onBottomClearClick = () => {
+        if (bottomConfirmClear) {
+            handleClearTable();
+            setBottomConfirmClear(false);
+        } else {
+            setBottomConfirmClear(true);
+            setTimeout(() => setBottomConfirmClear(false), 3000);
+        }
+    };
 
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -281,7 +292,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     isVideoBarVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
                 )}>
                     {/* Remote */}
-                    <div className="w-28 sm:w-44 aspect-video rounded-lg sm:rounded-xl overflow-hidden glass relative cursor-pointer group" onClick={() => setRemoteFullscreen(true)}>
+                    <div className="w-24 sm:w-32 aspect-[3/4] sm:aspect-[9/16] rounded-lg sm:rounded-xl overflow-hidden glass relative cursor-pointer group" onClick={() => setRemoteFullscreen(true)}>
                         <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <span className="text-[7px] sm:text-[9px] text-text-muted/40 font-mono tracking-widest animate-pulse">Bekleniyor...</span>
@@ -433,17 +444,17 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <div className="w-px h-8 bg-white/5 mx-1 mb-4" />
 
                             <div className="flex flex-col items-center">
-                                <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-110 active:scale-95 disabled:opacity-30">
-                                    <Sparkles className="w-4 h-4 text-amber-200" />
-                                </button>
-                                <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Dağıt</span>
-                            </div>
-
-                            <div className="flex flex-col items-center">
                                 <button onClick={() => setShowAurasPanel(!showAurasPanel)} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", showAurasPanel ? "text-accent bg-accent-dim" : "text-text-muted hover:text-accent hover:bg-accent-dim")}>
                                     <Flame className="w-4 h-4" />
                                 </button>
                                 <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Enerji</span>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                                <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-110 active:scale-95 disabled:opacity-30">
+                                    <Sparkles className="w-4 h-4 text-amber-200" />
+                                </button>
+                                <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Dağıt</span>
                             </div>
 
                             <div className="flex flex-col items-center">
@@ -469,10 +480,12 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </div>
 
                             <div className="flex flex-col items-center">
-                                <button onClick={handleClearTable} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-danger hover:bg-danger/10 transition-all">
+                                <button onClick={onBottomClearClick} className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all", bottomConfirmClear ? "bg-red-500/20 text-red-500" : "text-text-muted hover:text-danger hover:bg-danger/10")}>
                                     <Trash2 className="w-4 h-4" />
                                 </button>
-                                <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Sil</span>
+                                <span className={cn("text-[7px] uppercase tracking-tighter mt-1 font-bold", bottomConfirmClear ? "text-red-500" : "text-text-muted/60")}>
+                                    {bottomConfirmClear ? 'Emin?' : 'Sil'}
+                                </span>
                             </div>
                         </>
                     )}
