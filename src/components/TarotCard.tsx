@@ -235,7 +235,11 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateY: card.isFlipped ? 180 : 0,
                 rotateZ: card.isFlipped && card.isReversed ? 180 : 0,
             }}
-            whileHover={isDragging.current ? undefined : { scale: 1.05, boxShadow: "0 0 35px rgba(20, 184, 166, 0.3)" }}
+            whileHover={isDragging.current ? undefined : {
+                scale: 1.08,
+                y: -10,
+                boxShadow: card.isFlipped ? "0 20px 50px rgba(167, 139, 250, 0.6)" : "0 20px 40px rgba(251, 191, 36, 0.4)"
+            }}
             transition={{
                 type: "spring",
                 stiffness: 260,
@@ -243,7 +247,7 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                 rotateY: { duration: 0.8, ease: "easeInOut" },
                 rotateZ: { duration: 0.6, ease: "easeOut" }
             }}
-            className={cn("rounded-xl select-none touch-none", isLarge ? "rounded-2xl border-2" : "rounded-xl border")}
+            className={cn("rounded-xl select-none touch-none hover:z-[99] transition-shadow duration-300", isLarge ? "rounded-2xl border-2" : "rounded-xl border")}
             style={{
                 position: 'absolute',
                 width: isMobile ? `${w}px` : `${w}px`,

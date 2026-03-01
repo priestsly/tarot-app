@@ -149,28 +149,49 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-bg/90 backdrop-blur-md"
+                            exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
+                            transition={{ duration: 0.8, ease: "easeInOut" }}
+                            className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-[#0B0914]/95 backdrop-blur-xl overflow-hidden"
                         >
-                            <div className="text-center max-w-md p-8 glass rounded-3xl border border-purple-500/20 shadow-2xl shadow-purple-900/20">
-                                <Sparkles className="w-12 h-12 text-gold mx-auto mb-6 animate-pulse" />
-                                <h2 className="text-3xl font-heading font-bold text-white mb-4 drop-shadow-lg">
-                                    Oda Hazır
+                            {/* Ethereal Background Orbs */}
+                            <motion.div
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute w-[30rem] h-[30rem] bg-purple-700/20 rounded-full blur-[120px] pointer-events-none"
+                            />
+                            <motion.div
+                                animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
+                                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                                className="absolute w-[20rem] h-[20rem] bg-amber-500/10 rounded-full blur-[100px] translate-x-32 translate-y-32 pointer-events-none"
+                            />
+
+                            <div className="text-center max-w-md p-10 glass rounded-[2.5rem] border border-purple-500/20 shadow-[0_0_80px_rgba(147,51,234,0.15)] relative z-10">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                    className="w-16 h-16 mx-auto mb-6 flex items-center justify-center relative"
+                                >
+                                    <Sparkles className="w-10 h-10 text-gold absolute" />
+                                    <div className="absolute inset-0 bg-gold/20 blur-xl rounded-full" />
+                                </motion.div>
+
+                                <h2 className="text-4xl font-heading font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-purple-100 to-purple-400 mb-4 drop-shadow-sm">
+                                    Ruhani Bağ
                                 </h2>
-                                <p className="text-text-muted mb-8 leading-relaxed">
+                                <p className="text-purple-200/70 mb-10 leading-relaxed font-medium">
                                     {isConsultant
-                                        ? "Müşteriniz ile bağlantı kurmak ve ruhani seansınızı başlatmak için hazır olduğunuzda aşağıdaki butona tıklayın."
-                                        : "Danışmanınız ile telepatik ağ kurmak ve seansınıza başlamak için hazır olduğunuzda butona tıklayın."}
+                                        ? "Müşteriniz ile telepatik ağı kurmak ve seansınızı başlatmak için hazır olduğunuzda kapıyı aralayın."
+                                        : "Danışmanınız ile enerji bağını kurmak ve derin seansınıza başlamak için geçitten geçin."}
                                 </p>
                                 <button
                                     onClick={() => setIsReady(true)}
-                                    className="w-full py-4 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-purple-500/30 transition-all hover:scale-105 active:scale-95 text-lg uppercase tracking-wider flex justify-center items-center gap-3"
+                                    className="w-full py-4 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-[0_0_30px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.03] active:scale-[0.97] text-lg uppercase tracking-widest flex justify-center items-center gap-3 group"
                                 >
-                                    <span>Bağlantıyı Başlat</span>
-                                    <Feather className="w-5 h-5 text-purple-200" />
+                                    <span>Geçidi Aç</span>
+                                    <Feather className="w-5 h-5 text-purple-200 group-hover:rotate-12 transition-transform" />
                                 </button>
-                                <p className="text-[10px] text-text-muted/50 mt-6 uppercase tracking-widest font-semibold">
-                                    Kamera ve Mikrofon izni istenecektir
+                                <p className="text-[9px] text-purple-300/40 mt-6 uppercase tracking-[0.2em] font-bold">
+                                    Kamera ve Mikrofon izni gereklidir
                                 </p>
                             </div>
                         </motion.div>
@@ -183,15 +204,21 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-bg/80 backdrop-blur-sm"
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            transition={{ duration: 0.5 }}
+                            className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-[#0B0914]/80 backdrop-blur-md"
                         >
-                            <div className="w-16 h-16 mb-6 rounded-full border-t-2 border-purple-500 animate-spin" />
-                            <h2 className="text-xl font-heading font-medium tracking-widest text-white uppercase drop-shadow-lg">
-                                Odaya Bağlanılıyor
+                            <div className="relative mb-8">
+                                <div className="w-20 h-20 rounded-full border-t-2 border-l-2 border-purple-500 animate-spin" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Sparkles className="w-6 h-6 text-gold animate-pulse" />
+                                </div>
+                            </div>
+                            <h2 className="text-xl font-heading font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-br from-purple-200 to-purple-500 uppercase drop-shadow-lg">
+                                Astral Boyuta Bağlanılıyor
                             </h2>
-                            <p className="text-sm text-text-muted mt-2 tracking-wide">
-                                Ruhani ağ ile iletişim kuruluyor...
+                            <p className="text-xs text-purple-300/50 mt-3 tracking-widest uppercase font-medium">
+                                Enerji hatları senkronize ediliyor...
                             </p>
                         </motion.div>
                     )}
