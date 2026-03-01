@@ -542,16 +542,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 }
             });
 
-            socket.on("user-ready", (userId: string) => {
-                if (userId && userId !== socket.id) {
-                    setRemoteReady(true);
-                    // If we are also ready, we should start the WebRTC connection stream
-                    if (localReady && socket.connected) {
-                        // Send back that we are ready too, just in case they missed it
-                        socket.emit("user-ready", socket.id);
-                    }
-                }
-            });
 
             // Handle user disconnect via Presence
             socket.channel?.on('presence', { event: 'leave' }, ({ leftPresences }: any) => {
@@ -587,6 +577,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // So we will trigger this in a separate manual useEffect or function.
 
         // Note: Disconnect is now handled by Supabase Presence ^
+
+        socket.on("user-ready", (userId: string) => {
+            if (userId && userId !== socket.id) {
+                setRemoteReady(true);
+                // If we are also ready, we should start the WebRTC connection stream
+                if (localReady && socket.connected) {
+                    // Send back that we are ready too, just in case they missed it
+                    socket.emit("user-ready", socket.id);
+                }
+            }
+        });
 
         // ========== PREMIUM FEATURES SYNC ==========
         socket.on("sync-logs", (serverLogs: ActivityLog[]) => {

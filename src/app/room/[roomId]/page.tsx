@@ -143,12 +143,12 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 </div>
 
                 {/* Cards */}
-                {/* THE DECK / TABLE - Hidden until both are ready */}
+                {/* THE DECK / TABLE - Client sees it blurred until ready, Consultant sees it always */}
                 <div
                     ref={tableRef}
                     className={cn(
                         "absolute inset-0 z-10 w-full h-full perspective-[1000px] overflow-hidden transition-all duration-1000",
-                        (localReady && remoteReady) ? "opacity-100" : "opacity-0 pointer-events-none scale-95 blur-sm"
+                        (localReady && remoteReady || isConsultant) ? "opacity-100" : "opacity-0 pointer-events-none scale-95 blur-sm"
                     )}
                     id="tarot-table"
                 >
@@ -167,76 +167,70 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     ))}
                 </div>
 
-                {/* ═══ MUTUAL HANDSHAKE UI (Center Table) ═══ */}
+                {/* ═══ MINI MUTUAL HANDSHAKE UI (Floating Widget) ═══ */}
                 <AnimatePresence>
                     {(!localReady || !remoteReady) && (
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
-                            transition={{ duration: 0.5, ease: "easeInOut" }}
-                            className="absolute inset-0 z-[60] flex flex-col items-center justify-center pointer-events-none"
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ duration: 0.4, ease: "easeInOut" }}
+                            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center justify-center pointer-events-none"
                         >
-                            <div className="glass p-8 rounded-[2rem] border border-purple-500/20 shadow-[0_0_50px_rgba(147,51,234,0.1)] flex flex-col items-center max-w-sm w-full pointer-events-auto backdrop-blur-xl relative overflow-hidden text-center">
-                                {/* Subtle background glow in panel */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none" />
-
-                                <Sparkles className="w-8 h-8 text-gold mb-4 animate-pulse drop-shadow-lg" />
-                                <h2 className="text-2xl font-heading font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-purple-100 to-purple-400 mb-2">
-                                    Ruhani Bağ
-                                </h2>
-                                <p className="text-xs text-purple-200/60 mb-8 px-4">
-                                    {isConsultant
-                                        ? "Seansı başlatmak için her iki tarafın da hazır olması bekleniyor."
-                                        : "Danışman masayı hazırlıyor. Lütfen hazır olduğunuzu onaylayın."}
-                                </p>
+                            <div className="glass p-4 rounded-3xl border border-purple-500/20 shadow-[0_10px_40px_rgba(147,51,234,0.15)] flex flex-row items-center gap-6 pointer-events-auto backdrop-blur-xl relative overflow-hidden bg-[#0a0a0f]/80">
 
                                 {/* Status Indicators */}
-                                <div className="w-full flex flex-col gap-3 mb-8">
+                                <div className="flex gap-4 items-center">
                                     {/* Danışman Status */}
-                                    <div className="flex items-center justify-between bg-black/40 rounded-xl p-3 border border-white/5">
-                                        <span className="text-sm text-purple-200/80 font-medium">Danışman</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-[10px] text-purple-200/50 uppercase tracking-widest font-bold">Danışman</span>
                                         {isConsultant ? (
                                             localReady
-                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
-                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Hazır</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-500/20 animate-pulse">Bekleniyor</span>
                                         ) : (
                                             remoteReady
-                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
-                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Hazır</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-500/20 animate-pulse">Bekleniyor</span>
                                         )}
                                     </div>
 
+                                    <div className="w-px h-8 bg-white/10" />
+
                                     {/* Danışan Status */}
-                                    <div className="flex items-center justify-between bg-black/40 rounded-xl p-3 border border-white/5">
-                                        <span className="text-sm text-purple-200/80 font-medium">{clientProfile?.name || 'Müşteri'}</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-[10px] text-purple-200/50 uppercase tracking-widest font-bold">{clientProfile?.name || 'Müşteri'}</span>
                                         {!isConsultant ? (
                                             localReady
-                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
-                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Hazır</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-500/20 animate-pulse">Bekleniyor</span>
                                         ) : (
                                             remoteReady
-                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
-                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Hazır</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-500/20 animate-pulse">Bekleniyor</span>
                                         )}
                                     </div>
                                 </div>
 
+                                {/* Divider */}
+                                <div className="w-px h-10 bg-gradient-to-b from-transparent via-purple-500/30 to-transparent hidden sm:block" />
+
                                 {/* Action Button */}
-                                {!localReady ? (
-                                    <button
-                                        onClick={() => setLocalReady(true)}
-                                        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] text-sm uppercase tracking-widest flex justify-center items-center gap-2 group"
-                                    >
-                                        <span>Hazırım</span>
-                                        <Feather className="w-4 h-4 text-purple-200 group-hover:rotate-12 transition-transform" />
-                                    </button>
-                                ) : (
-                                    <div className="w-full py-3.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-sm uppercase tracking-widest flex justify-center items-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
-                                        <span>Karşı taraf bekleniyor</span>
-                                    </div>
-                                )}
+                                <div className="flex-shrink-0">
+                                    {!localReady ? (
+                                        <button
+                                            onClick={() => setLocalReady(true)}
+                                            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.05] active:scale-[0.95] text-xs uppercase tracking-widest shadow-inner shadow-white/20"
+                                        >
+                                            Hazırım
+                                        </button>
+                                    ) : (
+                                        <div className="px-5 py-2.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-xs uppercase tracking-widest flex items-center gap-2">
+                                            <div className="w-3 h-3 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
+                                            Bekleniyor...
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     )}
