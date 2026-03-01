@@ -1,4 +1,5 @@
-import { ArrowLeft, Copy, Clock, Volume2, VolumeX, Camera, Menu, X, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Copy, Clock, Volume2, VolumeX, Camera, Menu, X, Share2, Trash2 } from 'lucide-react';
 import { cn } from '../page';
 
 interface TopBarProps {
@@ -18,6 +19,7 @@ interface TopBarProps {
     setIsSidebarOpen: (v: boolean) => void;
     setShowExitModal: (v: boolean) => void;
     setShowShareModal?: (v: boolean) => void;
+    handleClearTable?: () => void;
 }
 
 export const TopBar = ({
@@ -36,8 +38,21 @@ export const TopBar = ({
     captureScreenshot,
     setIsSidebarOpen,
     setShowExitModal,
-    setShowShareModal
+    setShowShareModal,
+    handleClearTable
 }: TopBarProps) => {
+    const [confirmClear, setConfirmClear] = useState(false);
+
+    const onClearClick = () => {
+        if (confirmClear) {
+            handleClearTable?.();
+            setConfirmClear(false);
+        } else {
+            setConfirmClear(true);
+            setTimeout(() => setConfirmClear(false), 3000);
+        }
+    };
+
     return (
         <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 pointer-events-none">
             {/* Left: Exit & Room ID */}
@@ -71,6 +86,18 @@ export const TopBar = ({
             <div className="flex items-center gap-1 pointer-events-auto">
                 {/* Desktop-only tools */}
                 <div className="hidden md:flex items-center gap-1">
+                    {isConsultant && handleClearTable && (
+                        <button
+                            onClick={onClearClick}
+                            className={cn("glass rounded-xl px-3 py-2 flex items-center gap-1.5 transition-all text-text-muted",
+                                confirmClear ? "bg-red-500/20 text-red-400 border-red-500/50 scale-105" : "hover:text-danger"
+                            )}
+                            title="Masayı Topla"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {confirmClear && <span className="text-[9px] font-bold tracking-wider uppercase">Emin misin?</span>}
+                        </button>
+                    )}
                     {isConsultant && (
                         <button onClick={() => setShowShareModal?.(true)} className="glass rounded-xl px-3 py-2 flex items-center gap-1.5 text-text-muted hover:text-accent transition-colors" title="Müşteri davet göster">
                             <Share2 className="w-3.5 h-3.5" />

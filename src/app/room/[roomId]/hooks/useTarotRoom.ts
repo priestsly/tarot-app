@@ -52,6 +52,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const [isConnecting, setIsConnecting] = useState(true);
     const [isReady, setIsReady] = useState(false);
+    const [pingedCardId, setPingedCardId] = useState<string | null>(null);
+    const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
@@ -681,6 +683,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             ));
         });
 
+        socket.on("card-pinged", (cardId: string) => {
+            setPingedCardId(cardId);
+            playNotifSound(); // Adding a subtle sound for receiving a ping is nice
+            if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+            pingTimeoutRef.current = setTimeout(() => setPingedCardId(null), 3000);
+        });
+
         // ========== CLIENT PROFILE SYNC ==========
         socket.on("sync-client-profile", (profile: any) => {
             if (profile) setClientProfile(profile);
@@ -1048,6 +1057,38 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         if (updatedCard) socketRef.current?.emit("update-card", roomId, updatedCard);
     }, [roomId]);
 
+    const handleRevealAll = useCallback(() => {
+        if (!isConsultant) return;
+
+        let hasChanges = false;
+        setCards(prev => {
+            const next = prev.map(c => {
+                if (!c.isFlipped) {
+                    hasChanges = true;
+                    // For reveal all, we just flip them right-side up
+                    return { ...c, isFlipped: true, isReversed: false };
+                }
+                return c;
+            });
+
+            // If we actually flipped something, sync the whole table state to avoid dropping multiple individual events
+            if (hasChanges && socketRef.current) {
+                socketRef.current.emit("sync-state", next);
+                appendLog("Tüm kartlar açıldı");
+                playCardFlipSound();
+            }
+            return next;
+        });
+    }, [isConsultant, appendLog, playCardFlipSound]);
+
+    const handlePingCard = useCallback((id: string) => {
+        setPingedCardId(id);
+        if (socketRef.current) socketRef.current.emit("ping-card", roomId, id);
+
+        if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+        pingTimeoutRef.current = setTimeout(() => setPingedCardId(null), 3000);
+    }, [roomId]);
+
     const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
         if (isFlipped) {
             appendLog("Revealed a card's destiny");
@@ -1084,6 +1125,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         currentAura,
         isConnecting,
         isReady,
+        pingedCardId,
 
         // Setters
         setIsSidebarOpen,
@@ -1100,7 +1142,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // Handlers
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
-        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
+        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
     };
 }

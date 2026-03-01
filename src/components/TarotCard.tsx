@@ -26,7 +26,9 @@ interface TarotCardProps {
     onDragEnd: (id: string, x: number, y: number) => void;
     onFlipEnd: (id: string, isReversed: boolean, isFlipped: boolean) => void;
     onPointerDown: (id: string) => void;
+    onPing?: (id: string) => void;
     isLocal: boolean;
+    isPinged?: boolean;
     constraintsRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -93,7 +95,7 @@ const getDimensions = (deckType?: string) => {
     };
 };
 
-export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, isLocal, constraintsRef }: TarotCardProps) {
+export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, onPing, isLocal, isPinged, constraintsRef }: TarotCardProps) {
     // Local drag offset in pixels (resets to 0 when not dragging)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const isDragging = useRef(false);
@@ -101,7 +103,15 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
     const lastTap = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        // Only left mouse button or touch
+        // If alt-click or right-click, we ping the card and don't drag
+        if (e.button === 2 || e.altKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onPing) onPing(card.id);
+            return;
+        }
+
+        // Only left mouse button or touch for dragging
         if (e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
@@ -221,6 +231,9 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
     return (
         <motion.div
+            onContextMenu={(e) => {
+                e.preventDefault(); // Prevent browser context menu so ping works on right click
+            }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={(e) => {
@@ -286,6 +299,23 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
                         </div>
                     </div>
                 )}
+
+                {/* Ping Radar for Front Face */}
+                {isPinged && (
+                    <div className="absolute inset-0 pointer-events-none rounded-[inherit] z-50">
+                        <motion.div
+                            animate={{ scale: [1, 1.4, 2], opacity: [0.8, 0.4, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
+                            className="absolute inset-[-10px] rounded-[inherit] border-[4px] border-amber-400"
+                        />
+                        <motion.div
+                            animate={{ scale: [1, 1.2, 1.6], opacity: [0.6, 0.3, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
+                            className="absolute inset-[-10px] rounded-[inherit] border-[2px] border-amber-300"
+                        />
+                        <div className="absolute inset-0 rounded-[inherit] bg-amber-500/20 mix-blend-overlay" />
+                    </div>
+                )}
             </div>
 
             {/* Back of Card (shown initially) */}
@@ -346,6 +376,18 @@ export default function TarotCard({ card, onDragEnd, onFlipEnd, onPointerDown, i
 
                     <div className="absolute inset-1.5 border border-amber-400/10 rounded-md pointer-events-none" />
                 </div>
+
+                {/* Ping Radar for Back Face */}
+                {isPinged && (
+                    <div className="absolute inset-0 pointer-events-none rounded-[inherit] z-50">
+                        <motion.div
+                            animate={{ scale: [1, 1.4, 2], opacity: [0.8, 0.4, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
+                            className="absolute inset-[-10px] rounded-[inherit] border-[4px] border-purple-400"
+                        />
+                        <div className="absolute inset-0 rounded-[inherit] bg-purple-500/30 mix-blend-overlay" />
+                    </div>
+                )}
             </div>
         </motion.div>
     );

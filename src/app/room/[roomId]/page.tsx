@@ -50,9 +50,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         // Handlers
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
-        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
+        handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
-        isConnecting, isReady, setIsReady
+        isConnecting, isReady, setIsReady, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -106,12 +106,26 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 <FogOverlay />
 
                 {/* Overall AI Interpretation Button (Top Center) */}
-                {isConsultant && clientProfile?.pkgId !== 'relation' && cards.filter(c => c.isFlipped).length >= 2 && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40">
-                        <button onClick={() => setShowAiModal(true)} className="flex items-center gap-2 px-6 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 rounded-full text-[10px] text-purple-200 font-bold tracking-[0.15em] uppercase transition-all backdrop-blur-md shadow-lg shadow-purple-500/10">
-                            <Sparkles className="w-4 h-4 text-amber-300" />
-                            Tüm Masayı Yorumla
-                        </button>
+                {isConsultant && clientProfile?.pkgId !== 'relation' && cards.length > 0 && (
+                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
+                        {cards.some(c => !c.isFlipped) && (
+                            <button
+                                onClick={handleRevealAll}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 rounded-full text-[10px] text-amber-200 font-bold tracking-[0.1em] uppercase transition-all backdrop-blur-md shadow-lg shadow-amber-500/10"
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-300" />
+                                Hepsini Aç
+                            </button>
+                        )}
+                        {cards.filter(c => c.isFlipped).length >= 2 && (
+                            <button
+                                onClick={() => setShowAiModal(true)}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 rounded-full text-[10px] text-purple-200 font-bold tracking-[0.1em] uppercase transition-all backdrop-blur-md shadow-lg shadow-purple-500/10"
+                            >
+                                <Wand2 className="w-4 h-4 text-purple-300" />
+                                Masayı Yorumla
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -137,6 +151,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             onDragEnd={handleDragEnd}
                             onFlipEnd={handleFlipEnd}
                             onPointerDown={handlePointerDown}
+                            onPing={handlePingCard}
+                            isPinged={card.id === pingedCardId}
                             isLocal={true}
                             constraintsRef={tableRef}
                         />
@@ -242,6 +258,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     setIsSidebarOpen={setIsSidebarOpen}
                     setShowExitModal={setShowExitModal}
                     setShowShareModal={setShowShareModal}
+                    handleClearTable={handleClearTable}
                 />
 
                 {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
