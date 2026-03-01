@@ -171,7 +171,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
 
     // Exit Modal
@@ -742,7 +742,19 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             peerRef.current.on('open', (id) => {
                 setMyPeerId(id);
                 console.log('My peer ID is: ' + id);
-                if (socketRef.current) socketRef.current.id = id;
+                if (socketRef.current) {
+                    socketRef.current.id = id;
+                    if (socketRef.current.connected) {
+                        socketRef.current.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
+                    }
+                    socketRef.current.emit("user-connected", id); // Broadcast arrival explicitly
+
+                    if (!isConsultant) {
+                        socketRef.current.emit("client-media-ready", id);
+                    } else {
+                        socketRef.current.emit("consultant-media-ready", id);
+                    }
+                }
             });
 
             // Answer incoming calls
@@ -765,6 +777,26 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     }
                 });
             });
+
+            // Listen for NEW users connecting explicitly via broadcast
+            if (socketRef.current) {
+                socketRef.current.on('user-connected', (userId: string) => {
+                    if (userId && userId !== socketRef.current.id) {
+                        console.log("User connected (broadcast):", userId);
+                        setRemotePeerId(userId);
+                        setIsConnecting(false);
+                        connectToNewUser(userId, mediaStream);
+
+                        // Join notification toast
+                        const profile = clientProfileRef.current;
+                        const joinName = profile?.name || "Bir kullanıcı";
+                        appendLog(`${joinName} odaya giriş yaptı`);
+                        setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
+                        if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                        toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+                    }
+                });
+            }
         };
 
         function createDummyAndJoin() {
