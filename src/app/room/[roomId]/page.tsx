@@ -51,7 +51,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
+        isConnecting
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -141,6 +142,26 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                         />
                     ))}
                 </div>
+
+                {/* ═══ CONNECTING OVERLAY ═══ */}
+                <AnimatePresence>
+                    {isConnecting && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-bg/80 backdrop-blur-sm"
+                        >
+                            <div className="w-16 h-16 mb-6 rounded-full border-t-2 border-purple-500 animate-spin" />
+                            <h2 className="text-xl font-heading font-medium tracking-widest text-white uppercase drop-shadow-lg">
+                                Odaya Bağlanılıyor
+                            </h2>
+                            <p className="text-sm text-text-muted mt-2 tracking-wide">
+                                Ruhani ağ ile iletişim kuruluyor...
+                            </p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* ═══ TOP BAR COMPONENT ═══ */}
                 <TopBar

@@ -50,6 +50,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const [toastMsg, setToastMsg] = useState<{ text: string; sender: string } | null>(null);
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
+    const [isConnecting, setIsConnecting] = useState(true);
+
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResponse, setAiResponse] = useState("");
@@ -430,6 +432,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         const sendPayload = fakeSocket.queue.shift();
                         if (sendPayload) sendPayload();
                     }
+
+                    // If no one is in the room after 3 seconds, hide connecting overlay so consultant can wait
+                    setTimeout(() => {
+                        setIsConnecting(false);
+                    }, 3000);
                 }
             });
         }
@@ -455,6 +462,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
                 }
                 socket.emit("user-connected", id); // Broadcast arrival explicitly
+
+                // If I am the client, I announce that I am ready to receive data
+                if (!isConsultant) {
+                    socket.emit("client-ready", id);
+                } else {
+                    socket.emit("consultant-ready", id);
+                }
             });
 
             // Answer incoming calls
@@ -485,6 +499,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (userId && userId !== socket.id) {
                     console.log("User connected (broadcast):", userId);
                     setRemotePeerId(userId);
+                    setIsConnecting(false);
                     connectToNewUser(userId, mediaStream);
 
                     // Join notification toast
@@ -494,16 +509,25 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
                     if (toastTimeout.current) clearTimeout(toastTimeout.current);
                     toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+                }
+            });
 
-                    // Only the consultant (or whoever has the data) should broadcast the state
-                    // to the newcomer to avoid race conditions.
-                    if (cardsRef.current.length > 0) {
-                        socket.emit("sync-state", roomId, cardsRef.current);
-                        socket.emit("sync-logs", roomId, logsRef.current);
-                        socket.emit("sync-messages", roomId, messagesRef.current);
-                    }
+            // Handshake: Client is ready, Consultant sends the room state
+            socket.on('client-ready', (clientId: string) => {
+                if (isConsultant && clientId !== socket.id) {
+                    console.log("Client is ready, sending sync data...");
+                    if (cardsRef.current.length > 0) socket.emit("sync-state", roomId, cardsRef.current);
+                    if (logsRef.current.length > 0) socket.emit("sync-logs", roomId, logsRef.current);
+                    if (messagesRef.current.length > 0) socket.emit("sync-messages", roomId, messagesRef.current);
+                }
+            });
+
+            // Handshake: Consultant is ready, Client sends their profile data
+            socket.on('consultant-ready', (consultantId: string) => {
+                if (!isConsultant && consultantId !== socket.id) {
+                    console.log("Consultant is ready, sending profile data...");
                     if (clientProfileRef.current) {
-                        socket.emit("sync-client-profile", roomId, clientProfileRef.current);
+                        socket.emit("update-client-profile", roomId, clientProfileRef.current);
                     }
                 }
             });
@@ -1054,6 +1078,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         fullShareUrl,
         showAurasPanel,
         currentAura,
+        isConnecting,
 
         // Setters
         setIsSidebarOpen,
