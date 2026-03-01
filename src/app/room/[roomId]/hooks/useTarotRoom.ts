@@ -690,6 +690,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     useEffect(() => {
         if (!localReady) return;
 
+        // INSTANTLY tell the other person we are ready over the socket
+        if (socketRef.current?.connected) {
+            socketRef.current.emit("user-ready", socketRef.current.id || Math.random().toString(36).substring(7));
+        }
+
         // 2. Setup User Media (Camera/Mic)
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -703,11 +708,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 streamRef.current = stream;
                 if (myVideoRef.current) {
                     myVideoRef.current.srcObject = stream;
-                }
-                // At this point we need the socket to exist to join
-                if (socketRef.current?.connected) {
-                    // Send that we are ready
-                    socketRef.current.emit("user-ready", socketRef.current.id);
                 }
 
                 initPeerAndJoin(stream);

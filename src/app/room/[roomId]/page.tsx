@@ -58,14 +58,26 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const [showStoryGen, setShowStoryGen] = useState(false);
     const [showAiModal, setShowAiModal] = useState(false);
 
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+    const handleLocalCursor = (e: React.PointerEvent) => {
+        setMousePos({ x: e.clientX, y: e.clientY });
+        handleCursorMove(e);
+    };
+
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
 
             {/* ═══ FULL-BLEED TAROT TABLE ═══ */}
             <main
                 className="flex-1 relative overflow-hidden bg-bg noise"
-                onPointerMove={handleCursorMove}
+                onPointerMove={handleLocalCursor}
             >
+                {/* Magical Cursor Glow (WOW Factor) */}
+                <motion.div
+                    className="absolute z-0 pointer-events-none w-[500px] h-[500px] rounded-full blur-[150px] opacity-20 bg-purple-500/30 transition-all duration-300 ease-out"
+                    animate={{ left: mousePos.x - 250, top: mousePos.y - 250 }}
+                />
                 {/* Ambient table glows — softer, more vail-like */}
                 <div className="absolute inset-0 pointer-events-none z-0">
                     <div className="absolute inset-0 bg-gradient-to-tr from-purple-900/10 via-midnight/5 to-amber-900/5 opacity-50" />
@@ -167,17 +179,17 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     ))}
                 </div>
 
-                {/* ═══ MINI MUTUAL HANDSHAKE UI (Floating Widget) ═══ */}
+                {/* ═══ MINI MUTUAL HANDSHAKE UI (Floating Widget Top Right) ═══ */}
                 <AnimatePresence>
                     {(!localReady || !remoteReady) && (
                         <motion.div
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, x: 20 }}
                             transition={{ duration: 0.4, ease: "easeInOut" }}
-                            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center justify-center pointer-events-none"
+                            className="absolute top-20 left-1/2 -translate-x-1/2 z-[60] flex flex-col pointer-events-none"
                         >
-                            <div className="glass p-4 rounded-3xl border border-purple-500/20 shadow-[0_10px_40px_rgba(147,51,234,0.15)] flex flex-row items-center gap-6 pointer-events-auto backdrop-blur-xl relative overflow-hidden bg-[#0a0a0f]/80">
+                            <div className="glass p-3 rounded-2xl border border-purple-500/20 shadow-[0_10px_40px_rgba(147,51,234,0.15)] flex flex-col gap-3 pointer-events-auto backdrop-blur-xl relative overflow-hidden bg-[#0a0a0f]/90">
 
                                 {/* Status Indicators */}
                                 <div className="flex gap-4 items-center">
@@ -211,26 +223,26 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                         )}
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* Divider */}
-                                <div className="w-px h-10 bg-gradient-to-b from-transparent via-purple-500/30 to-transparent hidden sm:block" />
+                            {/* Divider */}
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
 
-                                {/* Action Button */}
-                                <div className="flex-shrink-0">
-                                    {!localReady ? (
-                                        <button
-                                            onClick={() => setLocalReady(true)}
-                                            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.05] active:scale-[0.95] text-xs uppercase tracking-widest shadow-inner shadow-white/20"
-                                        >
-                                            Hazırım
-                                        </button>
-                                    ) : (
-                                        <div className="px-5 py-2.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-xs uppercase tracking-widest flex items-center gap-2">
-                                            <div className="w-3 h-3 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
-                                            Bekleniyor...
-                                        </div>
-                                    )}
-                                </div>
+                            {/* Action Button */}
+                            <div className="flex-shrink-0">
+                                {!localReady ? (
+                                    <button
+                                        onClick={() => setLocalReady(true)}
+                                        className="w-full px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.05] active:scale-[0.95] text-xs uppercase tracking-widest shadow-inner shadow-white/20"
+                                    >
+                                        Hazırım
+                                    </button>
+                                ) : (
+                                    <div className="w-full px-5 py-2.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-xs uppercase tracking-widest flex items-center gap-2 justify-center">
+                                        <div className="w-3 h-3 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
+                                        Bekleniyor...
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     )}

@@ -54,41 +54,22 @@ export default function LoginPage() {
         }
     };
 
-    const handleMagicLink = async () => {
-        setLoading(true);
-        setError(null);
-        if (!email) {
-            setError("Lütfen sihirli bağlantı için e-posta adresinizi girin.");
-            setLoading(false);
-            return;
-        }
-
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-                data: isSignUp ? {
-                    full_name: fullName,
-                    birth_date: birthDate
-                } : undefined,
-                emailRedirectTo: `${window.location.origin}/auth/callback`
-            }
-        });
-
-        if (error) {
-            setError(error.message);
-        } else {
-            setSuccess(true);
-        }
-        setLoading(false);
-    };
-
     const handleSocialLogin = async (provider: 'google') => {
-        await supabase.auth.signInWithOAuth({
+        setLoading(true);
+        const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
+                queryParams: isSignUp ? {
+                    full_name: fullName,
+                    birth_date: birthDate
+                } : undefined
             },
         });
+        if (error) {
+            setError(error.message);
+            setLoading(false);
+        }
     };
 
     return (
@@ -225,32 +206,20 @@ export default function LoginPage() {
                                     </motion.div>
                                 )}
 
-                                <div className="flex flex-col gap-3">
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-purple-600/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 group overflow-hidden relative"
-                                    >
-                                        {loading ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                {isSignUp ? "Gönüllü Ol (Şifreli)" : "Huzura Gir (Şifreli)"}
-                                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                            </>
-                                        )}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={handleMagicLink}
-                                        disabled={loading}
-                                        className="w-full py-4 bg-white/5 hover:bg-white/10 border border-purple-500/30 text-purple-200 font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 group"
-                                    >
-                                        <Sparkles className="w-5 h-5 text-purple-400 group-hover:text-gold transition-colors" />
-                                        Şifresiz Sihirli Bağlantı Gönder
-                                    </button>
-                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-purple-600/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 group overflow-hidden relative"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <>
+                                            {isSignUp ? "Gönüllü Ol" : "Huzura Gir"}
+                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
 
                                 <div className="relative py-4 flex items-center justify-center">
                                     <div className="absolute inset-x-0 h-px bg-white/10" />
