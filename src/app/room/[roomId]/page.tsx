@@ -224,26 +224,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Divider */}
-                            <div className="h-px w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
-
-                            {/* Action Button */}
-                            <div className="flex-shrink-0">
-                                {!localReady ? (
-                                    <button
-                                        onClick={() => setLocalReady(true)}
-                                        className="w-full px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.05] active:scale-[0.95] text-xs uppercase tracking-widest shadow-inner shadow-white/20"
-                                    >
-                                        Hazırım
-                                    </button>
-                                ) : (
-                                    <div className="w-full px-5 py-2.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-xs uppercase tracking-widest flex items-center gap-2 justify-center">
-                                        <div className="w-3 h-3 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
-                                        Bekleniyor...
-                                    </div>
-                                )}
-                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

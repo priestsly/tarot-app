@@ -51,7 +51,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const [isConnecting, setIsConnecting] = useState(true);
-    const [localReady, setLocalReady] = useState(false);
+    const [localReady, setLocalReady] = useState(true);
     const localReadyRef = useRef(localReady);
     useEffect(() => { localReadyRef.current = localReady; }, [localReady]);
 
