@@ -52,6 +52,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const [isConnecting, setIsConnecting] = useState(true);
     const [localReady, setLocalReady] = useState(false);
+    const localReadyRef = useRef(localReady);
+    useEffect(() => { localReadyRef.current = localReady; }, [localReady]);
+
     const [remoteReady, setRemoteReady] = useState(false);
     const [pingedCardId, setPingedCardId] = useState<string | null>(null);
     const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -370,13 +373,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     useEffect(() => {
+
         // 1. Initialize Supabase Realtime "Socket"
         if (!socketRef.current) {
             const supabase = createClient();
             const channel = supabase.channel(`room:${roomId}`, {
                 config: {
                     broadcast: { self: false },
-                    presence: { key: 'pending' }
+                    presence: { key: 'pending' } // will update when peer connects
                 }
             });
 
@@ -388,6 +392,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 emit: (event: string, ...args: any[]) => {
                     let outEvent = event;
                     let outArgs = args;
+
                     if (event === "add-card") outEvent = "card-added";
                     else if (event === "update-card") outEvent = "card-updated";
                     else if (event === "flip-card") outEvent = "card-flipped";
@@ -405,8 +410,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         });
                     };
 
-                    if (fakeSocket.connected) sendPayload();
-                    else fakeSocket.queue.push(sendPayload);
+                    if (fakeSocket.connected) {
+                        sendPayload();
+                    } else {
+                        fakeSocket.queue.push(sendPayload);
+                    }
                 },
                 on: (event: string, callback: (...args: any[]) => void) => {
                     channel.on("broadcast", { event }, ({ payload }) => {
@@ -426,120 +434,189 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (status === 'SUBSCRIBED') {
                     fakeSocket.connected = true;
                     if (fakeSocket.id) {
-                        channel.track({
-                            peerId: fakeSocket.id,
-                            role: isConsultant ? 'consultant' : 'client',
-                            isReady: localReady
-                        });
+                        channel.track({ peerId: fakeSocket.id, role: isConsultant ? 'consultant' : 'client' });
                     }
                     while (fakeSocket.queue.length > 0) {
                         const sendPayload = fakeSocket.queue.shift();
                         if (sendPayload) sendPayload();
                     }
-                    // Initial connection check - usually quiet
+
+                    // If no one is in the room after 3 seconds, hide connecting overlay so consultant can wait
+                    setTimeout(() => {
+                        setIsConnecting(false);
+                        // Send our ready state if we were already ready before connection established
+                        if (localReadyRef.current) {
+                            fakeSocket.emit("user-ready", fakeSocket.id || Math.random().toString(36).substring(7));
+                        }
+                    }, 3000);
                 }
             });
         }
-
         const socket = socketRef.current;
 
-        // Listen for user-ready
-        socket.on("user-ready", (userId: string) => {
-            if (userId && userId !== socket.id) {
-                setRemoteReady(true);
-            }
-        });
-
-        // Listen for NEW users connecting
-        socket.on('user-connected', (userId: string) => {
-            if (userId && userId !== socket.id) {
-                console.log("User connected (broadcast):", userId);
-                setRemotePeerId(userId);
-                setIsConnecting(false);
-                if (streamRef.current) connectToNewUser(userId, streamRef.current);
-
-                const profile = clientProfileRef.current;
-                const joinName = profile?.name || "Bir kullanıcı";
-                appendLog(`${joinName} odaya giriş yaptı`);
-                setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
-                if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
-            }
-        });
-
-        // Handshake listeners
-        socket.on('client-media-ready', (clientId: string) => {
-            if (isConsultant && clientId !== socket.id) {
-                if (cardsRef.current.length > 0) socket.emit("sync-state", roomId, cardsRef.current);
-                if (logsRef.current.length > 0) socket.emit("sync-logs", roomId, logsRef.current);
-                if (messagesRef.current.length > 0) socket.emit("sync-messages", roomId, messagesRef.current);
-            }
-        });
-
-        socket.on('consultant-media-ready', (consultantId: string) => {
-            if (!isConsultant && consultantId !== socket.id) {
-                if (clientProfileRef.current) {
-                    socket.emit("update-client-profile", roomId, clientProfileRef.current);
+        // Helper: Initialize PeerJS and setup event listeners once we have a stream (real or dummy)
+        const initPeerAndJoin = (mediaStream: MediaStream) => {
+            peerRef.current = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
                 }
-            }
-        });
+            });
 
-        // Presence state handling for accurate synchronization
-        socket.channel?.on('presence', { event: 'sync' }, () => {
-            const state = socket.channel.presenceState();
-            Object.values(state).forEach((presences: any) => {
-                presences.forEach((p: any) => {
-                    if (p.peerId && p.peerId !== socket.id) {
-                        if (p.isReady) setRemoteReady(true);
-                        setRemotePeerId(p.peerId);
-                        setIsConnecting(false);
+            peerRef.current.on('open', (id) => {
+                setMyPeerId(id);
+                console.log('My peer ID is: ' + id);
+                socket.id = id;
+                // Tracking presence implicitly triggers if subscribed already, otherwise queues
+                if (socket.connected) {
+                    socket.channel?.track({ peerId: id, role: isConsultant ? 'consultant' : 'client' });
+                }
+                socket.emit("user-connected", id); // Broadcast arrival explicitly
+
+                // If I am the client, I announce that I am ready to receive data
+                // If I am the client, I announce that my media is ready to receive data
+                if (!isConsultant) {
+                    socket.emit("client-media-ready", id);
+                } else {
+                    socket.emit("consultant-media-ready", id);
+                }
+            });
+
+            // Answer incoming calls
+            peerRef.current.on('call', call => {
+                setRemotePeerId(call.peer);
+                call.answer(mediaStream);
+                call.on('stream', remoteStream => {
+                    console.log("Received remote stream (answering)", remoteStream.id);
+                    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.onloadedmetadata = () => {
+                            remoteVideoRef.current?.play().catch(e => {
+                                console.error("Play error:", e);
+                                if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                                    // Browser blocked autoplay (likely because it has audio and user hasn't interacted).
+                                    // Mute it temporarily to force video playback, user can unmute later.
+                                    remoteVideoRef.current.muted = true;
+                                    remoteVideoRef.current.play().catch(console.error);
+                                }
+                            });
+                        };
                     }
                 });
             });
-        });
 
-        socket.channel?.on('presence', { event: 'join' }, ({ newPresences }: any) => {
-            newPresences.forEach((p: any) => {
-                if (p.peerId && p.peerId !== socket.id) {
-                    if (p.isReady) setRemoteReady(true);
-                    setRemotePeerId(p.peerId);
+            // Listen for NEW users connecting explicitly via broadcast
+            socket.on('user-connected', (userId: string) => {
+                if (userId && userId !== socket.id) {
+                    console.log("User connected (broadcast):", userId);
+                    setRemotePeerId(userId);
                     setIsConnecting(false);
-                }
-            });
-        });
+                    connectToNewUser(userId, mediaStream);
 
-        // Disconnect via Presence
-        socket.channel?.on('presence', { event: 'leave' }, ({ leftPresences }: any) => {
-            leftPresences.forEach((p: any) => {
-                if (p.peerId && p.peerId !== socket.id) {
-                    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+                    // Join notification toast
                     const profile = clientProfileRef.current;
-                    const leaveName = profile?.name || "Bir kullanıcı";
-                    appendLog(`${leaveName} odadan ayrıldı`);
-                    setToastMsg({ text: `${leaveName} odadan ayrıldı 👋`, sender: "Sistem" });
+                    const joinName = profile?.name || "Bir kullanıcı";
+                    appendLog(`${joinName} odaya giriş yaptı`);
+                    setToastMsg({ text: `${joinName} odaya giriş yaptı ✨`, sender: "Sistem" });
                     if (toastTimeout.current) clearTimeout(toastTimeout.current);
                     toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
-                    setRemotePeerId("");
-                    setRemoteReady(false);
-                    setCursors(prev => {
-                        const next = { ...prev };
-                        delete next[p.peerId];
-                        return next;
-                    });
                 }
             });
+
+            // Handshake: Client is ready, Consultant sends the room state
+            socket.on('client-media-ready', (clientId: string) => {
+                if (isConsultant && clientId !== socket.id) {
+                    console.log("Client media is ready, sending sync data...");
+                    if (cardsRef.current.length > 0) socket.emit("sync-state", roomId, cardsRef.current);
+                    if (logsRef.current.length > 0) socket.emit("sync-logs", roomId, logsRef.current);
+                    if (messagesRef.current.length > 0) socket.emit("sync-messages", roomId, messagesRef.current);
+                }
+            });
+
+            // Handshake: Consultant is ready, Client sends their profile data
+            socket.on('consultant-media-ready', (consultantId: string) => {
+                if (!isConsultant && consultantId !== socket.id) {
+                    console.log("Consultant media is ready, sending profile data...");
+                    if (clientProfileRef.current) {
+                        socket.emit("update-client-profile", roomId, clientProfileRef.current);
+                    }
+                }
+            });
+
+
+            // Handle user join via Presence to instantly broadcast ready state to late joiners
+            socket.channel?.on('presence', { event: 'join' }, () => {
+                if (localReadyRef.current) {
+                    socket.emit("user-ready", socket.id || Math.random().toString(36).substring(7));
+                }
+            });
+
+            // Handle user disconnect via Presence
+            socket.channel?.on('presence', { event: 'leave' }, ({ leftPresences }: any) => {
+                leftPresences.forEach((p: any) => {
+                    if (p.peerId && p.peerId !== socket.id) {
+                        console.log("User disconnected (presence):", p.peerId);
+                        if (remoteVideoRef.current) {
+                            remoteVideoRef.current.srcObject = null;
+                        }
+
+                        // Disconnect notification toast
+                        const profile = clientProfileRef.current;
+                        const leaveName = profile?.name || "Bir kullanıcı";
+                        appendLog(`${leaveName} odadan ayrıldı`);
+                        setToastMsg({ text: `${leaveName} odadan ayrıldı 👋`, sender: "Sistem" });
+                        if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                        toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
+
+                        setRemotePeerId("");
+                        setRemoteReady(false);
+                        setCursors(prev => {
+                            const next = { ...prev };
+                            delete next[p.peerId];
+                            return next;
+                        });
+                    }
+                });
+            });
+        };
+
+        // We only start cameras and PeerJS once localReady is true.
+        // But we want to setup the socket listeners above IMMEDIATELY so we can hear 'user-ready'.
+        // So we will trigger this in a separate manual useEffect or function.
+
+        // Note: Disconnect is now handled by Supabase Presence ^
+
+        socket.on("user-ready", (userId: string) => {
+            if (userId && userId !== socket.id) {
+                setRemoteReady(true);
+                // If we are also ready, we should start the WebRTC connection stream
+                if (localReadyRef.current && socket.connected) {
+                    // Send back that we are ready too, just in case they missed it
+                    socket.emit("user-ready", socket.id);
+                }
+            }
         });
 
-        // State listeners
-        socket.on("sync-logs", (serverLogs: ActivityLog[]) => { if (serverLogs) setLogs(serverLogs); });
-        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => { if (serverMsgs) setMessages(serverMsgs); });
+        // ========== PREMIUM FEATURES SYNC ==========
+        socket.on("sync-logs", (serverLogs: ActivityLog[]) => {
+            if (serverLogs) setLogs(serverLogs);
+        });
+
+        socket.on("sync-messages", (serverMsgs: ChatMessage[]) => {
+            if (serverMsgs) setMessages(serverMsgs);
+        });
+
         socket.on("chat-message", (msg: ChatMessage) => {
             setMessages(prev => {
                 const newMsgs = [...prev, msg];
                 if (newMsgs.length > 100) newMsgs.shift();
                 return newMsgs;
             });
+            // Notification sound
             playNotifSound();
+            // Live toast
             const profile = clientProfileRef.current;
             const senderLabel = msg.sender === 'Consultant' ? 'Danışman' : (profile?.name || 'Müşteri');
             setToastMsg({ text: msg.text || "🎤 Sesli Mesaj", sender: senderLabel });
@@ -555,11 +632,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         });
 
-        socket.on("user-typing", (isTyping: boolean) => { setRemoteTyping(isTyping); });
+        socket.on("user-typing", (isTyping: boolean) => {
+            setRemoteTyping(isTyping);
+        });
+
         socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
             setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
         });
 
+        // ========== TAROT STATE SYNC ==========
         socket.on("sync-state", (serverCards: CardState[]) => {
             setCards(serverCards);
             const topZ = Math.max(0, ...serverCards.map(c => c.zIndex));
@@ -568,6 +649,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         socket.on("card-added", (newCard: CardState) => {
             setCards(prev => {
+                // Prevent duplicate adds if we emitted it ourselves
                 if (prev.some(c => c.id === newCard.id)) return prev;
                 return [...prev, newCard];
             });
@@ -580,45 +662,46 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         });
 
         socket.on("card-flipped", (cardId: string, isReversed: boolean, isFlipped: boolean) => {
-            setCards(prev => prev.map(c => c.id === cardId ? { ...c, isReversed, isFlipped } : c));
+            setCards(prev => prev.map(c =>
+                c.id === cardId ? { ...c, isReversed, isFlipped } : c
+            ));
         });
 
         socket.on("card-pinged", (cardId: string) => {
             setPingedCardId(cardId);
-            playNotifSound();
+            playNotifSound(); // Adding a subtle sound for receiving a ping is nice
             if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
             pingTimeoutRef.current = setTimeout(() => setPingedCardId(null), 3000);
         });
 
-        socket.on("sync-client-profile", (profile: any) => { if (profile) setClientProfile(profile); });
-        socket.on("client-profile-updated", (profile: any) => { setClientProfile(profile); });
-        socket.on("aura-updated", (aura: string) => { setCurrentAura(aura); });
+        // ========== CLIENT PROFILE SYNC ==========
+        socket.on("sync-client-profile", (profile: any) => {
+            if (profile) setClientProfile(profile);
+        });
+
+        socket.on("client-profile-updated", (profile: any) => {
+            setClientProfile(profile);
+        });
+
+        socket.on("aura-updated", (aura: string) => {
+            setCurrentAura(aura);
+        });
 
         return () => {
             socket?.disconnect();
+            peerRef.current?.destroy();
+            const tracks = streamRef.current?.getTracks();
+            tracks?.forEach(track => track.stop());
             socketRef.current = null;
         };
     }, [roomId, playNotifSound]);
 
-    // Update presence when localReady changes
-    useEffect(() => {
-        if (socketRef.current?.connected && socketRef.current.id) {
-            socketRef.current.channel.track({
-                peerId: socketRef.current.id,
-                role: isConsultant ? 'consultant' : 'client',
-                isReady: localReady
-            });
-        }
-    }, [localReady, isConsultant]);
-
-    const hasRequestedMediaRef = useRef(false);
     // Handle starting PeerJS and Video only when localReady is true
     useEffect(() => {
-        if (!localReady || hasRequestedMediaRef.current) return;
-        hasRequestedMediaRef.current = true;
+        if (!localReady) return;
 
         // INSTANTLY tell the other person we are ready over the socket
-        if (socketRef.current?.connected) {
+        if (socketRef.current) {
             socketRef.current.emit("user-ready", socketRef.current.id || Math.random().toString(36).substring(7));
         }
 
@@ -628,12 +711,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             audio: true
         })
             .then(stream => {
-                // Ensure video is ON, audio is OFF initially (user toggles it)
-                stream.getVideoTracks().forEach(t => t.enabled = true);
-                stream.getAudioTracks().forEach(t => t.enabled = false);
-                setIsMuted(true);
-                setIsVideoOff(false);
-
                 streamRef.current = stream;
                 if (myVideoRef.current) {
                     myVideoRef.current.srcObject = stream;
