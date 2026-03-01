@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Video, XCircle, Sparkles } from "lucide-react";
+import { Loader2, Video, XCircle, Sparkles, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface InviteModalProps {
@@ -15,7 +15,7 @@ interface InviteModalProps {
 }
 
 export function InviteModal({ consultantId, consultantName, isOpen, isOnline = true, onClose }: InviteModalProps) {
-    const [status, setStatus] = useState<'idle' | 'sending' | 'pending' | 'accepted' | 'declined' | 'error' | 'offline-sent'>('idle');
+    const [status, setStatus] = useState<'idle' | 'creating' | 'connecting' | 'pending' | 'accepted' | 'declined' | 'error' | 'offline-sent' | 'timeout'>('idle');
     const [inviteId, setInviteId] = useState<string | null>(null);
     const supabase = createClient();
     const router = useRouter();
@@ -28,7 +28,7 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
         }
 
         const initiateInvite = async () => {
-            setStatus('sending');
+            setStatus('creating');
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
@@ -39,7 +39,7 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
             }
 
             // Get client profile
-            const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+            const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
             const clientName = profile?.full_name || 'Bilinmeyen Danışan';
 
             // Insert invite
@@ -50,6 +50,7 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
             }).select().single();
 
             if (error || !invite) {
+                console.error("Invite creation error:", error);
                 setStatus('error');
                 return;
             }
@@ -60,7 +61,12 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
             }
 
             setInviteId(invite.id);
-            setStatus('pending');
+            setStatus('connecting');
+
+            // Timeout after 30 seconds if still pending
+            const timer = setTimeout(() => {
+                setStatus(current => current === 'pending' || current === 'connecting' ? 'timeout' : current);
+            }, 30000);
 
             // Listen for Consultant's response (only if online)
             const channel = supabase.channel(`invite:${invite.id}`)
@@ -72,20 +78,27 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
                         setStatus(newStatus as any);
 
                         if (newStatus === 'accepted' && payload.new.room_id) {
+                            clearTimeout(timer);
                             setTimeout(() => {
                                 onClose();
                                 router.push(`/room/${payload.new.room_id}`);
                             }, 1500);
                         } else if (newStatus === 'declined') {
+                            clearTimeout(timer);
                             setTimeout(() => {
                                 onClose();
                             }, 3000);
                         }
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        setStatus('pending');
+                    }
+                });
 
             return () => {
+                clearTimeout(timer);
                 supabase.removeChannel(channel);
             };
         };
@@ -119,23 +132,27 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className="relative w-full max-w-sm bg-[#161623] border border-white/10 rounded-3xl p-8 shadow-2xl shadow-purple-500/20 text-center overflow-hidden"
                     >
-                        {status === 'pending' || status === 'sending' ? (
+                        {status === 'pending' || status === 'creating' || status === 'connecting' ? (
                             <>
                                 <div className="absolute top-0 inset-x-0 h-1 bg-white/5 overflow-hidden">
                                     <motion.div
                                         className="h-full bg-gradient-to-r from-purple-500 to-indigo-500"
                                         initial={{ width: "0%" }}
                                         animate={{ width: "100%" }}
-                                        transition={{ duration: 15, ease: "linear" }}
+                                        transition={{ duration: 30, ease: "linear" }}
                                     />
                                 </div>
                                 <div className="w-20 h-20 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mx-auto mb-6 relative">
                                     <div className="absolute inset-0 rounded-full border-t-2 border-purple-400 animate-spin" />
                                     <Sparkles className="w-8 h-8 text-purple-300 animate-pulse" />
                                 </div>
-                                <h3 className="text-xl font-bold text-white mb-2 font-heading">Ruhlar Sesleniyor</h3>
+                                <h3 className="text-xl font-bold text-white mb-2 font-heading">
+                                    {status === 'creating' ? 'İstek Oluşturuluyor' : status === 'connecting' ? 'Bağlantı Kuruluyor' : 'Ruhlar Sesleniyor'}
+                                </h3>
                                 <p className="text-sm text-purple-200/60 leading-relaxed mb-8">
-                                    <strong className="text-white">{consultantName}</strong> adlı danışmana vizyon isteği gönderildi. Kabul etmesi bekleniyor...
+                                    {status === 'creating' ? 'Hizmet senkronize ediliyor...' :
+                                        status === 'connecting' ? 'Kanal açılıyor...' :
+                                            <><strong className="text-white">{consultantName}</strong> adlı danışmana vizyon isteği gönderildi. Kabul etmesi bekleniyor...</>}
                                 </p>
                                 <button onClick={handleCancel} className="text-sm font-bold text-zinc-400 hover:text-white transition-colors">
                                     İptal Et
@@ -147,7 +164,23 @@ export function InviteModal({ consultantId, consultantName, isOpen, isOnline = t
                                     <Video className="w-8 h-8 text-emerald-400" />
                                 </div>
                                 <h3 className="text-xl font-bold text-emerald-400 mb-2 font-heading">Bağlantı Kuruldu</h3>
-                                <p className="text-sm text-emerald-200/60">Odaya yönlendiriliyorsunuz, lütfen bekleyin...</p>
+                                <p className="text-sm text-emerald-200/60 font-medium">Odaya yönlendiriliyorsunuz, lütfen bekleyin...</p>
+                            </>
+                        ) : status === 'timeout' ? (
+                            <>
+                                <div className="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-6">
+                                    <Clock className="w-8 h-8 text-amber-500" />
+                                </div>
+                                <h3 className="text-xl font-bold text-amber-400 mb-2 font-heading">Cevap Bekleniyor</h3>
+                                <p className="text-sm text-amber-200/60 mb-8">Danışman şu an cevap veremiyor. Sayfayı açık tutabilir veya çevrimdışı mesaj bırakabilirsiniz.</p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={() => setStatus('pending')} className="w-full py-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl font-bold transition-colors">
+                                        Biraz Daha Bekle
+                                    </button>
+                                    <button onClick={onClose} className="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 rounded-xl font-bold transition-colors">
+                                        Vazgeç
+                                    </button>
+                                </div>
                             </>
                         ) : status === 'declined' ? (
                             <>

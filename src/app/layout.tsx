@@ -37,6 +37,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+import { GlobalPresence } from "@/components/GlobalPresence";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,6 +53,7 @@ export default function RootLayout({
       </head>
       <body className={`${body.variable} ${heading.variable} antialiased bg-[#0C0B14] text-neutral-50`}>
         {children}
+        <GlobalPresence />
         <script
           dangerouslySetInnerHTML={{
             __html: `

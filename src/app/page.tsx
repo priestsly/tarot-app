@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -138,6 +138,23 @@ function HomeContent() {
             full_name: user.user_metadata?.full_name || "",
             birth_date: user.user_metadata?.birth_date || "",
           });
+        }
+
+        // Check for active accepted invites specifically for this user
+        const { data: activeInvite } = await supabase
+          .from('session_invites')
+          .select('room_id')
+          .eq('client_id', user.id)
+          .eq('status', 'accepted')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeInvite?.room_id) {
+          // If there's a recently accepted invite, offer to join
+          if (confirm("Kabul edilmiş bir seans isteğiniz var. Odaya katılmak ister misiniz?")) {
+            router.push(`/room/${activeInvite.room_id}`);
+          }
         }
       }
     };
@@ -278,21 +295,41 @@ function HomeContent() {
   const renderWelcome = () => (
     <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
       {user ? (
-        <button
-          onClick={() => router.push("/profile")}
-          className="w-full bg-surface/40 border border-accent/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-surface/60 transition-all active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
-              {user.email?.[0].toUpperCase()}
+        <div className="space-y-3">
+          <button
+            onClick={() => router.push("/profile")}
+            className="w-full bg-surface/40 border border-accent/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-surface/60 transition-all active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+                {user.email?.[0].toUpperCase()}
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] text-accent uppercase tracking-widest font-bold">Profilim</p>
+                <p className="text-sm text-text font-medium truncate max-w-[12rem]">{profile?.full_name || user.email}</p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="text-[10px] text-accent uppercase tracking-widest font-bold">Profilim</p>
-              <p className="text-sm text-text font-medium truncate max-w-[12rem]">{user.email}</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
-        </button>
+            <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
+          </button>
+
+          {profile?.role === 'consultant' && (
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="w-full bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-amber-500/20 transition-all active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center text-white">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] text-amber-500 uppercase tracking-widest font-bold">Danışman Paneli</p>
+                  <p className="text-sm text-text font-medium">İstekleri Yönet</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-400" />
+            </button>
+          )}
+        </div>
       ) : (
         <button
           onClick={() => router.push("/login")}
@@ -309,15 +346,19 @@ function HomeContent() {
       </div>
 
       <button
-        onClick={handleConsultantLogin}
+        onClick={() => profile?.role === 'consultant' ? router.push("/dashboard") : handleConsultantLogin()}
         className="group w-full relative overflow-hidden rounded-xl border border-accent/10 bg-surface p-5 flex items-center gap-5 transition-all hover:border-accent/25 hover:bg-accent-dim/60 shadow-sm"
       >
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-400/60 to-indigo-500/50 flex items-center justify-center shrink-0 shadow-md shadow-purple-400/10">
           <Shield className="w-5 h-5 text-white/80" />
         </div>
         <div className="text-left flex-1">
-          <h3 className="text-base font-semibold text-text">Danışman Girişi</h3>
-          <p className="text-xs text-text-muted mt-0.5">Yeni bir fal odası oluştur ve okumaya başla.</p>
+          <h3 className="text-base font-semibold text-text">
+            {profile?.role === 'consultant' ? "Panele Git" : "Danışman Girişi"}
+          </h3>
+          <p className="text-xs text-text-muted mt-0.5">
+            {profile?.role === 'consultant' ? "Danışman panelini aç ve gelen istekleri yönet." : "Yeni bir fal odası oluştur ve okumaya başla."}
+          </p>
         </div>
         <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-accent transition-colors" />
       </button>

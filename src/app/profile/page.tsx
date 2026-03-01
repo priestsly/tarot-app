@@ -77,27 +77,38 @@ export default function ProfilePage() {
         if (!editedProfile || !user) return;
         setSaving(true);
 
-        // Sanitize data: convert empty strings to null for date/time
-        const sanitized = {
-            ...editedProfile,
-            birth_date: editedProfile.birth_date || null,
-            birth_time: editedProfile.birth_time || null,
-            zodiac_sign: editedProfile.zodiac_sign || null,
-            ascendant_sign: editedProfile.ascendant_sign || null
-        };
+        try {
+            // First, get the current role to preserve it
+            const { data: current } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+            const role = current?.role || 'client';
 
-        const { error } = await supabase
-            .from("profiles")
-            .upsert({ id: user.id, ...sanitized });
+            // Sanitize data: convert empty strings to null for date/time
+            const sanitized = {
+                ...editedProfile,
+                role,
+                birth_date: editedProfile.birth_date || null,
+                birth_time: editedProfile.birth_time || null,
+                zodiac_sign: editedProfile.zodiac_sign || null,
+                ascendant_sign: editedProfile.ascendant_sign || null
+            };
 
-        if (!error) {
-            setProfile(editedProfile);
-            setIsEditing(false);
-        } else {
-            console.error("Save error:", error);
-            alert("Bilgiler kaydedilirken bir hata oluştu: " + error.message);
+            const { error } = await supabase
+                .from("profiles")
+                .upsert({ id: user.id, ...sanitized });
+
+            if (!error) {
+                setProfile(editedProfile);
+                setIsEditing(false);
+            } else {
+                console.error("Save error:", error);
+                alert("Bilgiler kaydedilirken bir hata oluştu: " + error.message);
+            }
+        } catch (err: any) {
+            console.error("Runtime save error:", err);
+            alert("Bir hata oluştu: " + err.message);
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     const handleLogout = async () => {
