@@ -171,7 +171,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(true);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
 
     // Exit Modal
@@ -594,7 +594,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 // If we are also ready, we should start the WebRTC connection stream
                 if (localReadyRef.current && socket.connected) {
                     // Send back that we are ready too, just in case they missed it
-                    socket.emit("user-ready", socket.id);
+                    socket.emit("user-ready", socket.id || Math.random().toString(36).substring(7));
                 }
             }
         });
@@ -696,9 +696,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         };
     }, [roomId, playNotifSound]);
 
+    const mediaReqRef = useRef(false);
+
     // Handle starting PeerJS and Video only when localReady is true
     useEffect(() => {
-        if (!localReady) return;
+        if (!localReady || mediaReqRef.current) return;
+        mediaReqRef.current = true;
 
         // INSTANTLY tell the other person we are ready over the socket
         if (socketRef.current) {
@@ -720,6 +723,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             })
             .catch(err => {
                 console.error("Failed to get local stream", err);
+                setToastMsg({ text: "Kamera/Ses izni reddedildi veya ulaşılamıyor.", sender: "Sistem" });
+                if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
                 createDummyAndJoin();
             });
 

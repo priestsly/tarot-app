@@ -291,9 +291,9 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             <Maximize className="w-5 h-5 text-white/70" />
                         </div>
                     </div>
-                    {/* Local — hidden from self, still streams to remote */}
-                    <div className="hidden">
-                        <video ref={myVideoRef} autoPlay playsInline muted />
+                    {/* Local — Selfie preview */}
+                    <div className="absolute bottom-1 right-1 w-12 sm:w-16 aspect-[3/4] sm:aspect-video rounded-md overflow-hidden bg-black/50 border border-white/20 shadow-lg z-10 pointer-events-none">
+                        <video ref={myVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                     </div>
                 </div>
 
