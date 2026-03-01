@@ -77,7 +77,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         } catch (error) {
             console.error("Error ending session:", error);
         }
-        router.push("/consultations");
+        window.location.href = "/consultations";
     };
 
     const onBottomClearClick = () => {
@@ -234,7 +234,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, scale: 0.9, x: 20 }}
                             transition={{ duration: 0.4, ease: "easeInOut" }}
-                            className="absolute top-20 left-1/2 -translate-x-1/2 z-[60] flex flex-col pointer-events-none"
+                            className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[60] flex flex-col pointer-events-none scale-90 sm:scale-100"
                         >
                             <div className="glass p-3 rounded-2xl border border-purple-500/20 shadow-[0_10px_40px_rgba(147,51,234,0.15)] flex flex-col gap-3 pointer-events-auto backdrop-blur-xl relative overflow-hidden bg-[#0a0a0f]/90">
 
@@ -541,11 +541,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 </div>
 
                 {/* ═══ SHARE MODAL COMPONENT ═══ */}
-                <ShareModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    shareUrl={fullShareUrl}
-                />
+                {isConsultant && (
+                    <ShareModal
+                        isOpen={showShareModal}
+                        onClose={() => setShowShareModal(false)}
+                        shareUrl={fullShareUrl}
+                    />
+                )}
 
                 {/* ═══ AURAS PANEL COMPONENT ═══ */}
                 <AurasPanel
@@ -561,7 +563,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     onClose={() => setShowStoryGen(false)}
                     cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).name : undefined}
                     cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).keywords : undefined}
-                    cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : cards.filter(c => c.isFlipped).length > 0 ? `/cards/${cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex}.webp` : undefined}
+                    cardImage={selectedCard ? `/Cards/${selectedCard.cardIndex < 22 ? '00-TheFool' : 'Cups01'}.jpg` : undefined}
                 />
 
                 {/* ═══ AI INTERPRETATION MODAL ═══ */}

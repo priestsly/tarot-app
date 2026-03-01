@@ -97,10 +97,10 @@ export default function ConsultationsPage() {
 
             <div className="max-w-4xl mx-auto relative z-10">
                 <div className="mb-10">
-                    <Link href="/" className="inline-flex items-center text-sm font-bold text-purple-400 hover:text-purple-300 transition-colors mb-6 cursor-pointer">
+                    <button onClick={() => window.location.href = "/"} className="inline-flex items-center text-sm font-bold text-purple-400 hover:text-purple-300 transition-colors mb-6 cursor-pointer">
                         <ChevronLeft className="w-4 h-4 mr-1" />
                         Ana Sayfaya Dön
-                    </Link>
+                    </button>
                     <h1 className="text-3xl md:text-5xl font-black font-heading text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-indigo-200">
                         Oturumlarım
                     </h1>
@@ -135,8 +135,8 @@ export default function ConsultationsPage() {
                                     transition={{ delay: index * 0.05 }}
                                     key={session.id}
                                     className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${isActive ? 'bg-emerald-500/10 border-emerald-500/30' :
-                                            isPending ? 'bg-amber-500/5 border-amber-500/20' :
-                                                'bg-[#161623] border-white/5 opacity-75 grayscale-[30%]'
+                                        isPending ? 'bg-amber-500/5 border-amber-500/20' :
+                                            'bg-[#161623] border-white/5 opacity-75 grayscale-[30%]'
                                         }`}
                                 >
                                     <div>
@@ -146,9 +146,9 @@ export default function ConsultationsPage() {
                                                     isDeclined ? <XCircle className="w-5 h-5 text-red-400" /> :
                                                         <Clock className="w-5 h-5 text-amber-400" />}
                                             <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${isActive ? 'bg-emerald-500/20 text-emerald-400' :
-                                                    isCompleted ? 'bg-purple-500/20 text-purple-400' :
-                                                        isDeclined ? 'bg-red-500/20 text-red-400' :
-                                                            'bg-amber-500/20 text-amber-400'
+                                                isCompleted ? 'bg-purple-500/20 text-purple-400' :
+                                                    isDeclined ? 'bg-red-500/20 text-red-400' :
+                                                        'bg-amber-500/20 text-amber-400'
                                                 }`}>
                                                 {isActive ? 'Aktif' : isCompleted ? 'Tamamlandı' : isDeclined ? 'Reddedildi' : 'Bekliyor'}
                                             </span>
@@ -172,7 +172,7 @@ export default function ConsultationsPage() {
                                     <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
                                         {isActive && session.room_id && (
                                             <button
-                                                onClick={() => router.push(`/room/${session.room_id}`)}
+                                                onClick={() => window.location.href = `/room/${session.room_id}`}
                                                 className="w-full md:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-colors whitespace-nowrap"
                                             >
                                                 Sohbete Dön
@@ -180,7 +180,7 @@ export default function ConsultationsPage() {
                                         )}
                                         {isPending && userRole === 'consultant' && (
                                             <button
-                                                onClick={() => router.push('/dashboard')}
+                                                onClick={() => window.location.href = '/dashboard'}
                                                 className="w-full md:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl transition-colors whitespace-nowrap"
                                             >
                                                 İsteği Değerlendir

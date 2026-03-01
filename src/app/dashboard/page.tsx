@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Video, Settings, Bell, Clock, User, LogOut } from "lucide-react";
+import { Sparkles, Video, Settings, Bell, Clock, User, LogOut, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface SessionInvite {
     id: string;
@@ -145,7 +146,7 @@ export default function DashboardPage() {
             .eq('id', inviteId);
 
         if (!error) {
-            router.push(`/room/${roomId}`);
+            window.location.href = `/room/${roomId}`;
         }
     };
 
@@ -162,7 +163,7 @@ export default function DashboardPage() {
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
-        router.push('/');
+        window.location.href = '/';
     };
 
     if (loading) {
@@ -182,21 +183,25 @@ export default function DashboardPage() {
                         </div>
                         <div>
                             <h1 className="text-lg font-heading font-bold leading-tight">Mystic Tarot</h1>
-                            <span className="text-[10px] text-purple-300/80 font-bold uppercase tracking-wider">{profile.role === 'consultant' ? 'Danışman Portalı' : 'Danışan Portalı'}</span>
+                            <span className="text-[10px] text-purple-300/80 font-bold uppercase tracking-wider">{profile.role === 'consultant' ? 'Mistik Portal' : 'Danışan Portalı'}</span>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-white/10">
-                            <div className="text-right">
+                        <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-white/10 text-right">
+                            <div className="hidden md:block">
                                 <p className="text-sm font-bold">{profile.full_name}</p>
-                                <p className="text-xs text-zinc-400 capitalize">{profile.role}</p>
+                                <p className="text-xs text-zinc-400 capitalize">{profile.role === 'consultant' ? 'Danışman' : 'Danışan'}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
                                 {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" /> : <User className="w-5 h-5 text-zinc-400" />}
                             </div>
                         </div>
-                        <button onClick={handleSignOut} className="p-2.5 rounded-xl bg-zinc-800/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors">
+                        <Link href="/consultations" className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-2 group">
+                            <Clock className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                            <span className="text-xs font-bold hidden md:inline">Oturumlarım</span>
+                        </Link>
+                        <button onClick={handleSignOut} className="p-2.5 rounded-xl bg-zinc-800/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors" title="Çıkış Yap">
                             <LogOut className="w-5 h-5" />
                         </button>
                     </div>
