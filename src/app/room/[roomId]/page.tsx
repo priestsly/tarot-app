@@ -52,7 +52,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
-        isConnecting, isReady, setIsReady, pingedCardId
+        isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -143,7 +143,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 </div>
 
                 {/* Cards */}
-                <div ref={tableRef} className="absolute inset-0 z-10 w-full h-full perspective-[1000px] overflow-hidden" id="tarot-table">
+                {/* THE DECK / TABLE - Hidden until both are ready */}
+                <div
+                    ref={tableRef}
+                    className={cn(
+                        "absolute inset-0 z-10 w-full h-full perspective-[1000px] overflow-hidden transition-all duration-1000",
+                        (localReady && remoteReady) ? "opacity-100" : "opacity-0 pointer-events-none scale-95 blur-sm"
+                    )}
+                    id="tarot-table"
+                >
                     {cards.map(card => (
                         <TarotCard
                             key={card.id}
@@ -159,64 +167,84 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     ))}
                 </div>
 
-                {/* ═══ READY BUTTON OVERLAY ═══ */}
+                {/* ═══ MUTUAL HANDSHAKE UI (Center Table) ═══ */}
                 <AnimatePresence>
-                    {!isReady && (
+                    {(!localReady || !remoteReady) && (
                         <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
-                            transition={{ duration: 0.8, ease: "easeInOut" }}
-                            className="absolute inset-0 z-[70] flex flex-col items-center justify-center bg-[#0B0914]/95 backdrop-blur-xl overflow-hidden"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+                            transition={{ duration: 0.5, ease: "easeInOut" }}
+                            className="absolute inset-0 z-[60] flex flex-col items-center justify-center pointer-events-none"
                         >
-                            {/* Ethereal Background Orbs */}
-                            <motion.div
-                                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
-                                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                                className="absolute w-[30rem] h-[30rem] bg-purple-700/20 rounded-full blur-[120px] pointer-events-none"
-                            />
-                            <motion.div
-                                animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
-                                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                                className="absolute w-[20rem] h-[20rem] bg-amber-500/10 rounded-full blur-[100px] translate-x-32 translate-y-32 pointer-events-none"
-                            />
+                            <div className="glass p-8 rounded-[2rem] border border-purple-500/20 shadow-[0_0_50px_rgba(147,51,234,0.1)] flex flex-col items-center max-w-sm w-full pointer-events-auto backdrop-blur-xl relative overflow-hidden text-center">
+                                {/* Subtle background glow in panel */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none" />
 
-                            <div className="text-center max-w-md p-10 glass rounded-[2.5rem] border border-purple-500/20 shadow-[0_0_80px_rgba(147,51,234,0.15)] relative z-10">
-                                <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                    className="w-16 h-16 mx-auto mb-6 flex items-center justify-center relative"
-                                >
-                                    <Sparkles className="w-10 h-10 text-gold absolute" />
-                                    <div className="absolute inset-0 bg-gold/20 blur-xl rounded-full" />
-                                </motion.div>
-
-                                <h2 className="text-4xl font-heading font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-purple-100 to-purple-400 mb-4 drop-shadow-sm">
+                                <Sparkles className="w-8 h-8 text-gold mb-4 animate-pulse drop-shadow-lg" />
+                                <h2 className="text-2xl font-heading font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-purple-100 to-purple-400 mb-2">
                                     Ruhani Bağ
                                 </h2>
-                                <p className="text-purple-200/70 mb-10 leading-relaxed font-medium">
+                                <p className="text-xs text-purple-200/60 mb-8 px-4">
                                     {isConsultant
-                                        ? "Müşteriniz ile telepatik ağı kurmak ve seansınızı başlatmak için hazır olduğunuzda kapıyı aralayın."
-                                        : "Danışmanınız ile enerji bağını kurmak ve derin seansınıza başlamak için geçitten geçin."}
+                                        ? "Seansı başlatmak için her iki tarafın da hazır olması bekleniyor."
+                                        : "Danışman masayı hazırlıyor. Lütfen hazır olduğunuzu onaylayın."}
                                 </p>
-                                <button
-                                    onClick={() => setIsReady(true)}
-                                    className="w-full py-4 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-[0_0_30px_rgba(147,51,234,0.4)] transition-all hover:scale-[1.03] active:scale-[0.97] text-lg uppercase tracking-widest flex justify-center items-center gap-3 group"
-                                >
-                                    <span>Geçidi Aç</span>
-                                    <Feather className="w-5 h-5 text-purple-200 group-hover:rotate-12 transition-transform" />
-                                </button>
-                                <p className="text-[9px] text-purple-300/40 mt-6 uppercase tracking-[0.2em] font-bold">
-                                    Kamera ve Mikrofon izni gereklidir
-                                </p>
+
+                                {/* Status Indicators */}
+                                <div className="w-full flex flex-col gap-3 mb-8">
+                                    {/* Danışman Status */}
+                                    <div className="flex items-center justify-between bg-black/40 rounded-xl p-3 border border-white/5">
+                                        <span className="text-sm text-purple-200/80 font-medium">Danışman</span>
+                                        {isConsultant ? (
+                                            localReady
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                        ) : (
+                                            remoteReady
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                        )}
+                                    </div>
+
+                                    {/* Danışan Status */}
+                                    <div className="flex items-center justify-between bg-black/40 rounded-xl p-3 border border-white/5">
+                                        <span className="text-sm text-purple-200/80 font-medium">{clientProfile?.name || 'Müşteri'}</span>
+                                        {!isConsultant ? (
+                                            localReady
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                        ) : (
+                                            remoteReady
+                                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md">Hazır ✓</span>
+                                                : <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md animate-pulse">Bekleniyor...</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action Button */}
+                                {!localReady ? (
+                                    <button
+                                        onClick={() => setLocalReady(true)}
+                                        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] text-sm uppercase tracking-widest flex justify-center items-center gap-2 group"
+                                    >
+                                        <span>Hazırım</span>
+                                        <Feather className="w-4 h-4 text-purple-200 group-hover:rotate-12 transition-transform" />
+                                    </button>
+                                ) : (
+                                    <div className="w-full py-3.5 bg-white/5 border border-white/10 text-purple-200/50 font-bold rounded-xl text-sm uppercase tracking-widest flex justify-center items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-purple-400/50 border-t-purple-400 rounded-full animate-spin" />
+                                        <span>Karşı taraf bekleniyor</span>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* ═══ CONNECTING OVERLAY ═══ */}
+                {/* ═══ CONNECTING OVERLAY (Hidden now that we use Mutual Handshake, but kept for fallback) ═══ */}
                 <AnimatePresence>
-                    {isReady && isConnecting && (
+                    {(localReady && remoteReady) && isConnecting && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

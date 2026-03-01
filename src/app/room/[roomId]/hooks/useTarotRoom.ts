@@ -51,7 +51,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const [isConnecting, setIsConnecting] = useState(true);
-    const [isReady, setIsReady] = useState(false);
+    const [localReady, setLocalReady] = useState(false);
+    const [remoteReady, setRemoteReady] = useState(false);
     const [pingedCardId, setPingedCardId] = useState<string | null>(null);
     const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -369,7 +370,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     useEffect(() => {
-        if (!isReady) return; // Wait for user to manually click 'Ready'
 
         // 1. Initialize Supabase Realtime "Socket"
         if (!socketRef.current) {
@@ -441,6 +441,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     // If no one is in the room after 3 seconds, hide connecting overlay so consultant can wait
                     setTimeout(() => {
                         setIsConnecting(false);
+                        // Send our ready state if we were already ready before connection established
+                        if (localReady) {
+                            fakeSocket.emit("user-ready", fakeSocket.id);
+                        }
                     }, 3000);
                 }
             });
@@ -469,10 +473,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 socket.emit("user-connected", id); // Broadcast arrival explicitly
 
                 // If I am the client, I announce that I am ready to receive data
+                // If I am the client, I announce that my media is ready to receive data
                 if (!isConsultant) {
-                    socket.emit("client-ready", id);
+                    socket.emit("client-media-ready", id);
                 } else {
-                    socket.emit("consultant-ready", id);
+                    socket.emit("consultant-media-ready", id);
                 }
             });
 
@@ -518,9 +523,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
 
             // Handshake: Client is ready, Consultant sends the room state
-            socket.on('client-ready', (clientId: string) => {
+            socket.on('client-media-ready', (clientId: string) => {
                 if (isConsultant && clientId !== socket.id) {
-                    console.log("Client is ready, sending sync data...");
+                    console.log("Client media is ready, sending sync data...");
                     if (cardsRef.current.length > 0) socket.emit("sync-state", roomId, cardsRef.current);
                     if (logsRef.current.length > 0) socket.emit("sync-logs", roomId, logsRef.current);
                     if (messagesRef.current.length > 0) socket.emit("sync-messages", roomId, messagesRef.current);
@@ -528,11 +533,22 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
 
             // Handshake: Consultant is ready, Client sends their profile data
-            socket.on('consultant-ready', (consultantId: string) => {
+            socket.on('consultant-media-ready', (consultantId: string) => {
                 if (!isConsultant && consultantId !== socket.id) {
-                    console.log("Consultant is ready, sending profile data...");
+                    console.log("Consultant media is ready, sending profile data...");
                     if (clientProfileRef.current) {
                         socket.emit("update-client-profile", roomId, clientProfileRef.current);
+                    }
+                }
+            });
+
+            socket.on("user-ready", (userId: string) => {
+                if (userId && userId !== socket.id) {
+                    setRemoteReady(true);
+                    // If we are also ready, we should start the WebRTC connection stream
+                    if (localReady && socket.connected) {
+                        // Send back that we are ready too, just in case they missed it
+                        socket.emit("user-ready", socket.id);
                     }
                 }
             });
@@ -555,6 +571,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         toastTimeout.current = setTimeout(() => setToastMsg(null), 5000);
 
                         setRemotePeerId("");
+                        setRemoteReady(false);
                         setCursors(prev => {
                             const next = { ...prev };
                             delete next[p.peerId];
@@ -565,53 +582,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
         };
 
-        // 2. Setup User Media (Camera/Mic) IMMEDIATELY
-        navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-            audio: true
-        })
-            .then(stream => {
-                // Mute mic by default right after getting access, for both users
-                stream.getAudioTracks().forEach(t => t.enabled = false);
-                setIsMuted(true);
-
-                streamRef.current = stream;
-                if (myVideoRef.current) {
-                    myVideoRef.current.srcObject = stream;
-                }
-                initPeerAndJoin(stream);
-            })
-            .catch(err => {
-                console.error("Failed to get local stream", err);
-                // Fallback to dummy stream if user denies camera explicitly so text chat still works
-                createDummyAndJoin();
-            });
-
-        function createDummyAndJoin() {
-            try {
-                const canvas = document.createElement("canvas");
-                canvas.width = 640;
-                canvas.height = 480;
-                const ctx2 = canvas.getContext("2d");
-                if (ctx2) {
-                    ctx2.fillStyle = "black";
-                    ctx2.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                const videoStream = (canvas as any).captureStream(1);
-                const audioCtx2 = new (window.AudioContext || (window as any).webkitAudioContext)();
-                const destNode = audioCtx2.createMediaStreamDestination();
-                const dummyStream = new MediaStream([
-                    ...videoStream.getVideoTracks(),
-                    ...destNode.stream.getAudioTracks()
-                ]);
-                dummyStream.getTracks().forEach(t => t.enabled = false);
-                streamRef.current = dummyStream;
-                initPeerAndJoin(dummyStream);
-            } catch (fallbackErr) {
-                console.error("Dummy stream creation failed", fallbackErr);
-                initPeerAndJoin(new MediaStream());
-            }
-        }
+        // We only start cameras and PeerJS once localReady is true.
+        // But we want to setup the socket listeners above IMMEDIATELY so we can hear 'user-ready'.
+        // So we will trigger this in a separate manual useEffect or function.
 
         // Note: Disconnect is now handled by Supabase Presence ^
 
@@ -710,7 +683,109 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             tracks?.forEach(track => track.stop());
             socketRef.current = null;
         };
-    }, [roomId, playNotifSound, isReady]);
+    }, [roomId, playNotifSound, localReady]);
+
+    // Handle starting PeerJS and Video only when localReady is true
+    useEffect(() => {
+        if (!localReady) return;
+
+        // 2. Setup User Media (Camera/Mic)
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: true
+        })
+            .then(stream => {
+                // Mute mic by default right after getting access, for both users
+                stream.getAudioTracks().forEach(t => t.enabled = false);
+                setIsMuted(true);
+
+                streamRef.current = stream;
+                if (myVideoRef.current) {
+                    myVideoRef.current.srcObject = stream;
+                }
+                // At this point we need the socket to exist to join
+                if (socketRef.current?.connected) {
+                    // Send that we are ready
+                    socketRef.current.emit("user-ready", socketRef.current.id);
+                }
+
+                initPeerAndJoin(stream);
+            })
+            .catch(err => {
+                console.error("Failed to get local stream", err);
+                createDummyAndJoin();
+            });
+
+        const initPeerAndJoin = (mediaStream: MediaStream) => {
+            peerRef.current = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+
+            peerRef.current.on('open', (id) => {
+                setMyPeerId(id);
+                console.log('My peer ID is: ' + id);
+                if (socketRef.current) socketRef.current.id = id;
+            });
+
+            // Answer incoming calls
+            peerRef.current.on('call', call => {
+                setRemotePeerId(call.peer);
+                call.answer(mediaStream);
+                call.on('stream', remoteStream => {
+                    console.log("Received remote stream (answering)", remoteStream.id);
+                    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.onloadedmetadata = () => {
+                            remoteVideoRef.current?.play().catch(e => {
+                                console.error("Play error:", e);
+                                if (e.name === 'NotAllowedError' && remoteVideoRef.current) {
+                                    remoteVideoRef.current.muted = true;
+                                    remoteVideoRef.current.play().catch(console.error);
+                                }
+                            });
+                        };
+                    }
+                });
+            });
+        };
+
+        function createDummyAndJoin() {
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = 640;
+                canvas.height = 480;
+                const ctx2 = canvas.getContext("2d");
+                if (ctx2) {
+                    ctx2.fillStyle = "black";
+                    ctx2.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                const videoStream = (canvas as any).captureStream(1);
+                const audioCtx2 = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const destNode = audioCtx2.createMediaStreamDestination();
+                const dummyStream = new MediaStream([
+                    ...videoStream.getVideoTracks(),
+                    ...destNode.stream.getAudioTracks()
+                ]);
+                dummyStream.getTracks().forEach(t => t.enabled = false);
+                streamRef.current = dummyStream;
+                initPeerAndJoin(dummyStream);
+            } catch (fallbackErr) {
+                console.error("Dummy stream creation failed", fallbackErr);
+                initPeerAndJoin(new MediaStream());
+            }
+        }
+
+        return () => {
+            const tracks = streamRef.current?.getTracks();
+            tracks?.forEach(track => track.stop());
+            peerRef.current?.destroy();
+        }
+    }, [localReady]);
 
     function connectToNewUser(userId: string, stream: MediaStream) {
         if (!peerRef.current || !stream) return;
@@ -1124,12 +1199,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         showAurasPanel,
         currentAura,
         isConnecting,
-        isReady,
+        localReady,
+        remoteReady,
         pingedCardId,
 
         // Setters
         setIsSidebarOpen,
-        setIsReady,
+        setLocalReady,
         setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowShareModal,
