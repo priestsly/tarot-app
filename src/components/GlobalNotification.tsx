@@ -70,8 +70,9 @@ export default function GlobalNotification() {
                         filter: `consultant_id=eq.${currentUser.id}`,
                     },
                     (payload) => {
-                        playNotificationSound();
+                        // trigger native push
                         showBrowserNotification(payload.new);
+                        // trigger UI state, which in turn triggers ringing effect
                         setIncomingRequest(payload.new);
                     }
                 )
@@ -80,13 +81,17 @@ export default function GlobalNotification() {
 
         init();
 
-        // Notification permission
-        if (
-            typeof window !== "undefined" &&
-            "Notification" in window &&
-            Notification.permission === "default"
-        ) {
-            Notification.requestPermission();
+        // Notification permission (wrap in try-catch for mobile constraints)
+        try {
+            if (
+                typeof window !== "undefined" &&
+                "Notification" in window &&
+                Notification.permission === "default"
+            ) {
+                Notification.requestPermission().catch(() => { });
+            }
+        } catch (e) {
+            console.warn("Notification request constraint:", e);
         }
 
         return () => {
@@ -109,6 +114,10 @@ export default function GlobalNotification() {
 
     const playNotificationSound = () => {
         try {
+            if (typeof navigator !== 'undefined' && "vibrate" in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 400]);
+            }
+
             const ctx = new (window.AudioContext ||
                 (window as any).webkitAudioContext)();
 
@@ -117,26 +126,43 @@ export default function GlobalNotification() {
 
             osc.type = "sine";
             osc.frequency.setValueAtTime(520, ctx.currentTime);
+            osc.frequency.setValueAtTime(650, ctx.currentTime + 0.1);
 
             gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(
-                0.15,
-                ctx.currentTime + 0.05
-            );
-            gain.gain.exponentialRampToValueAtTime(
-                0.0001,
-                ctx.currentTime + 1
-            );
+            gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1);
 
             osc.connect(gain);
             gain.connect(ctx.destination);
 
             osc.start();
             osc.stop(ctx.currentTime + 1);
+
+            // Auto suspend to avoid context leaks
+            setTimeout(() => {
+                if (ctx.state !== 'closed') ctx.close().catch(() => { });
+            }, 1200);
+
         } catch (err) {
-            console.error("Audio error", err);
+            console.error("Audio/Vibrate error on mobile", err);
         }
     };
+
+    // Effect to continuously ring while incoming request is active
+    useEffect(() => {
+        let ringInterval: NodeJS.Timeout | null = null;
+        if (incomingRequest) {
+            // First play right away
+            playNotificationSound();
+            // Then loop every 3 seconds
+            ringInterval = setInterval(() => {
+                playNotificationSound();
+            }, 3000);
+        }
+        return () => {
+            if (ringInterval) clearInterval(ringInterval);
+        };
+    }, [incomingRequest]);
 
     const handleAcceptSession = async (session: any) => {
         const { error } = await supabase
