@@ -384,6 +384,12 @@ function HomeContent() {
       return;
     }
 
+    // Danışman kendine talep gönderemez
+    if (user && user.id === selectedConsultant.id) {
+      alert("Kendi kendinize danışmanlık talebi gönderemezsiniz. Lütfen başka bir danışman seçin.");
+      return;
+    }
+
     // Validate package selections depending on focus
     if (readingFocus === "İlişki Danışmanı" && !gender) {
       alert("Lütfen enerji seçimi yapın.");
