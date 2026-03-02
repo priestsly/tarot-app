@@ -21,9 +21,15 @@ export default function GlobalNotification() {
         const setupSubscriptions = async (currentUser: any) => {
             if (!currentUser) return;
 
-            // Cleanup potential old ones
-            if (activeChannel) supabase.removeChannel(activeChannel);
-            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            // Cleanup old ones to prevent memory leaks and duplicate triggers
+            if (activeChannel) {
+                supabase.removeChannel(activeChannel);
+                activeChannel = null;
+            }
+            if (presenceChannel) {
+                supabase.removeChannel(presenceChannel);
+                presenceChannel = null;
+            }
 
             // 1. Presence tracking
             presenceChannel = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
@@ -100,10 +106,9 @@ export default function GlobalNotification() {
             }
         };
 
-        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
             const currentUser = session?.user;
             setUser(currentUser || null);
-
             if (currentUser) {
                 setupSubscriptions(currentUser);
             } else {
@@ -114,17 +119,15 @@ export default function GlobalNotification() {
             }
         });
 
-        // Handle page visibility change (mobile browsers sleep tabs)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                supabase.auth.getUser().then(({ data: { user } }) => {
-                    if (user) setupSubscriptions(user);
-                });
-            }
+        // Use focus for better mobile sync stability
+        const handleFocus = () => {
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (user) setupSubscriptions(user);
+            });
         };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener("focus", handleFocus);
 
-        // Initial check
+        // Initial launch
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user) {
                 setUser(user);
@@ -132,7 +135,7 @@ export default function GlobalNotification() {
             }
         });
 
-        // Notification permission
+        // Notification permissions
         try {
             if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission().catch(() => { });
@@ -143,7 +146,7 @@ export default function GlobalNotification() {
 
         return () => {
             authSub.unsubscribe();
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener("focus", handleFocus);
             if (activeChannel) supabase.removeChannel(activeChannel);
             if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
