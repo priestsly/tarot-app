@@ -21,8 +21,12 @@ export default function GlobalNotification() {
         const setupSubscriptions = async (currentUser: any) => {
             if (!currentUser) return;
 
+            // Cleanup potential old ones
+            if (activeChannel) supabase.removeChannel(activeChannel);
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
+
             // 1. Presence tracking
-            presenceChannel = supabase.channel("online_users");
+            presenceChannel = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
             presenceChannel
                 .on("presence", { event: "sync" }, () => {
                     const state = presenceChannel.presenceState();
@@ -64,27 +68,61 @@ export default function GlobalNotification() {
                         filter: `consultant_id=eq.${currentUser.id}`,
                     },
                     (payload) => {
+                        console.log("New mobile notification received:", payload.new);
                         showBrowserNotification(payload.new);
                         setIncomingRequest(payload.new);
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                        // Attempt reconnect on error
+                        setTimeout(() => setupSubscriptions(currentUser), 5000);
+                    }
+                });
+
+            // 4. Fallback: Check for pending sessions that might have been missed while tab was suspended
+            const { data: missedSessions } = await supabase
+                .from("sessions")
+                .select("*")
+                .eq("consultant_id", currentUser.id)
+                .eq("status", "pending")
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+            if (missedSessions && missedSessions.length > 0) {
+                const session = missedSessions[0];
+                const createdAt = new Date(session.created_at).getTime();
+                const now = new Date().getTime();
+                // If it's newer than 5 minutes, show it
+                if (now - createdAt < 300000) {
+                    setIncomingRequest(session);
+                }
+            }
         };
 
         const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user;
             setUser(currentUser || null);
 
-            // Cleanup previous channels
-            if (activeChannel) supabase.removeChannel(activeChannel);
-            if (presenceChannel) supabase.removeChannel(presenceChannel);
-            activeChannel = null;
-            presenceChannel = null;
-
             if (currentUser) {
                 setupSubscriptions(currentUser);
+            } else {
+                if (activeChannel) supabase.removeChannel(activeChannel);
+                if (presenceChannel) supabase.removeChannel(presenceChannel);
+                activeChannel = null;
+                presenceChannel = null;
             }
         });
+
+        // Handle page visibility change (mobile browsers sleep tabs)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                    if (user) setupSubscriptions(user);
+                });
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // Initial check
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -105,6 +143,7 @@ export default function GlobalNotification() {
 
         return () => {
             authSub.unsubscribe();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (activeChannel) supabase.removeChannel(activeChannel);
             if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
