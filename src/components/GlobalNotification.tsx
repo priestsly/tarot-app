@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Sparkles, X, Check, Calendar } from "lucide-react";
@@ -14,28 +14,32 @@ export default function GlobalNotification() {
     const router = useRouter();
     const supabase = createClient();
 
-    useEffect(() => {
-        let activeChannel: any = null;
-        let presenceChannel: any = null;
+    // Use refs for channels to avoid closure issues and duplicate subscriptions
+    const activeChannelRef = useRef<any>(null);
+    const presenceChannelRef = useRef<any>(null);
+    const subscribedUserIdRef = useRef<string | null>(null);
 
+    useEffect(() => {
         const setupSubscriptions = async (currentUser: any) => {
             if (!currentUser) return;
 
-            // Cleanup old ones to prevent memory leaks and duplicate triggers
-            if (activeChannel) {
-                supabase.removeChannel(activeChannel);
-                activeChannel = null;
+            // If already subscribed to this user, don't repeat
+            if (subscribedUserIdRef.current === currentUser.id && activeChannelRef.current) {
+                return;
             }
-            if (presenceChannel) {
-                supabase.removeChannel(presenceChannel);
-                presenceChannel = null;
-            }
+            subscribedUserIdRef.current = currentUser.id;
+
+            // Cleanup potential old ones using refs
+            if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
+            if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
 
             // 1. Presence tracking
-            presenceChannel = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
-            presenceChannel
+            const presence = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
+            presenceChannelRef.current = presence;
+
+            presence
                 .on("presence", { event: "sync" }, () => {
-                    const state = presenceChannel.presenceState();
+                    const state = presence.presenceState();
                     const onlineIds = new Set<string>();
                     Object.values(state).forEach((presences: any) => {
                         (presences as any[]).forEach((p: any) => {
@@ -46,7 +50,7 @@ export default function GlobalNotification() {
                 })
                 .subscribe(async (status: string) => {
                     if (status === "SUBSCRIBED") {
-                        await presenceChannel.track({
+                        await presence.track({
                             user_id: currentUser.id,
                             online_at: new Date().toISOString(),
                         });
@@ -63,7 +67,7 @@ export default function GlobalNotification() {
             if (!consultant) return;
 
             // 3. Realtime subscription for incoming requests
-            activeChannel = supabase
+            const active = supabase
                 .channel(`consultant_notifications_${currentUser.id}`)
                 .on(
                     "postgres_changes",
@@ -74,17 +78,20 @@ export default function GlobalNotification() {
                         filter: `consultant_id=eq.${currentUser.id}`,
                     },
                     (payload) => {
-                        console.log("New mobile notification received:", payload.new);
+                        console.log("Real-time notification received:", payload.new);
                         showBrowserNotification(payload.new);
                         setIncomingRequest(payload.new);
                     }
                 )
                 .subscribe((status) => {
                     if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-                        // Attempt reconnect on error
+                        // Reset ref so it can re-setup
+                        subscribedUserIdRef.current = null;
                         setTimeout(() => setupSubscriptions(currentUser), 5000);
                     }
                 });
+
+            activeChannelRef.current = active;
 
             // 4. Fallback: Check for pending sessions that might have been missed while tab was suspended
             const { data: missedSessions } = await supabase
@@ -106,28 +113,32 @@ export default function GlobalNotification() {
             }
         };
 
-        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user;
             setUser(currentUser || null);
+
             if (currentUser) {
                 setupSubscriptions(currentUser);
             } else {
-                if (activeChannel) supabase.removeChannel(activeChannel);
-                if (presenceChannel) supabase.removeChannel(presenceChannel);
-                activeChannel = null;
-                presenceChannel = null;
+                if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
+                if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
+                activeChannelRef.current = null;
+                presenceChannelRef.current = null;
+                subscribedUserIdRef.current = null;
             }
         });
 
-        // Use focus for better mobile sync stability
-        const handleFocus = () => {
-            supabase.auth.getUser().then(({ data: { user } }) => {
-                if (user) setupSubscriptions(user);
-            });
+        // Handle page visibility change (mobile browsers sleep tabs)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                    if (user) setupSubscriptions(user);
+                });
+            }
         };
-        window.addEventListener("focus", handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Initial launch
+        // Initial check
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user) {
                 setUser(user);
@@ -135,7 +146,7 @@ export default function GlobalNotification() {
             }
         });
 
-        // Notification permissions
+        // Notification permission
         try {
             if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission().catch(() => { });
@@ -146,9 +157,9 @@ export default function GlobalNotification() {
 
         return () => {
             authSub.unsubscribe();
-            window.removeEventListener("focus", handleFocus);
-            if (activeChannel) supabase.removeChannel(activeChannel);
-            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
+            if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
         };
     }, [supabase]);
 
