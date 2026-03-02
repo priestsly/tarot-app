@@ -16,19 +16,13 @@ export default function GlobalNotification() {
 
     useEffect(() => {
         let activeChannel: any = null;
+        let presenceChannel: any = null;
 
-        const init = async () => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-
-            const currentUser = session?.user;
-            setUser(currentUser || null);
-
+        const setupSubscriptions = async (currentUser: any) => {
             if (!currentUser) return;
 
-            // Presence tracking for all users (clients & consultants)
-            const presenceChannel = supabase.channel("online_users");
+            // 1. Presence tracking
+            presenceChannel = supabase.channel("online_users");
             presenceChannel
                 .on("presence", { event: "sync" }, () => {
                     const state = presenceChannel.presenceState();
@@ -40,7 +34,7 @@ export default function GlobalNotification() {
                     });
                     setOnlineClients(onlineIds);
                 })
-                .subscribe(async (status) => {
+                .subscribe(async (status: string) => {
                     if (status === "SUBSCRIBED") {
                         await presenceChannel.track({
                             user_id: currentUser.id,
@@ -49,7 +43,7 @@ export default function GlobalNotification() {
                     }
                 });
 
-            // Consultant mı kontrol et
+            // 2. Consultant check
             const { data: consultant } = await supabase
                 .from("consultants")
                 .select("id")
@@ -58,9 +52,9 @@ export default function GlobalNotification() {
 
             if (!consultant) return;
 
-            // Realtime subscription for incoming requests
+            // 3. Realtime subscription for incoming requests
             activeChannel = supabase
-                .channel("global_notifications")
+                .channel(`consultant_notifications_${currentUser.id}`)
                 .on(
                     "postgres_changes",
                     {
@@ -70,24 +64,39 @@ export default function GlobalNotification() {
                         filter: `consultant_id=eq.${currentUser.id}`,
                     },
                     (payload) => {
-                        // trigger native push
                         showBrowserNotification(payload.new);
-                        // trigger UI state, which in turn triggers ringing effect
                         setIncomingRequest(payload.new);
                     }
                 )
                 .subscribe();
         };
 
-        init();
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const currentUser = session?.user;
+            setUser(currentUser || null);
 
-        // Notification permission (wrap in try-catch for mobile constraints)
+            // Cleanup previous channels
+            if (activeChannel) supabase.removeChannel(activeChannel);
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            activeChannel = null;
+            presenceChannel = null;
+
+            if (currentUser) {
+                setupSubscriptions(currentUser);
+            }
+        });
+
+        // Initial check
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                setUser(user);
+                setupSubscriptions(user);
+            }
+        });
+
+        // Notification permission
         try {
-            if (
-                typeof window !== "undefined" &&
-                "Notification" in window &&
-                Notification.permission === "default"
-            ) {
+            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission().catch(() => { });
             }
         } catch (e) {
@@ -95,7 +104,9 @@ export default function GlobalNotification() {
         }
 
         return () => {
+            authSub.unsubscribe();
             if (activeChannel) supabase.removeChannel(activeChannel);
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
     }, [supabase]);
 
