@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Sparkles, X, Check, Calendar } from "lucide-react";
@@ -14,32 +14,22 @@ export default function GlobalNotification() {
     const router = useRouter();
     const supabase = createClient();
 
-    // Use refs for channels to avoid closure issues and duplicate subscriptions
-    const activeChannelRef = useRef<any>(null);
-    const presenceChannelRef = useRef<any>(null);
-    const subscribedUserIdRef = useRef<string | null>(null);
-
     useEffect(() => {
+        let activeChannel: any = null;
+        let presenceChannel: any = null;
+
         const setupSubscriptions = async (currentUser: any) => {
             if (!currentUser) return;
 
-            // If already subscribed to this user, don't repeat
-            if (subscribedUserIdRef.current === currentUser.id && activeChannelRef.current) {
-                return;
-            }
-            subscribedUserIdRef.current = currentUser.id;
-
-            // Cleanup potential old ones using refs
-            if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
-            if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
+            // Cleanup potential old ones
+            if (activeChannel) supabase.removeChannel(activeChannel);
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
 
             // 1. Presence tracking
-            const presence = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
-            presenceChannelRef.current = presence;
-
-            presence
+            presenceChannel = supabase.channel("online_users", { config: { presence: { key: currentUser.id } } });
+            presenceChannel
                 .on("presence", { event: "sync" }, () => {
-                    const state = presence.presenceState();
+                    const state = presenceChannel.presenceState();
                     const onlineIds = new Set<string>();
                     Object.values(state).forEach((presences: any) => {
                         (presences as any[]).forEach((p: any) => {
@@ -50,7 +40,7 @@ export default function GlobalNotification() {
                 })
                 .subscribe(async (status: string) => {
                     if (status === "SUBSCRIBED") {
-                        await presence.track({
+                        await presenceChannel.track({
                             user_id: currentUser.id,
                             online_at: new Date().toISOString(),
                         });
@@ -67,7 +57,7 @@ export default function GlobalNotification() {
             if (!consultant) return;
 
             // 3. Realtime subscription for incoming requests
-            const active = supabase
+            activeChannel = supabase
                 .channel(`consultant_notifications_${currentUser.id}`)
                 .on(
                     "postgres_changes",
@@ -78,20 +68,17 @@ export default function GlobalNotification() {
                         filter: `consultant_id=eq.${currentUser.id}`,
                     },
                     (payload) => {
-                        console.log("Real-time notification received:", payload.new);
+                        console.log("New mobile notification received:", payload.new);
                         showBrowserNotification(payload.new);
                         setIncomingRequest(payload.new);
                     }
                 )
                 .subscribe((status) => {
                     if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-                        // Reset ref so it can re-setup
-                        subscribedUserIdRef.current = null;
+                        // Attempt reconnect on error
                         setTimeout(() => setupSubscriptions(currentUser), 5000);
                     }
                 });
-
-            activeChannelRef.current = active;
 
             // 4. Fallback: Check for pending sessions that might have been missed while tab was suspended
             const { data: missedSessions } = await supabase
@@ -120,11 +107,10 @@ export default function GlobalNotification() {
             if (currentUser) {
                 setupSubscriptions(currentUser);
             } else {
-                if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
-                if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
-                activeChannelRef.current = null;
-                presenceChannelRef.current = null;
-                subscribedUserIdRef.current = null;
+                if (activeChannel) supabase.removeChannel(activeChannel);
+                if (presenceChannel) supabase.removeChannel(presenceChannel);
+                activeChannel = null;
+                presenceChannel = null;
             }
         });
 
@@ -158,8 +144,8 @@ export default function GlobalNotification() {
         return () => {
             authSub.unsubscribe();
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            if (activeChannelRef.current) supabase.removeChannel(activeChannelRef.current);
-            if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
+            if (activeChannel) supabase.removeChannel(activeChannel);
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
     }, [supabase]);
 
