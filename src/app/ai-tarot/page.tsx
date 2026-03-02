@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Send, Loader2, RotateCcw } from "lucide-react";
 
-interface Message { role: "user" | "ai"; text: string; cards?: string[] }
+interface TarotCard { name: string; image: string; }
+interface Message { role: "user" | "ai"; text: string; cards?: TarotCard[] }
 
 const CARD_BACKS = ["🂠", "🂠", "🂠"];
 
@@ -22,6 +23,21 @@ export default function AiTarotPage() {
 
     const sendQuestion = async () => {
         if (!question.trim() || loading) return;
+
+        // Daily limit check
+        const today = new Date().toISOString().split("T")[0];
+        const lastUsed = localStorage.getItem("ai_tarot_last_used");
+
+        if (lastUsed === today) {
+            setMessages(m => [
+                ...m,
+                { role: "user", text: question.trim() },
+                { role: "ai", text: "Günlük ücretsiz AI Tarot hakkınızı kullandınız. Yıldızların enerjisini tazelemek için lütfen yarın tekrar gelin. ✨" }
+            ]);
+            setQuestion("");
+            return;
+        }
+
         const q = question.trim();
         setQuestion("");
         setMessages(m => [...m, { role: "user", text: q }]);
@@ -31,6 +47,7 @@ export default function AiTarotPage() {
             const res = await fetch("/api/ai-tarot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
             const data = await res.json();
             setMessages(m => [...m, { role: "ai", text: data.interpretation, cards: data.cards }]);
+            localStorage.setItem("ai_tarot_last_used", today);
         } catch {
             setMessages(m => [...m, { role: "ai", text: "Bağlantı hatası. Lütfen tekrar deneyin." }]);
         }
@@ -54,11 +71,12 @@ export default function AiTarotPage() {
                             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                             <div className={`max-w-[85%] rounded-2xl p-4 ${msg.role === "user" ? "bg-purple-500/15 border border-purple-500/20 rounded-br-md" : "bg-white/[0.03] border border-white/[0.06] rounded-bl-md"}`}>
                                 {msg.cards && (
-                                    <div className="flex gap-2 mb-3 justify-center">
+                                    <div className="flex gap-2 mb-4 justify-center">
                                         {msg.cards.map((card, j) => (
                                             <motion.div key={j} initial={{ rotateY: 180, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} transition={{ delay: j * 0.3 }}
-                                                className="bg-gradient-to-b from-purple-500/20 to-indigo-500/10 border border-purple-500/20 rounded-lg px-3 py-2 text-center">
-                                                <span className="text-xs font-semibold text-purple-300/80">{card}</span>
+                                                className="bg-black/40 border border-purple-500/20 rounded-lg p-2 text-center flex flex-col items-center w-24">
+                                                <img src={card.image} alt={card.name} className="w-full h-auto rounded-md shadow-lg" />
+                                                <span className="text-[10px] font-semibold text-purple-300 mt-2 truncate w-full">{card.name}</span>
                                             </motion.div>
                                         ))}
                                     </div>

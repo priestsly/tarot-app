@@ -4,8 +4,7 @@ import { use, Suspense } from "react";
 import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Instagram } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams, useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useSearchParams } from "next/navigation";
 import TarotCard from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
 import { getRumiMeaning } from "@/lib/rumiData";
@@ -20,7 +19,6 @@ import { FogOverlay } from './components/FogOverlay';
 import { AurasPanel } from './components/AurasPanel';
 import { StoryGenerator } from '@/components/StoryGenerator';
 import { AiModal } from './components/AiModal';
-import { PreSessionForm } from './components/PreSessionForm';
 import { useTarotRoom } from './hooks/useTarotRoom';
 
 export function cn(...inputs: ClassValue[]) {
@@ -29,8 +27,6 @@ export function cn(...inputs: ClassValue[]) {
 
 function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const searchParams = useSearchParams();
-    const router = useRouter();
-    const supabase = createClient();
     const roomId = use(params).roomId;
 
     const {
@@ -55,30 +51,13 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove,
-        isConnecting, localReady, remoteReady, setLocalReady, setClientProfile, pingedCardId
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, handleEndSession,
+        isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
     const [showAiModal, setShowAiModal] = useState(false);
     const [bottomConfirmClear, setBottomConfirmClear] = useState(false);
-
-    const handleLeaveTemp = () => {
-        router.push("/consultations");
-    };
-
-    const handleEndSession = async () => {
-        // Mark session as completed in database
-        try {
-            await supabase
-                .from('session_invites')
-                .update({ status: 'completed' })
-                .eq('room_id', roomId);
-        } catch (error) {
-            console.error("Error ending session:", error);
-        }
-        window.location.href = "/consultations";
-    };
 
     const onBottomClearClick = () => {
         if (bottomConfirmClear) {
@@ -97,23 +76,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         handleCursorMove(e);
     };
 
-    const handlePreSessionComplete = async (data: any) => {
-        setClientProfile(data);
-        // Write it to session_invites (if we have access/it exists, else it just passes through socket)
-        try {
-            await supabase.from('session_invites').update({ client_context: data }).eq('room_id', roomId);
-        } catch (e) { console.error("Could not save context to db", e); }
-        setLocalReady(true);
-    };
-
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
-            {/* ═══ PRE SESSION FORM FOR CLIENTS ═══ */}
-            {!isConsultant && !localReady && (
-                <PreSessionForm onSubmit={handlePreSessionComplete} />
-            )}
-
-            {/* Ambient Base Level */}
 
             {/* ═══ FULL-BLEED TAROT TABLE ═══ */}
             <main
@@ -234,7 +198,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, scale: 0.9, x: 20 }}
                             transition={{ duration: 0.4, ease: "easeInOut" }}
-                            className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[60] flex flex-col pointer-events-none scale-90 sm:scale-100"
+                            className="absolute top-20 left-1/2 -translate-x-1/2 z-[60] flex flex-col pointer-events-none"
                         >
                             <div className="glass p-3 rounded-2xl border border-purple-500/20 shadow-[0_10px_40px_rgba(147,51,234,0.15)] flex flex-col gap-3 pointer-events-auto backdrop-blur-xl relative overflow-hidden bg-[#0a0a0f]/90">
 
@@ -541,13 +505,11 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 </div>
 
                 {/* ═══ SHARE MODAL COMPONENT ═══ */}
-                {isConsultant && (
-                    <ShareModal
-                        isOpen={showShareModal}
-                        onClose={() => setShowShareModal(false)}
-                        shareUrl={fullShareUrl}
-                    />
-                )}
+                <ShareModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    shareUrl={fullShareUrl}
+                />
 
                 {/* ═══ AURAS PANEL COMPONENT ═══ */}
                 <AurasPanel
@@ -563,7 +525,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     onClose={() => setShowStoryGen(false)}
                     cardName={selectedCard ? getCardMeaning(selectedCard.cardIndex).name : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).name : undefined}
                     cardMeaning={selectedCard ? getCardMeaning(selectedCard.cardIndex).keywords : cards.filter(c => c.isFlipped).length > 0 ? getCardMeaning(cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex).keywords : undefined}
-                    cardImage={selectedCard ? `/Cards/${selectedCard.cardIndex < 22 ? '00-TheFool' : 'Cups01'}.jpg` : undefined}
+                    cardImage={selectedCard ? `/cards/${selectedCard.cardIndex}.webp` : cards.filter(c => c.isFlipped).length > 0 ? `/cards/${cards.filter(c => c.isFlipped)[cards.filter(c => c.isFlipped).length - 1].cardIndex}.webp` : undefined}
                 />
 
                 {/* ═══ AI INTERPRETATION MODAL ═══ */}
@@ -579,8 +541,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                 <ExitModal
                     isOpen={showExitModal}
                     onClose={() => setShowExitModal(false)}
-                    onLeaveTemp={handleLeaveTemp}
-                    onEndSession={handleEndSession}
+                    onConfirm={handleEndSession}
                 />
             </main >
         </div >

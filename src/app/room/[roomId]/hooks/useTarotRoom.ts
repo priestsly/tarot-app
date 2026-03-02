@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/client";
 import Peer from "peerjs";
@@ -52,7 +51,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const toastTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const [isConnecting, setIsConnecting] = useState(true);
-    const [localReady, setLocalReady] = useState(isConsultant); // Consultant is ready immediately, Client waits for form
+    const [localReady, setLocalReady] = useState(true);
     const localReadyRef = useRef(localReady);
     useEffect(() => { localReadyRef.current = localReady; }, [localReady]);
 
@@ -60,37 +59,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const [pingedCardId, setPingedCardId] = useState<string | null>(null);
     const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Session Database ID
+    const [sessionId, setSessionId] = useState<string | null>(null);
+
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResponse, setAiResponse] = useState("");
-
-    const router = useRouter();
-
-    // Verify Session is Valid (Not Completed)
-    useEffect(() => {
-        const checkRoomStatus = async () => {
-            const supabase = createClient();
-            const { data } = await supabase
-                .from('session_invites')
-                .select('status, client_context')
-                .eq('room_id', roomId)
-                .maybeSingle();
-
-            if (data) {
-                if (data.status === 'completed' || data.status === 'declined') {
-                    alert("Bu oturum artık aktif değil (tamamlanmış veya iptal edilmiş).");
-                    router.push('/consultations');
-                    return;
-                }
-
-                // Pre-load client context if we're the consultant so it's ready immediately
-                if (isConsultant && data.client_context) {
-                    setClientProfile(data.client_context);
-                }
-            }
-        };
-        checkRoomStatus();
-    }, [roomId, router, isConsultant]);
 
     const lastCursorEmit = useRef<number>(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -321,6 +295,49 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         setTimeout(() => setLinkCopied(false), 2000);
         appendLog("Davet linki kopyalandı");
     }, [roomId, appendLog]);
+
+    // ── Supabase Session Sync ──
+    useEffect(() => {
+        const supabase = createClient();
+        const fetchSession = async () => {
+            const { data } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq('room_id', roomId)
+                .in('status', ['pending', 'active'])
+                .order('created_at', { ascending: false })
+                .maybeSingle();
+
+            if (data) {
+                setSessionId(data.id);
+                if (!searchParams.get('name') && data.client_info) {
+                    setClientProfile({
+                        name: data.client_info.name || "Müşteri",
+                        birth: data.client_info.birth || "",
+                        time: data.client_info.time || "",
+                        pkgId: data.client_info.pkgId || "standard",
+                        cards: data.client_info.cards || 3,
+                        focus: data.client_info.focus || "Ruhsal",
+                        gender: data.client_info.gender
+                    });
+                }
+                if (isConsultant && data.status === 'pending') {
+                    await supabase.from('sessions').update({ status: 'active' }).eq('id', data.id);
+                }
+            }
+        };
+        fetchSession();
+    }, [roomId, isConsultant, searchParams]);
+
+    const handleEndSession = useCallback(async () => {
+        if (!isConsultant || !sessionId) {
+            window.location.href = "/";
+            return;
+        }
+        const supabase = createClient();
+        await supabase.from('sessions').update({ status: 'completed' }).eq('id', sessionId);
+        window.location.href = "/";
+    }, [isConsultant, sessionId]);
 
     // ── Screenshot ──
     const captureScreenshot = async () => {
@@ -1280,7 +1297,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         // Setters
         setIsSidebarOpen,
         setLocalReady,
-        setClientProfile,
         setChatInput, setIsChatOpen, setRemoteFullscreen,
         setShowExitModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowShareModal,
@@ -1294,6 +1310,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, handleEndSession
     };
 }

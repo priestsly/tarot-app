@@ -1,351 +1,304 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Star, Clock, CheckCircle2, XCircle, Loader2, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Video, Settings, Bell, Clock, User, LogOut, ExternalLink } from "lucide-react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-interface SessionInvite {
-    id: string;
-    client_id: string;
-    client_name: string;
-    status: 'pending' | 'accepted' | 'declined';
-    created_at: string;
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
 }
 
-interface Profile {
-    id: string;
-    full_name: string;
-    role: string;
-    avatar_url: string | null;
-}
-
-export default function DashboardPage() {
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [invites, setInvites] = useState<SessionInvite[]>([]);
+export default function ConsultantDashboard() {
+    const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isBusy, setIsBusy] = useState(false);
-    const [presenceChannel, setPresenceChannel] = useState<any>(null);
-    const supabase = createClient();
+    const [user, setUser] = useState<any>(null);
+    const [isOnline, setIsOnline] = useState(false);
+    const [consultantData, setConsultantData] = useState<any>(null);
+    const [onlineClients, setOnlineClients] = useState<Set<string>>(new Set());
+
     const router = useRouter();
+    const supabase = createClient();
 
     useEffect(() => {
-        // Request Notification permission
-        if ('Notification' in window) {
-            Notification.requestPermission();
-        }
+        let activeChannel: any = null;
 
-        let presenceChannel: any = null;
-        let inviteListener: any = null;
-
-        const loadDashboard = async () => {
+        const fetchSessionData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                router.push('/login');
+                router.push("/login");
                 return;
             }
+            setUser(user);
 
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .maybeSingle();
+            // Sadece bu danışmana ait olan oturumları al
+            const { data: sessionData, error } = await supabase
+                .from("sessions")
+                .select(`
+          *,
+          client:profiles!sessions_client_id_fkey(full_name, avatar_url)
+        `)
+                .eq("consultant_id", user.id)
+                .order("created_at", { ascending: false });
 
-            if (profileError) {
-                console.error("Profile fetch error:", profileError);
-                setLoading(false);
-                return;
-            }
-
-            if (profileData) {
-                setProfile(profileData);
-
-                if (profileData.role === 'consultant') {
-                    presenceChannel = supabase.channel('global:consultants', {
-                        config: { presence: { key: 'watcher' } }
-                    });
-
-                    presenceChannel.on('presence', { event: 'sync' }, () => { });
-
-                    presenceChannel.subscribe(async (status: string) => {
-                        if (status === 'SUBSCRIBED') {
-                            await presenceChannel.track({
-                                user_id: user.id,
-                                role: 'consultant',
-                                status: 'online'
-                            });
-                            setPresenceChannel(presenceChannel);
-                        }
-                    });
-
-                    const { data: inviteData } = await supabase
-                        .from('session_invites')
-                        .select('*')
-                        .eq('consultant_id', user.id)
-                        .eq('status', 'pending')
-                        .order('created_at', { ascending: false });
-
-                    if (inviteData) setInvites(inviteData);
-
-                    inviteListener = supabase.channel('consultant-invites')
-                        .on(
-                            'postgres_changes',
-                            { event: 'INSERT', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${user.id}` },
-                            (payload) => {
-                                const newInvite = payload.new as SessionInvite;
-                                setInvites((prev) => [newInvite, ...prev]);
-
-                                if ('Notification' in window && Notification.permission === 'granted') {
-                                    new Notification('Yeni Seans İsteği', {
-                                        body: `${newInvite.client_name} sizinle canlı bir görüşme yapmak istiyor.`,
-                                        icon: '/icon-192.png'
-                                    });
-                                }
-                            }
-                        )
-                        .on(
-                            'postgres_changes',
-                            { event: 'UPDATE', schema: 'public', table: 'session_invites', filter: `consultant_id=eq.${user.id}` },
-                            (payload) => {
-                                if (payload.new.status !== 'pending') {
-                                    setInvites((prev) => prev.filter(inv => inv.id !== payload.new.id));
-                                }
-                            }
-                        )
-                        .subscribe();
-                }
+            if (sessionData) {
+                setSessions(sessionData);
             }
             setLoading(false);
+
+            // Danışman profili verilerini al
+            const { data: cData } = await supabase
+                .from("consultants")
+                .select("*")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            if (cData) {
+                setConsultantData(cData);
+                setIsOnline(cData.is_online);
+            }
+
+            if (!activeChannel && user) {
+                activeChannel = supabase
+                    .channel('public:sessions')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*', // INSERT, UPDATE, DELETE
+                            schema: 'public',
+                            table: 'sessions',
+                            filter: `consultant_id=eq.${user.id}`
+                        },
+                        () => {
+                            fetchSessionData();
+                        }
+                    )
+                    .subscribe();
+            }
+
+            // Müşterilerin online durumunu takip et
+            const presenceChannel = supabase.channel('online_users');
+            presenceChannel
+                .on('presence', { event: 'sync' }, () => {
+                    const state = presenceChannel.presenceState();
+                    const onlineIds = new Set<string>();
+                    Object.values(state).forEach((presences) => {
+                        presences.forEach((p: any) => {
+                            if (p.user_id) onlineIds.add(p.user_id);
+                        });
+                    });
+                    setOnlineClients(onlineIds);
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(presenceChannel);
+            };
         };
 
-        loadDashboard();
+        const cleanupPresence = fetchSessionData();
 
         return () => {
-            if (presenceChannel) supabase.removeChannel(presenceChannel);
-            if (inviteListener) supabase.removeChannel(inviteListener);
+            if (activeChannel) supabase.removeChannel(activeChannel);
+            // Promise tabanlı olduğu için cleanup direkt olarak effect'in dışında ele alınabilir (veya cleanup içinden çıkarılabilir)
         };
-    }, [router, supabase]);
+    }, [supabase, router]);
 
-    useEffect(() => {
-        if (presenceChannel && profile) {
-            presenceChannel.track({
-                user_id: profile.id,
-                role: 'consultant',
-                status: isBusy ? 'busy' : 'online'
-            });
-        }
-    }, [isBusy, presenceChannel, profile]);
-
-    const handleAccept = async (inviteId: string) => {
-        const roomId = crypto.randomUUID(); // Generate unique room ID
+    const toggleOnline = async () => {
+        if (!user) return;
+        const newStatus = !isOnline;
+        setIsOnline(newStatus);
         const { error } = await supabase
-            .from('session_invites')
-            .update({ status: 'accepted', room_id: roomId })
-            .eq('id', inviteId);
+            .from("consultants")
+            .update({ is_online: newStatus })
+            .eq("id", user.id);
+        if (error) {
+            console.error("Failed to update status", error);
+            setIsOnline(!newStatus);
+        }
+    };
+
+    const handleAcceptSession = async (session: any) => {
+        const { error } = await supabase
+            .from("sessions")
+            .update({ status: 'active', updated_at: new Date().toISOString() })
+            .eq('id', session.id);
 
         if (!error) {
-            window.location.href = `/room/${roomId}`;
+            router.push(`/room/${session.room_id}`);
+        } else {
+            console.error("Failed to accept session", error);
         }
     };
 
-    const handleDecline = async (inviteId: string) => {
-        const { error } = await supabase
-            .from('session_invites')
-            .update({ status: 'declined' })
-            .eq('id', inviteId);
-
-        if (!error) {
-            setInvites(invites.filter(inv => inv.id !== inviteId));
-        }
+    const handleRejectSession = async (session: any) => {
+        await supabase
+            .from("sessions")
+            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('id', session.id);
     };
-
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        window.location.href = '/';
-    };
-
-    if (loading) {
-        return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin" /></div>;
-    }
-
-    if (!profile) return null;
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white font-inter">
-            {/* Top Navigation */}
-            <nav className="border-b border-white/10 bg-[#11111a]/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-amber-200" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-heading font-bold leading-tight">Mystic Tarot</h1>
-                            <span className="text-[10px] text-purple-300/80 font-bold uppercase tracking-wider">{profile.role === 'consultant' ? 'Mistik Portal' : 'Danışan Portalı'}</span>
-                        </div>
+        <div className="min-h-screen bg-bg text-text p-6 md:p-12 font-inter pt-24">
+            <div className="max-w-4xl mx-auto space-y-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-heading font-bold text-white mb-2">Danışman Paneli</h1>
+                        <p className="text-sm text-text-muted">Gelen talepleri görüntüleyin ve yönetin.</p>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-white/10 text-right">
-                            <div className="hidden md:block">
-                                <p className="text-sm font-bold">{profile.full_name}</p>
-                                <p className="text-xs text-zinc-400 capitalize">{profile.role === 'consultant' ? 'Danışman' : 'Danışan'}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                                {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" /> : <User className="w-5 h-5 text-zinc-400" />}
-                            </div>
+                    <div className="flex items-center gap-4 bg-surface/50 p-2 rounded-2xl border border-white/5">
+                        <div className="flex flex-col text-right mr-2">
+                            <span className="text-[10px] uppercase tracking-widest font-bold text-text-muted/60">Durumunuz</span>
+                            <span className={cn("text-xs font-bold", isOnline ? "text-emerald-400" : "text-red-400")}>
+                                {isOnline ? 'Çevrimiçi' : 'Çevrimdışı'}
+                            </span>
                         </div>
-                        <Link href="/consultations" className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-2 group">
-                            <Clock className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                            <span className="text-xs font-bold hidden md:inline">Oturumlarım</span>
-                        </Link>
-                        <button onClick={handleSignOut} className="p-2.5 rounded-xl bg-zinc-800/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors" title="Çıkış Yap">
-                            <LogOut className="w-5 h-5" />
+                        <button
+                            onClick={toggleOnline}
+                            className={cn(
+                                "relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none",
+                                isOnline ? "bg-emerald-500/80" : "bg-red-500/20"
+                            )}
+                        >
+                            <motion.div
+                                animate={{ x: isOnline ? 26 : 4 }}
+                                className="absolute top-1 w-6 h-6 rounded-full bg-white shadow-md"
+                            />
                         </button>
                     </div>
                 </div>
-            </nav>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {profile.role === 'consultant' ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Left Column - Active Invites */}
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold font-heading flex items-center gap-3">
-                                    <Bell className="w-6 h-6 text-purple-400 flex-shrink-0" />
-                                    Bekleyen İstekler
-                                    {invites.length > 0 && (
-                                        <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold ml-2 animate-pulse">
-                                            {invites.length} Yeni
-                                        </span>
-                                    )}
-                                </h2>
-                            </div>
-
-                            <AnimatePresence>
-                                {invites.length === 0 ? (
-                                    <motion.div
-                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                        className="bg-[#11111a] border border-white/5 rounded-3xl p-12 text-center"
-                                    >
-                                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
-                                            <Clock className="w-8 h-8 text-zinc-500" />
-                                        </div>
-                                        <h3 className="text-xl font-bold mb-2">Şu an sessizlik hakim...</h3>
-                                        <p className="text-zinc-500">Yeni bir bağlantı isteği geldiğinde burada belirecek. Sayfayı açık tutarak çevrimiçi kalabilirsin.</p>
-                                    </motion.div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {invites.map((invite) => (
-                                            <motion.div
-                                                key={invite.id}
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 20 }}
-                                                className="bg-gradient-to-r from-purple-900/20 to-indigo-900/10 border border-purple-500/30 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-lg shadow-purple-900/10"
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center">
-                                                        <User className="w-6 h-6 text-purple-300" />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-lg font-bold text-white mb-1">{invite.client_name}</h4>
-                                                        <p className="text-sm text-purple-200/60">Canlı seans başlatmak istiyor.</p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-3 w-full sm:w-auto">
-                                                    <button
-                                                        onClick={() => handleDecline(invite.id)}
-                                                        className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-white/5 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-white/10 hover:border-red-500/50 transition-all font-bold text-sm"
-                                                    >
-                                                        Reddet
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleAccept(invite.id)}
-                                                        className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-all shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2"
-                                                    >
-                                                        <Video className="w-4 h-4" />
-                                                        Kabul Et
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Right Column - Status */}
-                        <div className="space-y-6">
-                            <div className="bg-[#11111a] border border-white/5 rounded-3xl p-6">
-                                <h3 className="text-lg font-bold font-heading mb-6 flex items-center gap-2">
-                                    <Settings className="w-5 h-5 text-zinc-400" />
-                                    Danışman Durumu
-                                </h3>
-
-                                <div className={`flex items-center justify-between p-4 border rounded-2xl transition-colors ${isBusy ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-3 h-3 rounded-full animate-pulse ${isBusy ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]' : 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]'}`} />
-                                        <span className={`font-bold ${isBusy ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                            {isBusy ? 'Meşgul' : 'Çevrimiçi'}
-                                        </span>
-                                    </div>
-                                    <span className={`text-xs font-medium ${isBusy ? 'text-amber-400/60' : 'text-emerald-400/60'}`}>
-                                        {isBusy ? 'Sadece Çevrimdışı Talep Alır' : 'Danışanlara Görünür'}
-                                    </span>
-                                </div>
-
-                                <button
-                                    onClick={() => setIsBusy(!isBusy)}
-                                    className="w-full mt-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-sm transition-all"
-                                >
-                                    Durumu {isBusy ? '"Çevrimiçi"' : '"Meşgul"'} Olarak Değiştir
-                                </button>
-
-                                <p className="text-xs text-zinc-500 mt-4 leading-relaxed">
-                                    Bu pencere açık kaldığı sürece profilinde durumunuz görülecektir. Danışanlar siz "Meşgul" veya sayfadan çıkmış olsanız da size Randevu Talebi (Offline İstek) gönderebilirler.
-                                </p>
-                            </div>
-                        </div>
+                {loading ? (
+                    <div className="flex items-center justify-center p-12">
+                        <Loader2 className="w-8 h-8 text-accent animate-spin" />
                     </div>
                 ) : (
-                    <div className="max-w-4xl mx-auto mt-8">
-                        <div className="bg-gradient-to-br from-purple-900/20 to-indigo-900/10 border border-purple-500/20 rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-2xl">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay pointer-events-none" />
-
-                            <div className="relative z-10">
-                                <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20">
-                                    <Sparkles className="w-10 h-10 text-white" />
-                                </div>
-                                <h2 className="text-3xl font-heading font-bold text-white mb-4">Mistik Yolculuğa Hazır Mısın?</h2>
-                                <p className="text-purple-200/70 text-lg mb-8 max-w-lg mx-auto">
-                                    Sorduğun soruların cevapları, ruhunun derinliklerinde gizli. Gerçek bir danışmanla bağlantı kur ve kaderini keşfet.
-                                </p>
-                                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                                    <button
-                                        onClick={() => router.push('/consultants')}
-                                        className="px-8 py-4 bg-white text-[#0a0a0f] font-bold rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 shadow-xl shadow-white/10 w-full sm:w-auto group"
-                                    >
-                                        <Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                                        Danışmanları Keşfet
-                                    </button>
-                                    <button
-                                        onClick={() => router.push('/consultations')}
-                                        className="px-8 py-4 bg-purple-500/10 text-purple-300 font-bold rounded-2xl hover:bg-purple-500/20 hover:text-purple-200 transition-all flex items-center justify-center gap-2 border border-purple-500/20 w-full sm:w-auto"
-                                    >
-                                        <Clock className="w-5 h-5" />
-                                        Geçmiş Seanslarım
-                                    </button>
-                                </div>
+                    <div className="space-y-4">
+                        {sessions.length === 0 ? (
+                            <div className="glass p-8 rounded-2xl text-center border border-white/5">
+                                <p className="text-text-muted font-medium">Henüz bir randevu/okuma talebiniz yok.</p>
                             </div>
-                        </div>
+                        ) : (
+                            <AnimatePresence>
+                                {sessions.map((session) => (
+                                    <motion.div
+                                        key={session.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="glass p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row gap-6 md:items-center justify-between"
+                                    >
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold uppercase text-lg">
+                                                    {session.client?.full_name?.charAt(0) || "M"}
+                                                    <div className={cn("absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[#161623]", onlineClients.has(session.client_id) ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-zinc-600")} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                        {session.client?.full_name || "Gizli Müşteri"}
+                                                        {onlineClients.has(session.client_id) && (
+                                                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md uppercase tracking-widest border border-emerald-500/20 font-bold ml-1">Yayında</span>
+                                                        )}
+                                                    </h3>
+                                                    <p className="text-xs text-text-muted flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        {new Date(session.created_at).toLocaleString('tr-TR')}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {session.client_info && (
+                                                <div className="bg-surface/50 p-3 rounded-lg border border-white/5 text-sm space-y-1 mt-3">
+                                                    {session.client_info.focus && <p><span className="text-text-muted">Niyet:</span> {session.client_info.focus}</p>}
+                                                    {session.client_info.pkgId && <p><span className="text-text-muted">Paket:</span> <span className="text-accent">{session.client_info.pkgId}</span></p>}
+                                                    {session.client_info.cards && <p><span className="text-text-muted">Kart Sayısı:</span> {session.client_info.cards}</p>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col md:items-end gap-2 shrink-0">
+                                            {session.status === 'pending' && !session.client_info?.is_offline_request && (
+                                                <>
+                                                    <span className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20 font-bold uppercase mb-2">
+                                                        Canlı İstek Bekliyor
+                                                    </span>
+                                                    <div className="flex gap-2 w-full md:w-auto">
+                                                        <button
+                                                            onClick={() => handleRejectSession(session)}
+                                                            className="flex-1 md:flex-none px-4 py-2 bg-white/5 hover:bg-red-500/20 text-text-muted hover:text-red-400 rounded-xl transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                                                        >
+                                                            <XCircle className="w-4 h-4" /> Reddet
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleAcceptSession(session)}
+                                                            className="flex-1 md:flex-none px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white rounded-xl shadow-lg transition-transform active:scale-95 font-bold flex items-center justify-center gap-2"
+                                                        >
+                                                            <CheckCircle2 className="w-5 h-5" /> Kabul Et
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {session.status === 'pending' && session.client_info?.is_offline_request && (
+                                                <>
+                                                    <span className="text-xs bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full border border-purple-500/20 font-bold uppercase mb-2">
+                                                        Randevu Talebi
+                                                    </span>
+                                                    <div className="flex gap-2 w-full md:w-auto">
+                                                        <button
+                                                            onClick={() => handleRejectSession(session)}
+                                                            className="flex-1 md:flex-none px-4 py-2 bg-white/5 hover:bg-red-500/20 text-text-muted hover:text-red-400 rounded-xl transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                                                        >
+                                                            <XCircle className="w-4 h-4" /> Reddet
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleAcceptSession(session)}
+                                                            className="flex-1 md:flex-none px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white rounded-xl shadow-lg transition-transform active:scale-95 font-bold flex items-center justify-center gap-2 text-[13px] whitespace-nowrap"
+                                                        >
+                                                            <CheckCircle2 className="w-5 h-5" /> Onayla ve Odayı Kur
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {session.status === 'active' && (
+                                                <>
+                                                    <span className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold uppercase mb-2 flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                        Aktif (Devam Ediyor)
+                                                    </span>
+                                                    <button
+                                                        onClick={() => router.push(`/room/${session.room_id}`)}
+                                                        className="w-full md:w-auto px-6 py-2 bg-accent hover:bg-accent-dim text-white rounded-xl shadow-lg hover:shadow-accent/20 transition-all font-bold"
+                                                    >
+                                                        Odaya Geri Dön
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            {session.status === 'completed' && (
+                                                <span className="text-xs bg-white/10 text-white/50 px-3 py-1 rounded-full border border-white/10 font-bold uppercase">
+                                                    Tamamlandı
+                                                </span>
+                                            )}
+
+                                            {session.status === 'cancelled' && (
+                                                <span className="text-xs bg-red-500/10 text-red-500/70 px-3 py-1 rounded-full border border-red-500/10 font-bold uppercase">
+                                                    İptal / Red
+                                                </span>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        )}
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

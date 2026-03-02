@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
 import {
     User, Calendar, Moon, Star, Sparkles, LogOut,
-    ChevronRight, Heart, Brain, MapPin, Edit3, Save, X, Loader2
+    ChevronRight, Heart, Brain, MapPin, Edit3, Save, X, Loader2, Clock, History
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +32,7 @@ export default function ProfilePage() {
     const [editedProfile, setEditedProfile] = useState<Profile | null>(null);
     const [saving, setSaving] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [history, setHistory] = useState<any[]>([]);
 
     const supabase = createClient();
     const router = useRouter();
@@ -68,6 +69,21 @@ export default function ProfilePage() {
                 setProfile(emptyProfile);
                 setEditedProfile(emptyProfile);
             }
+
+            // Fetch session history (excluding active as they are on homepage, EXCEPT active ones that are accepted offline appointments)
+            const { data: sessionData } = await supabase
+                .from("sessions")
+                .select(`*, consultant:consultants(display_name)`)
+                .or(`client_id.eq.${user.id},consultant_id.eq.${user.id}`)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (sessionData) {
+                // Sadece normal canlı sıra bekleme (istek) olanları gizle, offline randevu taleplerini ve diğer durumları göster
+                const filtered = sessionData.filter(s => !(s.status === 'pending' && !s.client_info?.is_offline_request));
+                setHistory(filtered.slice(0, 10));
+            }
+
             setLoading(false);
         }
         loadProfile();
@@ -77,43 +93,43 @@ export default function ProfilePage() {
         if (!editedProfile || !user) return;
         setSaving(true);
 
-        try {
-            // First, get the current role to preserve it
-            const { data: current } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-            const role = current?.role || 'client';
+        // Sanitize data: convert empty strings to null for date/time
+        const sanitized = {
+            ...editedProfile,
+            birth_date: editedProfile.birth_date || null,
+            birth_time: editedProfile.birth_time || null,
+            zodiac_sign: editedProfile.zodiac_sign || null,
+            ascendant_sign: editedProfile.ascendant_sign || null
+        };
 
-            // Sanitize data: convert empty strings to null for date/time
-            const sanitized = {
-                ...editedProfile,
-                role,
-                birth_date: editedProfile.birth_date || null,
-                birth_time: editedProfile.birth_time || null,
-                zodiac_sign: editedProfile.zodiac_sign || null,
-                ascendant_sign: editedProfile.ascendant_sign || null
-            };
+        const { error } = await supabase
+            .from("profiles")
+            .upsert({ id: user.id, ...sanitized });
 
-            const { error } = await supabase
-                .from("profiles")
-                .upsert({ id: user.id, ...sanitized });
+        if (!error) {
+            setProfile(editedProfile);
+            setIsEditing(false);
+        } else {
+            console.error("Save error:", error);
+            alert("Bilgiler kaydedilirken bir hata oluştu: " + error.message);
+        }
+        setSaving(false);
+    };
 
-            if (!error) {
-                setProfile(editedProfile);
-                setIsEditing(false);
-            } else {
-                console.error("Save error:", error);
-                alert("Bilgiler kaydedilirken bir hata oluştu: " + error.message);
-            }
-        } catch (err: any) {
-            console.error("Runtime save error:", err);
-            alert("Bir hata oluştu: " + err.message);
-        } finally {
-            setSaving(false);
+    const handleCancelRequest = async (sessionId: string) => {
+        const { error } = await supabase
+            .from("sessions")
+            .update({ status: 'cancelled' })
+            .eq("id", sessionId);
+
+        if (!error) {
+            setHistory(h => h.map(s => s.id === sessionId ? { ...s, status: 'cancelled' } : s));
         }
     };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        window.location.href = "/";
+        router.push("/");
     };
 
     if (loading) {
@@ -132,7 +148,7 @@ export default function ProfilePage() {
             <div className="max-w-2xl mx-auto px-4 pt-12 relative z-10">
                 {/* Header/Back */}
                 <button
-                    onClick={() => window.location.href = "/"}
+                    onClick={() => router.push("/")}
                     className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors mb-8 text-sm font-bold uppercase tracking-widest"
                 >
                     <ChevronRight className="w-4 h-4 rotate-180" />
@@ -158,7 +174,9 @@ export default function ProfilePage() {
                         <h1 className="text-2xl font-bold font-heading text-white tracking-tight">
                             {profile?.full_name || "Mistik Yolcu"}
                         </h1>
-                        <p className="text-text-muted text-sm">{user?.email}</p>
+                        <p className="text-text-muted text-sm font-medium tracking-widest uppercase mt-1">
+                            {profile?.zodiac_sign ? `${profile.zodiac_sign} Burcu` : "Kozmik Üye"}
+                        </p>
                     </div>
 
                     <div className="space-y-6">
@@ -275,20 +293,77 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        {/* Stats / Soul Info Mockup */}
-                        <div className="grid grid-cols-3 gap-4 pt-8">
-                            <div className="text-center">
-                                <p className="text-xl font-bold text-white">12</p>
-                                <p className="text-[10px] text-text-muted uppercase tracking-tighter">Açılan Kart</p>
-                            </div>
-                            <div className="text-center border-x border-white/5">
-                                <p className="text-xl font-bold text-white">4</p>
-                                <p className="text-[10px] text-text-muted uppercase tracking-tighter">Favori Deste</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-xl font-bold text-white">7</p>
-                                <p className="text-[10px] text-text-muted uppercase tracking-tighter">Mistik Puan</p>
-                            </div>
+                        {/* Oturum Geçmişi */}
+                        <div className="mt-10 border-t border-white/5 pt-8">
+                            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-accent flex items-center gap-2 mb-6">
+                                <History className="w-5 h-5" />
+                                Randevular & Geçmiş Oturumlar
+                            </h2>
+
+                            {history.length === 0 ? (
+                                <div className="text-center p-6 bg-white/5 rounded-2xl border border-white/5">
+                                    <p className="text-sm text-text-muted">Henüz tamamlanmış bir oturumunuz bulunmuyor.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {history.map((session) => (
+                                        <div key={session.id} className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                                                    <Clock className="w-5 h-5 text-accent" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-white">
+                                                        {session.consultant?.display_name || "Danışman"} İle Görüşme
+                                                    </p>
+                                                    <p className="text-[10px] text-text-muted mt-1 uppercase tracking-widest">
+                                                        {new Date(session.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                                {session.status === 'completed' ? (
+                                                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20 uppercase">
+                                                        Tamamlandı
+                                                    </span>
+                                                ) : session.status === 'cancelled' ? (
+                                                    <span className="text-[10px] font-bold text-red-400 bg-red-400/10 px-3 py-1 rounded-full border border-red-400/20 uppercase">
+                                                        İptal / Red
+                                                    </span>
+                                                ) : session.status === 'pending' && session.client_info?.is_offline_request ? (
+                                                    <div className="flex flex-col items-end gap-1.5">
+                                                        <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 uppercase">
+                                                            Danışman Onayı Bekliyor
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleCancelRequest(session.id)}
+                                                            className="text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase font-bold px-3 py-1"
+                                                        >
+                                                            Talebi İptal Et
+                                                        </button>
+                                                    </div>
+                                                ) : session.status === 'active' ? (
+                                                    <>
+                                                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20 uppercase flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            Oda Hazır
+                                                        </span>
+                                                        <button
+                                                            onClick={() => router.push(`/room/${session.room_id}?role=client`)}
+                                                            className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.2)] flex items-center gap-2"
+                                                        >
+                                                            <Sparkles className="w-3 h-3" />
+                                                            Hemen Katıl
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-text-muted uppercase">{session.status}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </motion.div>

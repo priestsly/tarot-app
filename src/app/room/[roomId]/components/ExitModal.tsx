@@ -3,11 +3,10 @@ import { LogOut } from 'lucide-react';
 interface ExitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLeaveTemp: () => void;
-    onEndSession: () => void;
+    onConfirm: () => void;
 }
 
-export const ExitModal = ({ isOpen, onClose, onLeaveTemp, onEndSession }: ExitModalProps) => {
+export const ExitModal = ({ isOpen, onClose, onConfirm }: ExitModalProps) => {
     if (!isOpen) return null;
 
     return (
@@ -18,19 +17,12 @@ export const ExitModal = ({ isOpen, onClose, onLeaveTemp, onEndSession }: ExitMo
 
                 <h3 className="text-xl font-bold text-text mb-2 flex items-center gap-2">
                     <LogOut className="w-5 h-5 text-danger" />
-                    Çıkış Seçenekleri
+                    Çıkış Onayı
                 </h3>
-                <p className="text-sm text-text-muted leading-relaxed">Bağlantınızı nasıl sonlandırmak istersiniz? Kalıcı olarak kapatırsanız bu seansa tekrar dönülemez.</p>
-                <div className="flex flex-col gap-2 pt-4">
-                    <button onClick={onLeaveTemp} className="w-full py-3 px-4 rounded-xl glass text-text hover:text-white hover:bg-white/10 transition-all text-sm font-semibold border border-transparent hover:border-white/20">
-                        Geçici Ayrıl (Sonra Döneceğim)
-                    </button>
-                    <button onClick={onEndSession} className="w-full py-3 px-4 rounded-xl bg-danger/80 text-white hover:bg-danger transition-all text-sm font-semibold shadow-lg shadow-danger/20">
-                        Oturumu Tamamen Kapat
-                    </button>
-                    <button onClick={onClose} className="w-full py-2 px-4 rounded-xl text-text-muted hover:text-white transition-all text-xs font-semibold mt-2">
-                        Vazgeç
-                    </button>
+                <p className="text-sm text-text-muted leading-relaxed">Gerçekten mistik masadan ayrılmak istiyor musunuz? Ses veya görüntü bağlantısı kesilecektir.</p>
+                <div className="flex gap-3 pt-5">
+                    <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl glass text-text-muted hover:text-text hover:bg-white/5 transition-all text-sm font-semibold border border-transparent hover:border-border">Vazgeç</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 px-4 rounded-xl bg-danger/90 text-white hover:bg-danger transition-all text-sm font-semibold shadow-[0_4px_14px_0_rgba(239,68,68,0.39)]">Çıkış Yap</button>
                 </div>
             </div>
         </div>

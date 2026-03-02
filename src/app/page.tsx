@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon, Settings } from "lucide-react";
+import { LogIn, Sparkles, Eye, Calendar, Clock, User, ArrowRight, ArrowLeft, Star, Heart, Moon, Shield, X, ChevronRight, Loader2, UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -70,6 +70,8 @@ function calculatePersonalityCard(day: number): { number: number; name: string }
 
 // ─── FLOATING PARTICLES ─────────────────────────────────────────
 function Particles() {
+  const [mounted, setMounted] = useState(false);
+
   const dots = useMemo(() => Array.from({ length: 40 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
@@ -78,6 +80,12 @@ function Particles() {
     delay: Math.random() * 5,
     duration: Math.random() * 8 + 10,
   })), []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -108,8 +116,7 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const initialRoom = searchParams.get('room');
 
-  const [step, setStep] = useState<string>(initialRoom ? "client_step1_name" : "welcome");
-  const [roomId, setRoomId] = useState(initialRoom || "");
+  const [step, setStep] = useState<string>("welcome");
   const [clientName, setClientName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
@@ -119,6 +126,17 @@ function HomeContent() {
   const [isWheelOpen, setIsWheelOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+
+  // Yeni sistem (Danışman / Oturum)
+  const [consultants, setConsultants] = useState<any[]>([]);
+  const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [isWaitingForConsultant, setIsWaitingForConsultant] = useState(false);
+  const [rejectedModal, setRejectedModal] = useState(false);
+  const [appointmentModal, setAppointmentModal] = useState(false);
+  const [offlineWarningModal, setOfflineWarningModal] = useState(false);
+  const [clientSessions, setClientSessions] = useState<any[]>([]);
+  const [isConsultant, setIsConsultant] = useState(false);
 
   const supabase = createClient();
 
@@ -133,32 +151,52 @@ function HomeContent() {
         if (data) {
           setProfile(data);
         } else {
-          // Fallback to user metadata if profile row missing
           setProfile({
             full_name: user.user_metadata?.full_name || "",
             birth_date: user.user_metadata?.birth_date || "",
           });
         }
 
-        // Check for active accepted invites specifically for this user
-        const { data: activeInvite } = await supabase
-          .from('session_invites')
-          .select('room_id')
-          .eq('client_id', user.id)
-          .eq('status', 'accepted')
+        const { data: sessionData } = await supabase.from('sessions')
+          .select(`*, consultant:consultants(display_name)`)
+          .or(`client_id.eq.${user.id},consultant_id.eq.${user.id}`)
+          .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(5);
+        if (sessionData) setClientSessions(sessionData);
 
-        if (activeInvite?.room_id) {
-          // If there's a recently accepted invite, offer to join
-          if (confirm("Kabul edilmiş bir seans isteğiniz var. Odaya katılmak ister misiniz?")) {
-            router.push(`/room/${activeInvite.room_id}`);
-          }
-        }
+        const { data: cData } = await supabase.from('consultants').select('id').eq('id', user.id).maybeSingle();
+        if (cData) setIsConsultant(true);
       }
     };
     getUser();
+
+    let sessionStatusChannel: any = null;
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
+      if (session?.user) {
+        sessionStatusChannel = supabase.channel('user_sessions_channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `client_id=eq.${session.user.id}` }, () => getUser())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `consultant_id=eq.${session.user.id}` }, () => getUser())
+          .subscribe();
+      } else {
+        if (sessionStatusChannel) supabase.removeChannel(sessionStatusChannel);
+      }
+    });
+
+    const fetchConsultants = async () => {
+      const { data } = await supabase.from("consultants")
+        .select(`*, profiles (avatar_url)`)
+        .order('is_online', { ascending: false });
+      if (data) setConsultants(data);
+    };
+    fetchConsultants();
+
+    // Listen for consultant status changes
+    const consultantChannel = supabase.channel('consultant_status')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'consultants' }, () => {
+        fetchConsultants();
+      })
+      .subscribe();
 
     // @ts-ignore
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
@@ -178,8 +216,92 @@ function HomeContent() {
       }
     });
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      authSub.unsubscribe();
+      supabase.removeChannel(consultantChannel);
+      if (sessionStatusChannel) supabase.removeChannel(sessionStatusChannel);
+    };
   }, []);
+
+  // Oturum kabul edilmesini dinle
+  useEffect(() => {
+    const supabase = createClient();
+    if (!pendingSessionId || !supabase) return;
+
+    let checkInterval: NodeJS.Timeout;
+
+    const channel = supabase
+      .channel(`session_${pendingSessionId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${pendingSessionId}` },
+        (payload: any) => {
+          console.log("Session updated!", payload.new);
+          if (payload.new.status === 'active') {
+            const params = new URLSearchParams();
+            params.set("role", "client");
+            params.set("name", clientName);
+            params.set("birth", birthDate);
+            if (birthTime) params.set("time", birthTime);
+            if (readingFocus) params.set("focus", readingFocus);
+
+            if (readingFocus === "İlişki Danışmanı") {
+              params.set("pkgId", "relation");
+              params.set("cards", "1");
+              params.set("gender", gender);
+            } else {
+              const pkg = PACKAGES.find(p => p.id === selectedPackage);
+              const cardCount = pkg ? pkg.cards : 3;
+              params.set("pkgId", selectedPackage);
+              params.set("cards", String(cardCount));
+            }
+
+            router.push(`/room/${payload.new.room_id}?${params.toString()}`);
+          } else if (payload.new.status === 'cancelled') {
+            setIsWaitingForConsultant(false);
+            setPendingSessionId(null);
+            setStep("welcome");
+            setRejectedModal(true);
+          }
+        }
+      )
+      .subscribe((status) => {
+        // If realtime fails for some reason, doing a manual fallback check
+        if (status === 'SUBSCRIBED') {
+          checkInterval = setInterval(async () => {
+            const { data } = await supabase.from('sessions').select('*').eq('id', pendingSessionId).single();
+            if (data?.status === 'active') {
+              // trigger logic just like payload
+              const params = new URLSearchParams();
+              params.set("role", "client");
+              params.set("name", clientName);
+              params.set("birth", birthDate);
+              if (birthTime) params.set("time", birthTime);
+              if (readingFocus) params.set("focus", readingFocus);
+
+              if (readingFocus === "İlişki Danışmanı") {
+                params.set("pkgId", "relation");
+                params.set("cards", "1");
+                params.set("gender", gender);
+              } else {
+                const pkg = PACKAGES.find(p => p.id === selectedPackage);
+                const cardCount = pkg ? pkg.cards : 3;
+                params.set("pkgId", selectedPackage);
+                params.set("cards", String(cardCount));
+              }
+
+              router.push(`/room/${data.room_id}?${params.toString()}`);
+            }
+          }, 5000); // Check every 5s silently as backup
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [pendingSessionId, router, clientName, birthDate, birthTime, readingFocus, gender, selectedPackage]);
 
   const handleUseProfile = () => {
     if (!profile) return;
@@ -221,27 +343,12 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    if (initialRoom) {
-      setRoomId(initialRoom);
-      setStep("client_step1_name");
-    }
+    // initialRoom handled differently now, mostly redirecting or keeping empty
   }, [initialRoom]);
 
-  const handleConsultantLogin = () => {
-    const newRoomId = "tarot-" + Math.random().toString(36).substring(2, 6);
-    router.push(`/room/${newRoomId}?role=consultant`);
-  };
-
-  const submitRoomInput = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (roomId.trim()) setStep("client_step1_name");
-  };
-
-  const submitClientForm = () => {
-    console.log("Submitting form with:", { roomId, clientName, birthDate, readingFocus, selectedPackage });
-
-    if (!roomId) {
-      alert("Oda kodu eksik. Lütfen ana sayfaya dönüp oda kodunu tekrar girin.");
+  const submitClientForm = async () => {
+    if (!selectedConsultant) {
+      alert("Lütfen önce bir danışman seçin.");
       return;
     }
     if (!clientName || !birthDate) {
@@ -249,34 +356,57 @@ function HomeContent() {
       return;
     }
 
-    const params = new URLSearchParams();
-    params.set("role", "client");
-    params.set("name", clientName);
-    params.set("birth", birthDate);
-    if (birthTime) params.set("time", birthTime);
-    if (readingFocus) params.set("focus", readingFocus);
-
-    if (readingFocus === "İlişki Danışmanı") {
-      if (!gender) {
-        alert("Lütfen enerji seçimi yapın.");
-        return;
-      }
-      params.set("pkgId", "relation");
-      params.set("cards", "1");
-      params.set("gender", gender);
-    } else {
-      if (!selectedPackage) {
-        alert("Lütfen bir paket seçin.");
-        return;
-      }
-      const pkg = PACKAGES.find(p => p.id === selectedPackage);
-      const cardCount = pkg ? pkg.cards : 3;
-      params.set("pkgId", selectedPackage);
-      params.set("cards", String(cardCount));
+    // Validate package selections depending on focus
+    if (readingFocus === "İlişki Danışmanı" && !gender) {
+      alert("Lütfen enerji seçimi yapın.");
+      return;
+    } else if (readingFocus !== "İlişki Danışmanı" && !selectedPackage) {
+      alert("Lütfen bir paket seçin.");
+      return;
     }
 
-    console.log("Redirecting to room with params:", params.toString());
-    router.push(`/room/${roomId}?${params.toString()}`);
+    // Check if consultant is online
+    const isOffline = !selectedConsultant.is_online;
+    if (!isOffline) {
+      setIsWaitingForConsultant(true);
+    }
+
+    // Generate room code and insert session into DB
+    const roomCode = "tarot-" + Math.random().toString(36).substring(2, 6);
+
+    const clientInfo = {
+      name: clientName,
+      birth_date: birthDate,
+      birth_time: birthTime,
+      gender,
+      focus: readingFocus,
+      pkgId: readingFocus === "İlişki Danışmanı" ? "relation" : selectedPackage,
+      cards: readingFocus === "İlişki Danışmanı" ? 1 : (PACKAGES.find(p => p.id === selectedPackage)?.cards || 3),
+      is_offline_request: isOffline
+    };
+
+    const supabase = createClient();
+    const { data, error } = await supabase.from('sessions').insert({
+      consultant_id: selectedConsultant.id,
+      status: 'pending',
+      room_id: roomCode,
+      client_info: clientInfo,
+      client_id: user ? user.id : null
+    }).select().single();
+
+    if (error) {
+      console.error(error);
+      alert("Oturum açılamadı. Lütfen giriş yaptığınızı doğrulayın veya veritabanı yamasını çalıştırın.");
+      setIsWaitingForConsultant(false);
+      return;
+    }
+
+    if (isOffline) {
+      setAppointmentModal(true);
+      setStep("welcome"); // Reset view
+    } else {
+      setPendingSessionId(data.id);
+    }
   };
 
   // Total steps for the progress dots (client flow)
@@ -295,79 +425,143 @@ function HomeContent() {
   const renderWelcome = () => (
     <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
       {user ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => router.push("/consultants")}
-            className="w-full sm:col-span-2 bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 rounded-3xl p-6 flex flex-col items-center justify-center group overflow-hidden relative cursor-pointer hover:bg-amber-500/30 transition-all active:scale-[0.98] shadow-lg shadow-amber-500/5 hover:shadow-amber-500/10"
-          >
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay group-hover:opacity-40 transition-opacity" />
-            <Sparkles className="w-10 h-10 text-amber-400 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="text-xl font-bold font-heading text-white tracking-wider">Fal Baktır</h3>
-            <p className="text-xs text-amber-200/80 mt-1 font-medium">Hemen Çevrimiçi Bir Danışmana Bağlan</p>
-          </button>
-
-          <button
-            onClick={() => router.push("/consultations")}
-            className="w-full bg-surface/60 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between group hover:bg-emerald-500/10 transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Geçmiş & Aktif</p>
-                <p className="text-base text-text font-bold">Oturumlarım</p>
-              </div>
+        <div
+          onClick={() => router.push("/profile")}
+          className="w-full bg-surface/40 border border-accent/20 rounded-2xl p-4 flex items-center justify-between group overflow-hidden relative cursor-pointer hover:bg-surface/60 transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+              {(profile?.full_name?.[0] || user.email?.[0] || "U").toUpperCase()}
             </div>
-            <ChevronRight className="w-5 h-5 text-emerald-400 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-          </button>
-
-          <button
-            onClick={() => profile?.role === 'consultant' ? router.push("/dashboard") : router.push("/profile")}
-            className="w-full bg-surface/60 border border-purple-500/20 rounded-2xl p-5 flex items-center justify-between group hover:bg-purple-500/10 transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
-                {profile?.role === 'consultant' ? <Shield className="w-6 h-6" /> : <User className="w-6 h-6" />}
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">{profile?.role === 'consultant' ? "Yönetim Paneli" : "Hesabım"}</p>
-                <p className="text-base text-text font-bold">{profile?.role === 'consultant' ? "Danışman Paneli" : "Profilim"}</p>
-              </div>
+            <div className="text-left">
+              <p className="text-[10px] text-accent font-bold uppercase tracking-widest">{isConsultant ? "Danışman Paneli" : "Profilim"}</p>
+              <p className="text-sm text-text font-medium truncate max-w-[12rem]">{profile?.full_name || user.email}</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-purple-400 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-          </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {isConsultant && (
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push("/dashboard"); }}
+                className="px-3 py-1.5 bg-accent/20 border border-accent/40 rounded-lg text-[10px] font-bold text-accent hover:bg-accent/30 transition-all uppercase"
+              >
+                Panel
+              </button>
+            )}
+            <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
+          </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          <button
-            onClick={() => router.push("/consultants")}
-            className="group w-full relative overflow-hidden rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent p-6 flex flex-col items-center gap-3 transition-all hover:border-amber-500/40 hover:bg-amber-500/20 shadow-lg mb-6"
-          >
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay" />
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <div className="text-center relative z-10">
-              <h3 className="text-xl font-bold font-heading text-white">Danışmanları Keşfet</h3>
-              <p className="text-sm text-text-muted mt-1">Sana özel atanmış kader bağlarını keşfetmeye başla.</p>
-            </div>
-          </button>
+        <button
+          onClick={() => router.push("/login")}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold transition-all hover:bg-white/10 active:scale-[0.98] group"
+        >
+          <LogIn className="w-5 h-5 text-accent group-hover:rotate-12 transition-transform" />
+          <span>Giriş Yap / Üye Ol</span>
+        </button>
+      )}
 
-          <button
-            onClick={() => router.push("/login")}
-            className="w-full flex items-center justify-center gap-3 px-6 py-5 bg-white/5 border border-white/10 text-white rounded-2xl font-bold transition-all hover:bg-white/10 active:scale-[0.98] group"
-          >
-            <LogIn className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-            <span>Giriş Yap veya Üye Ol</span>
-          </button>
+      {clientSessions.length > 0 && (
+        <div className="mb-6 space-y-3">
+          <h3 className="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-bold ml-1 mb-2">Aktif Oturum (Geri Dön)</h3>
+          {clientSessions.map(session => (
+            <button
+              key={session.id}
+              onClick={() => router.push(`/room/${session.room_id}?role=client`)}
+              className="w-full relative overflow-hidden bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-center justify-between group hover:bg-emerald-500/20 transition-all text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg shadow-inner bg-emerald-500/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{session.consultant?.display_name || "Danışman"}</p>
+                  <p className="text-[10px] mt-0.5 flex items-center gap-1 font-bold uppercase tracking-wider text-emerald-400">
+                    Devam Ediyor
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Keşfet */}
-      <div className="relative my-8">
+      <div className="relative my-6 opacity-80">
         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
-        <div className="relative flex justify-center"><span className="bg-[#0a0a0f] px-5 py-1 text-[10px] text-text-muted/60 uppercase tracking-[0.2em] font-bold border border-border/50 rounded-full">Keşfet</span></div>
+        <div className="relative flex justify-center"><span className="bg-bg px-4 text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Uzman Danışmanlar</span></div>
+      </div>
+
+      <div className="space-y-3">
+        {/* AI Tarot (Sürekli Aktif) */}
+        <button
+          onClick={() => router.push("/ai-tarot")}
+          className="w-full flex items-center gap-4 p-4 rounded-xl border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-indigo-500/10 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/50 transition-all text-left group shadow-[0_0_15px_rgba(217,70,239,0.1)] relative overflow-hidden"
+        >
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-500/50 to-transparent opacity-50" />
+
+          <div className="w-12 h-12 rounded-full relative shrink-0 border border-fuchsia-400/50 overflow-hidden bg-[#1a0f2e] flex items-center justify-center shadow-lg shadow-fuchsia-500/20">
+            <span className="text-xl">🤖</span>
+            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-surface bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 to-indigo-300 flex items-center gap-2">
+              Mistik Yapay Zeka
+              <span className="flex items-center gap-0.5 text-[9px] text-fuchsia-300 bg-fuchsia-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-widest border border-fuchsia-500/30 font-bold">
+                7/24 Aktif
+              </span>
+            </h3>
+            <p className="text-[11px] text-fuchsia-200/70 mt-1 truncate font-medium">Günlük Ücretsiz Yorum • Görselli Seçim</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-fuchsia-500/50 group-hover:text-fuchsia-400 group-hover:translate-x-1 transition-all" />
+        </button>
+
+        {/* Canlı Danışmanlar */}
+        {consultants.length === 0 ? (
+          <div className="text-center p-4 border border-white/5 rounded-xl bg-white/5">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-text-muted mb-2" />
+            <p className="text-xs text-text-muted">Danışmanlar aranıyor...</p>
+          </div>
+        ) : (
+          consultants.map(c => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setSelectedConsultant(c);
+                if (!c.is_online) {
+                  setOfflineWarningModal(true);
+                } else {
+                  setStep("client_step1_name");
+                }
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-accent/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all text-left group overflow-hidden relative"
+            >
+              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="w-12 h-12 rounded-full relative shrink-0 border border-white/20 overflow-hidden bg-midnight flex items-center justify-center shadow-lg">
+                {c.profiles?.avatar_url ? (
+                  <img src={c.profiles.avatar_url} alt={c.display_name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-bold text-accent">{c.display_name?.charAt(0) || "D"}</span>
+                )}
+                <div className={cn("absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[#161623]", c.is_online ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-zinc-500")} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 group-hover:text-accent-light transition-colors">
+                  <span className="truncate">{c.display_name}</span>
+                  {c.rating && <span className="flex items-center gap-0.5 text-[10px] text-amber-300 bg-amber-500/20 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0"><Star className="w-3 h-3 fill-amber-300" /> {c.rating}</span>}
+                  {!c.is_online && <span className="text-[9px] text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700 uppercase tracking-widest font-bold ml-auto shrink-0">Çevrimdışı</span>}
+                </h3>
+                <p className="text-[11px] text-zinc-300/80 mt-1 truncate font-medium">{c.specialties?.join(" • ") || "Tarot, Astroloji"}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-accent group-hover:translate-x-1 transition-all" />
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Meditation Room */}
+      <div className="relative my-6 mt-8">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+        <div className="relative flex justify-center"><span className="bg-bg px-3 text-[9px] text-text-muted/40 uppercase tracking-[0.2em]">keşfet</span></div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -381,7 +575,6 @@ function HomeContent() {
           { href: "/compatibility", name: "Burç Uyumu", desc: "İki burcun kimyası", icon: "💕", border: "border-pink-500/10", hover: "hover:border-pink-500/20 hover:bg-pink-500/5" },
           { href: "/calendar", name: "Kozmik Takvim", desc: "Ay & retrograd", icon: "📅", border: "border-cyan-500/10", hover: "hover:border-cyan-500/20 hover:bg-cyan-500/5" },
           { href: "/affirmations", name: "Afirmasyonlar", desc: "Günlük olumlamalar", icon: "✨", border: "border-violet-500/10", hover: "hover:border-violet-500/20 hover:bg-violet-500/5" },
-          { href: "/ai-tarot", name: "AI Tarot", desc: "7/24 kart çekimi", icon: "🤖", border: "border-fuchsia-500/10", hover: "hover:border-fuchsia-500/20 hover:bg-fuchsia-500/5" },
           { href: "/relationship", name: "İlişki Koçu", desc: "AI danışmanlık", icon: "💬", border: "border-rose-500/10", hover: "hover:border-rose-500/20 hover:bg-rose-500/5" },
           { href: "/birthchart", name: "Doğum Haritası", desc: "SVG yıldız haritası", icon: "🌌", border: "border-sky-500/10", hover: "hover:border-sky-500/20 hover:bg-sky-500/5" },
           { href: "/mind-question", name: "Aklımdaki Soru", desc: "Cevaplar Kitabı", icon: "📖", border: "border-emerald-500/10", hover: "hover:border-emerald-500/20 hover:bg-emerald-500/5" },
@@ -399,40 +592,13 @@ function HomeContent() {
     </motion.div>
   );
 
-  // ─── ROOM INPUT ─────────────────────────────────────────────────
-  const renderRoomInput = () => (
-    <motion.div key="room_input" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-      <button onClick={() => setStep("welcome")} className={backBtn}>
-        <ArrowLeft className="w-4 h-4" /> Geri
-      </button>
-      <div className="text-center space-y-2 mb-8">
-        <h2 className="text-2xl font-heading text-text">Odaya Katıl</h2>
-        <p className="text-sm text-text-muted">Danışmanınızın paylaştığı oda kodunu girin.</p>
-      </div>
-      <form onSubmit={submitRoomInput} className="space-y-4">
-        <input
-          type="text"
-          value={roomId}
-          onChange={(e) => setRoomId(e.target.value)}
-          placeholder="Oda ID (Örn: tarot-a1b2)"
-          className={inputClass + " text-center font-mono text-lg"}
-          required
-        />
-        <button type="submit" disabled={!roomId.trim()} className={btnPrimary}>
-          Devam Et <ArrowRight className="w-4 h-4" />
-        </button>
-      </form>
-    </motion.div>
-  );
 
   // ─── STEP 1: NAME ───────────────────────────────────────────────
   const renderClientStep1 = () => (
     <motion.div key="client_step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
-      {!initialRoom && (
-        <button onClick={() => setStep("room_input")} className={backBtn}>
-          <ArrowLeft className="w-4 h-4" /> Geri
-        </button>
-      )}
+      <button onClick={() => setStep("welcome")} className={backBtn}>
+        <ArrowLeft className="w-4 h-4" /> Geri
+      </button>
       <div className="text-center space-y-2 mb-4">
         <h2 className="text-2xl font-heading text-text">Sizi Tanıyalım</h2>
         <p className="text-sm text-text-muted">Kartların enerjisini size bağlamak için.</p>
@@ -688,26 +854,46 @@ function HomeContent() {
         disabled={!selectedPackage}
         className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-6 bg-gradient-to-r from-gold/80 to-amber-400/70 text-black/80 font-bold rounded-xl tracking-wide transition-all hover:brightness-105 hover:shadow-lg hover:shadow-gold/10 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
       >
-        Fal Başlasın <Sparkles className="w-5 h-5" />
+        {selectedConsultant?.is_online ? (
+          <>Fal Başlasın <Sparkles className="w-5 h-5" /></>
+        ) : (
+          <>Randevu Talebi Gönder <Calendar className="w-5 h-5" /></>
+        )}
       </button>
     </motion.div>
   );
 
-  // ─── PROGRESS DOTS ──────────────────────────────────────────────
-  const renderProgress = () => {
-    if (stepIndex < 0) return null;
+  // ─── WAITING OVERLAY ────────────────────────────────────────────
+  if (isWaitingForConsultant) {
     return (
-      <div className="flex justify-center gap-2 mt-8">
-        {[0, 1, 2, 3, 4].map(i => (
-          <div
-            key={i}
-            className={`h-1.5 rounded-full transition-all duration-500 ${i === stepIndex ? "w-8 bg-accent" : i < stepIndex ? "w-3 bg-accent/50" : "w-3 bg-border"
-              }`}
-          />
-        ))}
+      <div className="min-h-screen bg-bg flex items-center justify-center p-6 relative overflow-hidden font-inter">
+        <div className="absolute inset-0 bg-midnight/30" />
+        <Particles />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass p-8 rounded-2xl max-w-sm w-full relative z-10 text-center border-accent/20 border shadow-2xl"
+        >
+          <div className="w-20 h-20 mx-auto mb-6 relative">
+            <div className="absolute inset-0 rounded-full border-t-2 border-accent animate-spin" />
+            <div className="absolute inset-2 rounded-full border-r-2 border-purple-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-amber-300 animate-pulse" />
+            </div>
+          </div>
+          <h2 className="text-xl font-heading font-bold text-white mb-2">Danışman Bekleniyor</h2>
+          <p className="text-sm text-text-muted mb-6">Talebiniz {selectedConsultant?.display_name || "danışman"} uzmanına iletildi. Lütfen ayrılmayın, bağlantı onaylandığında otomatik olarak odaya alınacaksınız.</p>
+
+          <button
+            onClick={() => { setIsWaitingForConsultant(false); setPendingSessionId(null); setStep("welcome"); }}
+            className="text-xs text-red-400 hover:text-red-300 underline underline-offset-4"
+          >
+            İptal Et ve Geri Dön
+          </button>
+        </motion.div>
       </div>
     );
-  };
+  }
 
   // ─── LAYOUT ─────────────────────────────────────────────────────
   return (
@@ -788,7 +974,6 @@ function HomeContent() {
             <div className="relative z-10">
               <AnimatePresence mode="wait">
                 {step === "welcome" && renderWelcome()}
-                {step === "room_input" && renderRoomInput()}
                 {step === "client_step1_name" && renderClientStep1()}
                 {step === "client_step2_birth" && renderClientStep2()}
                 {step === "client_step3_focus" && renderClientStep3Focus()}
@@ -797,8 +982,6 @@ function HomeContent() {
               </AnimatePresence>
             </div>
           </div>
-
-          {renderProgress()}
 
           <p className="text-center text-[10px] text-text-muted/40 tracking-[0.15em] uppercase mt-8 mb-8 lg:mb-0">
             Şifreli Bağlantı · Gerçek Zamanlı
@@ -832,6 +1015,131 @@ function HomeContent() {
                 <X className="w-5 h-5" />
               </button>
               <MagicWheel />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* REJECTED MODAL */}
+      <AnimatePresence>
+        {rejectedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setRejectedModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-zinc-900 border border-white/10 shadow-2xl rounded-3xl p-6 text-center overflow-hidden"
+            >
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500/50 to-orange-500/50" />
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <X className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Talebiniz İletilemedi</h3>
+              <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                Danışman şu anda meşgul veya talebinizi reddetti. Lütfen yıldızlar tekrar hizalanana kadar bekleyin veya başka bir danışman seçin.
+              </p>
+              <button
+                onClick={() => setRejectedModal(false)}
+                className="w-full py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold tracking-wide transition-all active:scale-95"
+              >
+                Tamam, anladım
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* APPOINTMENT MODAL */}
+      <AnimatePresence>
+        {appointmentModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setAppointmentModal(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 10 }}
+              className="w-full max-w-sm bg-surface border border-accent/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden text-center z-10"
+            >
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                <Calendar className="w-8 h-8 text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-heading font-bold text-white mb-2">Randevu Talebi İletildi</h2>
+              <p className="text-sm text-text-muted mb-6">
+                Danışman şu an çevrimdışı. Talebiniz başarıyla iletildi. Danışman panelinden onaylandığında ve odayı kurduğunda profilinizdeki aktif randevular kısmından ona katılabilirsiniz.
+              </p>
+              <button
+                onClick={() => setAppointmentModal(false)}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-colors"
+              >
+                Anladım
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* OFFLINE WARNING MODAL */}
+      <AnimatePresence>
+        {offlineWarningModal && selectedConsultant && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => setOfflineWarningModal(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 10 }}
+              className="w-full max-w-sm bg-surface border border-amber-500/30 shadow-[0_0_40px_rgba(245,158,11,0.15)] rounded-3xl p-8 relative overflow-hidden text-center z-10"
+            >
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-400 to-orange-500" />
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-6 border border-amber-500/20 relative">
+                <span className="text-amber-400 font-bold text-2xl">Z</span>
+                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 animate-ping" />
+              </div>
+              <h2 className="text-xl font-heading font-bold text-white mb-2">Danışman Çevrimdışı</h2>
+              <p className="text-sm text-zinc-400 mb-8 leading-relaxed">
+                <strong className="text-white">{selectedConsultant.display_name}</strong> şu an çevrimdışı.
+                Devam ederseniz, form bilgileriniz <strong>Randevu Talebi</strong> olarak iletilecektir.
+                Danışman çevrimiçi olduğunda size dönüş yapacaktır.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setOfflineWarningModal(false);
+                    setStep("client_step1_name");
+                  }}
+                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-lg shadow-amber-500/20 font-bold transition-all hover:bg-amber-400"
+                >
+                  Anladım, Talep Oluştur
+                </button>
+                <button
+                  onClick={() => {
+                    setOfflineWarningModal(false);
+                    setSelectedConsultant(null);
+                  }}
+                  className="w-full py-3.5 bg-white/5 text-zinc-300 rounded-xl border border-white/10 font-bold transition-all hover:bg-white/10 hover:text-white"
+                >
+                  Vazgeç, Başka Seç
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

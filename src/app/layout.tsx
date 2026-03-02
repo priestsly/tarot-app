@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Quicksand, Cinzel } from "next/font/google";
 import "./globals.css";
+import GlobalNotification from "@/components/GlobalNotification";
 
 const body = Quicksand({
   variable: "--font-inter",
@@ -37,8 +38,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-import { GlobalPresence } from "@/components/GlobalPresence";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -52,8 +51,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={`${body.variable} ${heading.variable} antialiased bg-[#0C0B14] text-neutral-50`}>
+        <GlobalNotification />
         {children}
-        <GlobalPresence />
         <script
           dangerouslySetInnerHTML={{
             __html: `
