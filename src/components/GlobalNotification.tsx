@@ -33,8 +33,8 @@ export default function GlobalNotification() {
                 .on("presence", { event: "sync" }, () => {
                     const state = presenceChannel.presenceState();
                     const onlineIds = new Set<string>();
-                    Object.values(state).forEach((presences) => {
-                        presences.forEach((p: any) => {
+                    Object.values(state).forEach((presences: any) => {
+                        (presences as any[]).forEach((p: any) => {
                             if (p.user_id) onlineIds.add(p.user_id);
                         });
                     });

@@ -25,8 +25,33 @@ export default function ConsultantDashboard() {
 
     useEffect(() => {
         let activeChannel: any = null;
+        let presenceChannel: any = null;
 
-        const fetchSessionData = async () => {
+        const fetchSessions = async (userId: string) => {
+            const { data } = await supabase
+                .from("sessions")
+                .select(`id, room_id, status, client_id, client_info, created_at, client:profiles!sessions_client_id_fkey(full_name, avatar_url)`)
+                .eq("consultant_id", userId)
+                .order("created_at", { ascending: false });
+
+            if (data) setSessions(data);
+            setLoading(false);
+        };
+
+        const fetchConsultantData = async (userId: string) => {
+            const { data } = await supabase
+                .from("consultants")
+                .select("id, is_online")
+                .eq("id", userId)
+                .maybeSingle();
+
+            if (data) {
+                setConsultantData(data);
+                setIsOnline(data.is_online);
+            }
+        };
+
+        const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 router.push("/login");
@@ -34,76 +59,45 @@ export default function ConsultantDashboard() {
             }
             setUser(user);
 
-            // Sadece bu danışmana ait olan oturumları al
-            const { data: sessionData, error } = await supabase
-                .from("sessions")
-                .select(`
-          *,
-          client:profiles!sessions_client_id_fkey(full_name, avatar_url)
-        `)
-                .eq("consultant_id", user.id)
-                .order("created_at", { ascending: false });
+            fetchSessions(user.id);
+            fetchConsultantData(user.id);
 
-            if (sessionData) {
-                setSessions(sessionData);
-            }
-            setLoading(false);
-
-            // Danışman profili verilerini al
-            const { data: cData } = await supabase
-                .from("consultants")
-                .select("*")
-                .eq("id", user.id)
-                .maybeSingle();
-
-            if (cData) {
-                setConsultantData(cData);
-                setIsOnline(cData.is_online);
-            }
-
-            if (!activeChannel && user) {
+            // Session updates realtime
+            if (!activeChannel) {
                 activeChannel = supabase
-                    .channel('public:sessions')
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: '*', // INSERT, UPDATE, DELETE
-                            schema: 'public',
-                            table: 'sessions',
-                            filter: `consultant_id=eq.${user.id}`
-                        },
-                        () => {
-                            fetchSessionData();
-                        }
-                    )
+                    .channel(`dashboard_sessions_${user.id}`)
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'sessions',
+                        filter: `consultant_id=eq.${user.id}`
+                    }, () => fetchSessions(user.id))
                     .subscribe();
             }
 
-            // Müşterilerin online durumunu takip et
-            const presenceChannel = supabase.channel('online_users');
-            presenceChannel
-                .on('presence', { event: 'sync' }, () => {
-                    const state = presenceChannel.presenceState();
-                    const onlineIds = new Set<string>();
-                    Object.values(state).forEach((presences) => {
-                        presences.forEach((p: any) => {
-                            if (p.user_id) onlineIds.add(p.user_id);
+            // Presence tracking
+            if (!presenceChannel) {
+                presenceChannel = supabase.channel('online_users_dashboard');
+                presenceChannel
+                    .on('presence', { event: 'sync' }, () => {
+                        const state = presenceChannel.presenceState();
+                        const onlineIds = new Set<string>();
+                        Object.values(state).forEach((presences: any) => {
+                            (presences as any[]).forEach((p: any) => {
+                                if (p.user_id) onlineIds.add(p.user_id);
+                            });
                         });
-                    });
-                    setOnlineClients(onlineIds);
-                })
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(presenceChannel);
-            };
+                        setOnlineClients(onlineIds);
+                    })
+                    .subscribe();
+            }
         };
 
-        const cleanupPresence = fetchSessionData();
+        init();
 
         return () => {
             if (activeChannel) supabase.removeChannel(activeChannel);
-            // Promise tabanlı olduğu için cleanup direkt olarak effect'in dışında ele alınabilir (veya cleanup içinden çıkarılabilir)
+            if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
     }, [supabase, router]);
 

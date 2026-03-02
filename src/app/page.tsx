@@ -143,81 +143,109 @@ function HomeContent() {
   useEffect(() => {
     if (!supabase) return;
 
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
-        if (data) {
-          setProfile(data);
-        } else {
-          setProfile({
-            full_name: user.user_metadata?.full_name || "",
-            birth_date: user.user_metadata?.birth_date || "",
-          });
-        }
-
-        const { data: sessionData } = await supabase.from('sessions')
-          .select(`*, consultant:consultants(display_name)`)
-          .or(`client_id.eq.${user.id},consultant_id.eq.${user.id}`)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        if (sessionData) setClientSessions(sessionData);
-
-        const { data: cData } = await supabase.from('consultants').select('id').eq('id', user.id).maybeSingle();
-        if (cData) setIsConsultant(true);
-      }
-    };
-    getUser();
-
     let sessionStatusChannel: any = null;
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
-      if (session?.user) {
-        sessionStatusChannel = supabase.channel('user_sessions_channel')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `client_id=eq.${session.user.id}` }, () => getUser())
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `consultant_id=eq.${session.user.id}` }, () => getUser())
-          .subscribe();
-      } else {
-        if (sessionStatusChannel) supabase.removeChannel(sessionStatusChannel);
-      }
-    });
+
+    const fetchProfile = async (userId: string) => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, birth_date, zodiac_sign, ascendant_sign")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (data) setProfile(data);
+    };
+
+    const fetchActiveSessions = async (userId: string) => {
+      const { data } = await supabase
+        .from('sessions')
+        .select(`id, room_id, status, consultant:consultants(display_name)`)
+        .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (data) setClientSessions(data);
+    };
+
+    const checkIsConsultant = async (userId: string) => {
+      const { data } = await supabase
+        .from('consultants')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (data) setIsConsultant(true);
+    };
 
     const fetchConsultants = async () => {
-      const { data } = await supabase.from("consultants")
-        .select(`*, profiles (avatar_url)`)
+      const { data } = await supabase
+        .from("consultants")
+        .select(`id, display_name, rating, is_online, specialties, profiles(avatar_url)`)
         .order('is_online', { ascending: false });
+
       if (data) setConsultants(data);
     };
+
+    const initUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user;
+      setUser(currentUser ?? null);
+
+      if (currentUser) {
+        fetchProfile(currentUser.id);
+        fetchActiveSessions(currentUser.id);
+        checkIsConsultant(currentUser.id);
+
+        // Session status realtime
+        if (!sessionStatusChannel) {
+          sessionStatusChannel = supabase.channel(`user_sessions_${currentUser.id}`)
+            .on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'sessions',
+              filter: `client_id=eq.${currentUser.id}`
+            }, () => fetchActiveSessions(currentUser.id))
+            .on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'sessions',
+              filter: `consultant_id=eq.${currentUser.id}`
+            }, () => fetchActiveSessions(currentUser.id))
+            .subscribe();
+        }
+      }
+    };
+
+    initUser();
     fetchConsultants();
 
-    // Listen for consultant status changes
-    const consultantChannel = supabase.channel('consultant_status')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'consultants' }, () => {
-        fetchConsultants();
-      })
+    // Consultant status realtime
+    const consultantChannel = supabase.channel('consultant_status_global')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'consultants'
+      }, () => fetchConsultants())
       .subscribe();
 
-    // @ts-ignore
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-        if (data) {
-          setProfile(data);
-        } else {
-          setProfile({
-            full_name: session.user.user_metadata?.full_name || "",
-            birth_date: session.user.user_metadata?.birth_date || "",
-          });
-        }
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user;
+      setUser(currentUser ?? null);
+      if (currentUser) {
+        fetchProfile(currentUser.id);
+        fetchActiveSessions(currentUser.id);
       } else {
         setProfile(null);
+        setClientSessions([]);
+        setIsConsultant(false);
+        if (sessionStatusChannel) {
+          supabase.removeChannel(sessionStatusChannel);
+          sessionStatusChannel = null;
+        }
       }
     });
 
     return () => {
-      subscription.unsubscribe();
       authSub.unsubscribe();
       supabase.removeChannel(consultantChannel);
       if (sessionStatusChannel) supabase.removeChannel(sessionStatusChannel);

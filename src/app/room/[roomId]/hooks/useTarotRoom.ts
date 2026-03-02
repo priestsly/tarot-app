@@ -1270,7 +1270,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const handleCursorMove = (e: React.PointerEvent) => {
         if (e.pointerType === 'touch') return;
         const now = Date.now();
-        if (now - lastCursorEmit.current > 50) {
+        // Increased throttle to 100ms to reduce network congestion (was 50ms)
+        if (now - lastCursorEmit.current > 100) {
             lastCursorEmit.current = now;
             socketRef.current?.emit("cursor-move", roomId, { userId: socketRef.current.id, x: e.clientX, y: e.clientY });
         }
