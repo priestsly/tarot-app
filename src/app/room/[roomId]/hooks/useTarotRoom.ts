@@ -172,7 +172,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const peerRef = useRef<Peer | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true); // Starts muted by default
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
@@ -764,6 +764,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (myVideoRef.current) {
                     myVideoRef.current.srcObject = stream;
                 }
+
+                // Mute microphone by default on room join
+                stream.getAudioTracks().forEach(track => { track.enabled = false; });
 
                 initPeerAndJoin(stream);
             })
