@@ -528,27 +528,29 @@ function HomeContent() {
       <div className="space-y-3">
         {/* AI Tarot (Sürekli Aktif) - Sadece giriş yapmış kullanıcılara özel */}
         {user && (
-          <button
-            onClick={() => router.push("/ai-tarot")}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-indigo-500/10 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/50 transition-all text-left group shadow-[0_0_15px_rgba(217,70,239,0.1)] relative overflow-hidden"
-          >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-500/50 to-transparent opacity-50" />
+          <>
+            <button
+              onClick={() => router.push("/ai-tarot")}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-indigo-500/10 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/50 transition-all text-left group shadow-[0_0_15px_rgba(217,70,239,0.1)] relative overflow-hidden"
+            >
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-500/50 to-transparent opacity-50" />
 
-            <div className="w-12 h-12 rounded-full relative shrink-0 border border-fuchsia-400/50 overflow-hidden bg-[#1a0f2e] flex items-center justify-center shadow-lg shadow-fuchsia-500/20">
-              <span className="text-xl">🤖</span>
-              <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-surface bg-emerald-500 shadow-[0_0_10px_#10b981]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 to-indigo-300 flex items-center gap-2">
-                Mistik Yapay Zeka
-                <span className="flex items-center gap-0.5 text-[9px] text-fuchsia-300 bg-fuchsia-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-widest border border-fuchsia-500/30 font-bold">
-                  7/24 Aktif
-                </span>
-              </h3>
-              <p className="text-[11px] text-fuchsia-200/70 mt-1 truncate font-medium">Günlük Ücretsiz Yorum • Görselli Seçim</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-fuchsia-500/50 group-hover:text-fuchsia-400 group-hover:translate-x-1 transition-all" />
-          </button>
+              <div className="w-12 h-12 rounded-full relative shrink-0 border border-fuchsia-400/50 overflow-hidden bg-[#1a0f2e] flex items-center justify-center shadow-lg shadow-fuchsia-500/20">
+                <span className="text-xl">🤖</span>
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-surface bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 to-indigo-300 flex items-center gap-2">
+                  Mistik Yapay Zeka
+                  <span className="flex items-center gap-0.5 text-[9px] text-fuchsia-300 bg-fuchsia-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-widest border border-fuchsia-500/30 font-bold">
+                    7/24 Aktif
+                  </span>
+                </h3>
+                <p className="text-[11px] text-fuchsia-200/70 mt-1 truncate font-medium">Günlük Ücretsiz Yorum • Görselli Seçim</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-fuchsia-500/50 group-hover:text-fuchsia-400 group-hover:translate-x-1 transition-all" />
+            </button>
+          </>
         )}
 
         {/* Canlı Danışmanlar */}
@@ -603,6 +605,7 @@ function HomeContent() {
       <div className="grid grid-cols-2 gap-2">
         {[
           { href: "/meditation", name: "Meditasyon", desc: "Nefes & niyet", icon: "🧘", border: "border-purple-500/10", hover: "hover:border-purple-500/20 hover:bg-purple-500/5" },
+          { href: "/dilek-ozel", name: "Dilek Özel", desc: "+Sohbet", icon: "🔥", border: "border-red-500/20", hover: "hover:border-red-500/30 hover:bg-red-500/5 shadow-[0_0_15px_rgba(239,68,68,0.1)]" },
           { href: "/astrology", name: "Astroloji", desc: "Burç & gezegen", icon: "🪐", border: "border-indigo-500/10", hover: "hover:border-indigo-500/20 hover:bg-indigo-500/5" },
           { href: "/dreams", name: "Rüya Yorumu", desc: "AI destekli", icon: "🌙", border: "border-blue-500/10", hover: "hover:border-blue-500/20 hover:bg-blue-500/5" },
           { href: "/candle", name: "Mum Ritüeli", desc: "Niyet & ritüel", icon: "🕯️", border: "border-orange-500/10", hover: "hover:border-orange-500/20 hover:bg-orange-500/5" },
