@@ -22,7 +22,20 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         cards: number;
         focus?: string;
         gender?: string;
-    } | null>(null);
+    } | null>(() => {
+        if (!isConsultant && searchParams.get('name')) {
+            return {
+                name: searchParams.get('name') || '',
+                birth: searchParams.get('birth') || '',
+                time: searchParams.get('time') || '',
+                pkgId: searchParams.get('pkgId') || '',
+                cards: Number(searchParams.get('cards')) || 0,
+                focus: searchParams.get('focus') || 'Genel Akış',
+                gender: searchParams.get('gender') || '',
+            }
+        }
+        return null;
+    });
     const clientProfileRef = useRef(clientProfile);
     useEffect(() => { clientProfileRef.current = clientProfile; }, [clientProfile]);
 
@@ -1201,6 +1214,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     focus: searchParams.get('focus') || '',
                     gender: searchParams.get('gender') || '',
                 };
+                if (!clientProfileRef.current || clientProfileRef.current.name !== data.name) {
+                    setClientProfile(data);
+                }
                 socket.emit("update-client-profile", roomId, data);
             }
         };
