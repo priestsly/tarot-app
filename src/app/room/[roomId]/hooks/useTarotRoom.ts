@@ -1156,6 +1156,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 let idx: number;
                 do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
                 usedIndices.add(idx);
+                let xPos = 50;
+                let yPos = 45;
 
                 if (pkgId === 'standard') {
                     if (count === 9) {
