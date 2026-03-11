@@ -1144,12 +1144,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
                 usedIndices.add(idx);
 
-                // Positioning logic based on popular spreads
-                let xPos = 50;
-                let yPos = 45;
-
                 if (pkgId === 'standard') {
-                    xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+                    if (count === 9) {
+                        // 3x3 Grid
+                        xPos = 20 + (i % 3) * 30; // 20, 50, 80
+                        yPos = 20 + Math.floor(i / 3) * 25; // 20, 45, 70
+                    } else {
+                        xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
+                    }
                 } else if (pkgId === 'synastry') {
                     // Heart-ish shape or two columns
                     xPos = i < 3 ? 30 : (i < 6 ? 70 : 50);
