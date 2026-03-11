@@ -1161,9 +1161,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
                 if (pkgId === 'standard') {
                     if (count === 9) {
-                        // 3x3 Grid
-                        xPos = 20 + (i % 3) * 30; // 20, 50, 80
-                        yPos = 20 + Math.floor(i / 3) * 25; // 20, 45, 70
+                        // Perfect 3x3 Centered Grid
+                        xPos = 25 + (i % 3) * 25;   // Columns: 25, 50, 75
+                        yPos = 15 + Math.floor(i / 3) * 30; // Rows:  15, 45, 75
                     } else {
                         xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
                     }
