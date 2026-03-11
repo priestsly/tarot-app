@@ -28,6 +28,7 @@ type ReadingPackage = {
 const PACKAGES: ReadingPackage[] = [
     { id: "standard", name: "Standart Açılım", cards: 3, price: "₺150", icon: <Sparkles className="w-5 h-5" />, desc: "Geçmiş, Şimdi ve Gelecek üzerine genel bir bakış. En popüler seçim." },
     { id: "synastry", name: "İlişki / Sinastri", cards: 7, price: "₺250", icon: <Heart className="w-5 h-5" />, desc: "İki kişi arasındaki dinamiği, uyumu ve geleceği analiz eder." },
+    { id: "matrix", name: "Gelişmiş Matris", cards: 9, price: "₺300", icon: <Eye className="w-5 h-5" />, desc: "Mevcut durumların 3x3 detaylı haritası ile derinlemesine analiz." },
     { id: "celtic", name: "Kelt Haçı", cards: 10, price: "₺350", icon: <Star className="w-5 h-5" />, desc: "Derinlemesine ve kapsamlı bir hayat ve olay analizi okuması." },
     { id: "astrological", name: "Astrolojik 12 Ev", cards: 12, price: "₺450", icon: <Moon className="w-5 h-5" />, desc: "Yılın 12 ayına veya hayatın 12 alanına profesyonel detaylı bakış." },
 ];
@@ -663,10 +664,13 @@ function TarotConsultantsContent() {
                             </div>
 
                             <div className="flex-1 min-w-0 relative z-10">
-                                <h3 className="text-sm font-bold text-white flex items-center justify-between gap-2 mb-1">
-                                    <span className="truncate">{pkg.name}</span>
-                                    {pkg.price && <span className={cn("text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border", isSelected ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-zinc-400 border-white/10")}>{pkg.price}</span>}
-                                </h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-sm font-bold text-white truncate">{pkg.name}</h3>
+                                    <span className={cn("text-[9px] px-1.5 py-0.5 rounded-md font-bold tracking-wider uppercase border", isSelected ? "bg-purple-500 text-white border-purple-400" : "bg-purple-500/10 text-purple-300 border-purple-500/20")}>
+                                        {pkg.cards} KART
+                                    </span>
+                                    {pkg.price && <span className={cn("ml-auto text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border", isSelected ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-zinc-400 border-white/10")}>{pkg.price}</span>}
+                                </div>
                                 <p className="text-[11px] text-zinc-400 leading-relaxed font-medium line-clamp-2">{pkg.desc}</p>
                             </div>
                         </button>
