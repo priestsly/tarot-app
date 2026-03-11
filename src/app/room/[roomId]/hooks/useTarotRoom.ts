@@ -10,8 +10,9 @@ import { getCardMeaning } from "@/lib/cardData";
 
 export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Role & Client Form Data
-    const role = searchParams.get('role') || 'consultant'; // default to consultant
-    const isConsultant = role === 'consultant';
+    const initialRole = searchParams.get('role') === 'client' ? 'client' : 'consultant';
+    const [isConsultant, setIsConsultant] = useState(initialRole === 'consultant');
+
 
     const [clientProfile, setClientProfile] = useState<{
         name: string;
@@ -300,6 +301,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     useEffect(() => {
         const supabase = createClient();
         const fetchSession = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data } = await supabase
                 .from('sessions')
                 .select('*')
@@ -310,6 +313,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
             if (data) {
                 setSessionId(data.id);
+
+                // Fix role drop: auto-assign consultant if user is the consultant
+                const currentUserIsConsultant = user && data.consultant_id === user.id;
+                if (currentUserIsConsultant) setIsConsultant(true);
+
                 if (!searchParams.get('name') && data.client_info) {
                     setClientProfile({
                         name: data.client_info.name || "Müşteri",
@@ -321,7 +329,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         gender: data.client_info.gender
                     });
                 }
-                if (isConsultant && data.status === 'pending') {
+                if (currentUserIsConsultant && data.status === 'pending') {
                     await supabase.from('sessions').update({ status: 'active' }).eq('id', data.id);
                 }
             }
@@ -581,13 +589,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 }
             });
 
-            // Handshake: Consultant is ready, Client sends their profile data
+            // Handshake: Consultant is ready, Client sends their profile data and room state back
             socket.on('consultant-media-ready', (consultantId: string) => {
                 if (!isConsultant && consultantId !== socket.id) {
-                    console.log("Consultant media is ready, sending profile data...");
+                    console.log("Consultant media is ready, sending profile and state data...");
                     if (clientProfileRef.current) {
                         socket.emit("update-client-profile", roomId, clientProfileRef.current);
                     }
+                    if (cardsRef.current.length > 0) socket.emit("sync-state", roomId, cardsRef.current);
+                    if (logsRef.current.length > 0) socket.emit("sync-logs", roomId, logsRef.current);
+                    if (messagesRef.current.length > 0) socket.emit("sync-messages", roomId, messagesRef.current);
                 }
             });
 
@@ -879,7 +890,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             tracks?.forEach(track => track.stop());
             peerRef.current?.destroy();
         }
-    }, [localReady]);
+    }, [localReady, isConsultant]);
 
     function connectToNewUser(userId: string, stream: MediaStream) {
         if (!peerRef.current || !stream) return;
@@ -903,6 +914,17 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     });
                 };
             }
+        });
+
+        // Rekonnekting video stream automatically if it drops on mobile
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && remoteVideoRef.current) {
+                remoteVideoRef.current.play().catch(console.error);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        call.on('close', () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         });
     }
 
@@ -1282,7 +1304,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     return {
         // State
-        role, isConsultant, clientProfile, copied, isSidebarOpen,
+        role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, cursors, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
