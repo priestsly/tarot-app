@@ -1025,16 +1025,30 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             recorder.ondataavailable = e => {
                 if (e.data.size > 0) audioChunksRef.current.push(e.data);
             };
-            recorder.onstop = () => {
+            recorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 audioChunksRef.current = [];
 
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = () => {
-                    const base64Audio = reader.result as string;
-                    sendVoiceMessage(base64Audio);
-                };
+                try {
+                    const supabase = createClient();
+                    const fileName = `${roomId}/${Date.now()}-${Math.random().toString(36).substring(7)}.webm`;
+
+                    const { data, error } = await supabase.storage
+                        .from('voice-messages')
+                        .upload(fileName, audioBlob);
+
+                    if (error) throw error;
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('voice-messages')
+                        .getPublicUrl(fileName);
+
+                    sendVoiceMessage(publicUrl);
+                } catch (err) {
+                    console.error("Voice upload failed:", err);
+                    appendLog("Sesli mesaj gönderilemedi");
+                }
+
                 stream.getTracks().forEach(track => track.stop());
             };
             audioChunksRef.current = [];
@@ -1054,11 +1068,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         }
     };
 
-    const sendVoiceMessage = (base64Audio: string) => {
+    const sendVoiceMessage = (audioUrl: string) => {
         const msg: ChatMessage = {
             id: Math.random().toString(36).substring(2, 9),
             sender: isConsultant ? "Consultant" : "Client",
-            audioUrl: base64Audio,
+            audioUrl: audioUrl,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -1315,8 +1329,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const handleCursorMove = (e: React.PointerEvent) => {
         if (e.pointerType === 'touch') return;
         const now = Date.now();
-        // Increased throttle to 100ms to reduce network congestion (was 50ms)
-        if (now - lastCursorEmit.current > 100) {
+        // Massively increased throttle to 250ms (4 times per second)
+        // This dramatically reduces message count and egress
+        if (now - lastCursorEmit.current > 250) {
             lastCursorEmit.current = now;
             socketRef.current?.emit("cursor-move", roomId, { userId: socketRef.current.id, x: e.clientX, y: e.clientY });
         }
