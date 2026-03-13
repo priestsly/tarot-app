@@ -51,6 +51,23 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const cardsRef = useRef(cards); useEffect(() => { cardsRef.current = cards; }, [cards]);
     const [maxZIndex, setMaxZIndex] = useState(1);
 
+    // Session Database ID (declared early because auto-save depends on it)
+    const [sessionId, setSessionId] = useState<string | null>(null);
+
+    // Auto-save cards to database (debounced 2s)
+    const saveCardsTimeout = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        if (!sessionId || cards.length === 0) return;
+        if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current);
+        saveCardsTimeout.current = setTimeout(async () => {
+            try {
+                const supabase = createClient();
+                await supabase.from('sessions').update({ room_state: cards }).eq('id', sessionId);
+            } catch (e) { console.error("Failed to save cards:", e); }
+        }, 2000);
+        return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
+    }, [cards, sessionId]);
+
     // Premium UI State
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const logsRef = useRef(logs); useEffect(() => { logsRef.current = logs; }, [logs]);
@@ -73,8 +90,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const [pingedCardId, setPingedCardId] = useState<string | null>(null);
     const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Session Database ID
-    const [sessionId, setSessionId] = useState<string | null>(null);
 
     // AI Interpretation
     const [aiLoading, setAiLoading] = useState(false);
@@ -341,6 +356,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                         focus: data.client_info.focus || "Ruhsal",
                         gender: data.client_info.gender
                     });
+                }
+                // Restore cards from database if available
+                if (data.room_state && Array.isArray(data.room_state) && data.room_state.length > 0) {
+                    setCards(data.room_state);
+                    setMaxZIndex(Math.max(...data.room_state.map((c: CardState) => c.zIndex || 0)) + 1);
                 }
                 if (currentUserIsConsultant && data.status === 'pending') {
                     await supabase.from('sessions').update({ status: 'active' }).eq('id', data.id);
@@ -1173,14 +1193,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 let xPos = 50;
                 let yPos = 45;
 
-                if (pkgId === 'standard') {
-                    if (count === 9) {
-                        // Perfect 3x3 Centered Grid
-                        xPos = 25 + (i % 3) * 25;   // Columns: 25, 50, 75
-                        yPos = 15 + Math.floor(i / 3) * 30; // Rows:  15, 45, 75
-                    } else {
-                        xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
-                    }
+                if (pkgId === 'matrix' || (pkgId === 'standard' && count === 9)) {
+                    // Perfect 3x3 Centered Grid
+                    xPos = 25 + (i % 3) * 25;   // Columns: 25, 50, 75
+                    yPos = 15 + Math.floor(i / 3) * 30; // Rows:  15, 45, 75
+                } else if (pkgId === 'standard') {
+                    xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
                 } else if (pkgId === 'synastry') {
                     // Heart-ish shape or two columns
                     xPos = i < 3 ? 30 : (i < 6 ? 70 : 50);
