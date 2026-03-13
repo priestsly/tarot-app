@@ -128,19 +128,31 @@ function TarotConsultantsContent() {
     const supabase = createClient();
 
     const fetchProfile = async (userId: string) => {
-        const { data } = await supabase.from("profiles").select("full_name, birth_date, zodiac_sign, ascendant_sign").eq("id", userId).maybeSingle();
+        const { data } = await supabase.from("profiles").select("role, full_name, birth_date, zodiac_sign, ascendant_sign").eq("id", userId).maybeSingle();
         if (data) setProfile(data);
     };
 
     const fetchActiveSessions = async (userId: string) => {
         const { data } = await supabase
             .from('sessions')
-            .select(`id, room_id, status, client_info, consultant_id, consultant:consultants(display_name)`)
+            .select(`id, room_id, status, client_info, consultant_id, created_at, consultant:consultants(display_name)`)
             .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
             .in('status', ['active', 'pending'])
             .order('created_at', { ascending: false })
             .limit(5);
-        if (data) setClientSessions(data);
+
+        if (data) {
+            const now = new Date();
+            const validSessions = data.filter(s => {
+                if (s.status === 'pending') {
+                    const sessionDate = new Date(s.created_at);
+                    const diffMinutes = (now.getTime() - sessionDate.getTime()) / (1000 * 60);
+                    return diffMinutes < 60; // 1 saatten eskiyse pending olarak gösterme
+                }
+                return true;
+            });
+            setClientSessions(validSessions);
+        }
     };
 
     const checkIsConsultant = async (userId: string) => {
@@ -350,7 +362,11 @@ function TarotConsultantsContent() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={async () => {
-                                    await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', session.id);
+                                    const { error } = await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', session.id);
+                                    if (error) {
+                                        alert("İptal edilirken bir hata oluştu: " + error.message);
+                                        return;
+                                    }
                                     if (user) fetchActiveSessions(user.id);
                                 }}
                                 className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
@@ -359,7 +375,11 @@ function TarotConsultantsContent() {
                             </button>
                             <button
                                 onClick={async () => {
-                                    await supabase.from('sessions').update({ status: 'active' }).eq('id', session.id);
+                                    const { data, error } = await supabase.from('sessions').update({ status: 'active' }).eq('id', session.id).select().single();
+                                    if (error || !data) {
+                                        alert("Kabul edilirken hata oluştu: " + (error?.message || "Oturum bulunamadı veya yetkiniz yok."));
+                                        return;
+                                    }
                                     router.push(`/room/${session.room_id}?role=consultant`);
                                 }}
                                 className="px-6 py-2.5 bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:bg-purple-400 active:scale-95 transition-all"
