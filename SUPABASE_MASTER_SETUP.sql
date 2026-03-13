@@ -7,13 +7,14 @@
 -- 1. PROFILES TABLOSU (Kullanıcı Bilgileri)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    role TEXT DEFAULT 'client', -- 'consultant' veya 'client'
     full_name TEXT,
     birth_date DATE,
     birth_time TIME,
     zodiac_sign TEXT,
     ascendant_sign TEXT,
     avatar_url TEXT,
-    interests TEXT[],
+    interests TEXT[] DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

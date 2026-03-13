@@ -127,38 +127,38 @@ function TarotConsultantsContent() {
 
     const supabase = createClient();
 
+    const fetchProfile = async (userId: string) => {
+        const { data } = await supabase.from("profiles").select("full_name, birth_date, zodiac_sign, ascendant_sign").eq("id", userId).maybeSingle();
+        if (data) setProfile(data);
+    };
+
+    const fetchActiveSessions = async (userId: string) => {
+        const { data } = await supabase
+            .from('sessions')
+            .select(`id, room_id, status, client_info, consultant_id, consultant:consultants(display_name)`)
+            .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
+            .in('status', ['active', 'pending'])
+            .order('created_at', { ascending: false })
+            .limit(5);
+        if (data) setClientSessions(data);
+    };
+
+    const checkIsConsultant = async (userId: string) => {
+        const { data } = await supabase.from('consultants').select('id').eq('id', userId).maybeSingle();
+        if (data) setIsConsultant(true);
+    };
+
+    const fetchConsultants = async () => {
+        setIsLoadingProfiles(true);
+        const { data } = await supabase.from("consultants").select(`id, display_name, rating, is_online, specialties, profiles(avatar_url)`).order('is_online', { ascending: false });
+        if (data) setConsultants(data);
+        setIsLoadingProfiles(false);
+    };
+
     useEffect(() => {
         if (!supabase) return;
 
         let sessionStatusChannel: any = null;
-
-        const fetchProfile = async (userId: string) => {
-            const { data } = await supabase.from("profiles").select("full_name, birth_date, zodiac_sign, ascendant_sign").eq("id", userId).maybeSingle();
-            if (data) setProfile(data);
-        };
-
-        const fetchActiveSessions = async (userId: string) => {
-            const { data } = await supabase
-                .from('sessions')
-                .select(`id, room_id, status, client_info, consultant:consultants(display_name)`)
-                .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
-                .in('status', ['active', 'pending'])
-                .order('created_at', { ascending: false })
-                .limit(5);
-            if (data) setClientSessions(data);
-        };
-
-        const checkIsConsultant = async (userId: string) => {
-            const { data } = await supabase.from('consultants').select('id').eq('id', userId).maybeSingle();
-            if (data) setIsConsultant(true);
-        };
-
-        const fetchConsultants = async () => {
-            setIsLoadingProfiles(true);
-            const { data } = await supabase.from("consultants").select(`id, display_name, rating, is_online, specialties, profiles(avatar_url)`).order('is_online', { ascending: false });
-            if (data) setConsultants(data);
-            setIsLoadingProfiles(false);
-        };
 
         const initUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -351,14 +351,17 @@ function TarotConsultantsContent() {
                             <button
                                 onClick={async () => {
                                     await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', session.id);
-                                    fetchActiveSessions(user.id);
+                                    if (user) fetchActiveSessions(user.id);
                                 }}
                                 className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
                             >
                                 Reddet
                             </button>
                             <button
-                                onClick={() => router.push(`/room/${session.room_id}?role=consultant`)}
+                                onClick={async () => {
+                                    await supabase.from('sessions').update({ status: 'active' }).eq('id', session.id);
+                                    router.push(`/room/${session.room_id}?role=consultant`);
+                                }}
                                 className="px-6 py-2.5 bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:bg-purple-400 active:scale-95 transition-all"
                             >
                                 Kabul Et
@@ -633,9 +636,7 @@ function TarotConsultantsContent() {
                 <button
                     onClick={() => setReadingFocus("İlişki Danışmanı")}
                     className={cn("w-full px-5 py-4 rounded-2xl border flex items-center justify-between transition-all group",
-                        readingFocus === "İlişki Danışmanı" ? "bg-rose-500/10 border-rose-500/50" : "bg-surface border-white/5 hover:border-rose-500/30"
-                    )}
-                >
+                        readingFocus === "İlişki Danışmanı" ? "bg-rose-500/10 border-rose-500/50" : "bg-surface border-white/5 hover:border-rose-500/30")}>
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-lg shadow-inner">💞</div>
                         <div className="text-left">
@@ -706,9 +707,7 @@ function TarotConsultantsContent() {
                             key={pkg.id}
                             onClick={() => setSelectedPackage(pkg.id)}
                             className={cn("w-full text-left p-5 rounded-[1.5rem] border-2 transition-all flex gap-5 items-center group relative overflow-hidden",
-                                isSelected ? "bg-[#1c172e] border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.2)]" : "bg-[#12101c] border-white/5 hover:border-white/20"
-                            )}
-                        >
+                                isSelected ? "bg-[#1c172e] border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.2)]" : "bg-[#12101c] border-white/5 hover:border-white/20")}>
                             {isSelected && <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent pointer-events-none" />}
 
                             <div className={cn("w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center transition-colors relative z-10", isSelected ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30" : "bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white")}>
@@ -736,9 +735,7 @@ function TarotConsultantsContent() {
                 className={cn("w-full flex items-center justify-center gap-3 px-6 py-4 mt-8 font-bold text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-95 disabled:opacity-50",
                     selectedConsultant?.is_online
                         ? "bg-gradient-to-r from-amber-400 to-orange-500 text-black shadow-[0_0_20px_rgba(251,191,36,0.4)]"
-                        : "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-                )}
-            >
+                        : "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]")}>
                 {selectedConsultant?.is_online ? (
                     <>Fal Başlasın <Sparkles className="w-4 h-4" /></>
                 ) : (
@@ -747,8 +744,6 @@ function TarotConsultantsContent() {
             </button>
         </motion.div>
     );
-
-    // ==========================================
 
     return (
         <div className="min-h-[100dvh] bg-bg font-inter text-text isolate selection:bg-purple-500/30">
