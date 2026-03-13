@@ -138,7 +138,13 @@ function TarotConsultantsContent() {
         };
 
         const fetchActiveSessions = async (userId: string) => {
-            const { data } = await supabase.from('sessions').select(`id, room_id, status, consultant:consultants(display_name)`).or(`client_id.eq.${userId},consultant_id.eq.${userId}`).eq('status', 'active').order('created_at', { ascending: false }).limit(5);
+            const { data } = await supabase
+                .from('sessions')
+                .select(`id, room_id, status, client_info, consultant:consultants(display_name)`)
+                .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
+                .in('status', ['active', 'pending'])
+                .order('created_at', { ascending: false })
+                .limit(5);
             if (data) setClientSessions(data);
         };
 
@@ -324,16 +330,62 @@ function TarotConsultantsContent() {
                     </p>
                 </div>
 
-                {clientSessions.length > 0 && (
+                {/* Consultant Incoming Requests */}
+                {isConsultant && clientSessions.filter(s => s.status === 'pending' && s.consultant_id === user?.id).map(session => (
+                    <motion.div
+                        key={session.id}
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full md:w-auto bg-purple-500/10 border border-purple-500/30 rounded-2xl p-5 flex items-center gap-5 shadow-[0_0_30px_rgba(168,85,247,0.15)] animate-pulse"
+                    >
+                        <div className="shrink-0 w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/40 relative">
+                            <Sparkles className="w-5 h-5 text-purple-300" />
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-bg" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-[10px] text-purple-400 font-bold uppercase tracking-[0.2em] mb-0.5">Yeni Görüşme Talebi</p>
+                            <p className="text-sm text-white font-bold">{session.client_info?.name || "Bir Müşteri"}</p>
+                            <p className="text-[10px] text-zinc-500 mt-0.5">{session.client_info?.focus || "Genel Bakış"} • {session.client_info?.cards || 3} Kart</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={async () => {
+                                    await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', session.id);
+                                    fetchActiveSessions(user.id);
+                                }}
+                                className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+                            >
+                                Reddet
+                            </button>
+                            <button
+                                onClick={() => router.push(`/room/${session.room_id}?role=consultant`)}
+                                className="px-6 py-2.5 bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:bg-purple-400 active:scale-95 transition-all"
+                            >
+                                Kabul Et
+                            </button>
+                        </div>
+                    </motion.div>
+                ))}
+
+                {/* Active Sessions (Client or Consultant) */}
+                {clientSessions.filter(s => s.status === 'active').length > 0 && (
                     <div className="w-full md:w-auto bg-green-500/10 border border-green-500/20 rounded-2xl p-4 flex items-center gap-4">
                         <div className="shrink-0 w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30">
                             <Clock className="w-4 h-4 text-green-400" />
                         </div>
                         <div>
                             <p className="text-xs text-green-400 font-bold uppercase tracking-wider">Devam Ediyor</p>
-                            <p className="text-sm text-white font-medium">{clientSessions[0].consultant?.display_name || "Danışman"}</p>
+                            <p className="text-sm text-white font-medium">
+                                {clientSessions.find(s => s.status === 'active')?.consultant?.display_name || "Mevcut Oturum"}
+                            </p>
                         </div>
-                        <button onClick={() => router.push(`/room/${clientSessions[0].room_id}?role=client`)} className="ml-auto px-4 py-2 bg-green-500 text-black text-xs font-bold rounded-xl whitespace-nowrap">
+                        <button
+                            onClick={() => {
+                                const s = clientSessions.find(s => s.status === 'active');
+                                router.push(`/room/${s.room_id}?role=${isConsultant ? 'consultant' : 'client'}`);
+                            }}
+                            className="ml-auto px-4 py-2 bg-green-500 text-black text-xs font-bold rounded-xl whitespace-nowrap"
+                        >
                             Odaya Dön
                         </button>
                     </div>
