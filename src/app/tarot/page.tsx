@@ -381,15 +381,13 @@ function TarotConsultantsContent() {
                                     btn.innerHTML = '<span class="animate-spin mr-2">⏳</span>...';
 
                                     try {
-                                        const { data, error } = await supabase
+                                        const { error } = await supabase
                                             .from('sessions')
                                             .update({ status: 'active' })
-                                            .eq('id', session.id)
-                                            .select()
-                                            .single();
+                                            .eq('id', session.id);
 
-                                        if (error || !data) {
-                                            alert("Kabul edilirken hata oluştu: " + (error?.message || "Oturum güncellenemedi. Yetkiniz olmayabilir veya seans iptal edilmiş olabilir."));
+                                        if (error) {
+                                            alert("Kabul edilirken hata oluştu: " + error.message);
                                             btn.disabled = false;
                                             btn.textContent = "Kabul Et";
                                             return;
