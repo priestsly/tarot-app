@@ -1159,10 +1159,21 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     const handleDrawCard = () => {
-        appendLog("Drew a mysterious card from the aether");
+        // Collect currently used standard card indices
+        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'standard').map(c => c.cardIndex));
+        
+        if (usedIndices.size >= 78) {
+            alert("Destede kart kalmadı!");
+            return;
+        }
+
+        let idx: number;
+        do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+
+        appendLog("Görünmez alemden gizemli bir kart çekildi");
         const newCard: CardState = {
             id: Math.random().toString(36).substring(2, 9),
-            cardIndex: Math.floor(Math.random() * 78), // 0-77
+            cardIndex: idx,
             x: 50, // Bottom center dealing
             y: 80 + Math.random() * 5, // Slight jitter
             isFlipped: false,
@@ -1177,10 +1188,21 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     };
 
     const handleDrawRumiCard = () => {
-        appendLog("Rumi destesinden bir kart çekti");
+        // Collect currently used Rumi card indices
+        const usedIndices = new Set(cards.filter(c => c.deckType === 'rumi').map(c => c.cardIndex));
+        
+        if (usedIndices.size >= 78) {
+            alert("Rumi destesinde kart kalmadı!");
+            return;
+        }
+
+        let idx: number;
+        do { idx = Math.floor(Math.random() * 78); } while (usedIndices.has(idx));
+
+        appendLog("Rumi destesinden bir kart çekildi");
         const newCard: CardState = {
             id: Math.random().toString(36).substring(2, 9),
-            cardIndex: Math.floor(Math.random() * 78), // 0-77
+            cardIndex: idx,
             deckType: 'rumi',
             x: 50, // Bottom center dealing
             y: 80 + Math.random() * 5, // Slight jitter
@@ -1201,7 +1223,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         const pkgId = clientProfile?.pkgId || 'standard';
         appendLog(`Dealt the ${count}-card package for ${clientProfile?.name || 'the Client'}`);
 
-        const usedIndices = new Set<number>();
+        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'standard').map(c => c.cardIndex));
         const spread: CardState[] = [];
 
         // Handle special "relation" mode for Single Eril/Disil card

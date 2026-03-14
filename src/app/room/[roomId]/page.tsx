@@ -78,82 +78,76 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     return (
         <div className="flex flex-col h-screen bg-bg text-text overflow-hidden font-inter relative">
 
-            {/* ═══ FULL-BLEED TAROT TABLE ═══ */}
+            {/* ═══ PREMIUM MYSTIC ALTAR ═══ */}
             <main
-                className="flex-1 relative overflow-hidden bg-bg noise"
+                className="flex-1 relative overflow-hidden bg-[#0a0a0f] noise"
                 onPointerMove={handleLocalCursor}
             >
-                {/* Magical Cursor Glow (WOW Factor) */}
-                <motion.div
-                    className="absolute z-0 pointer-events-none w-[500px] h-[500px] rounded-full blur-[150px] opacity-20 bg-purple-500/30 transition-all duration-300 ease-out"
-                    animate={{ left: mousePos.x - 250, top: mousePos.y - 250 }}
-                />
-                {/* Ambient table glows — softer, more vail-like */}
+                {/* ── Dynamic Living Altar Background ── */}
                 <div className="absolute inset-0 pointer-events-none z-0">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-900/10 via-midnight/5 to-amber-900/5 opacity-50" />
+                    {/* Living Grid */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(167,139,250,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(167,139,250,0.03)_1px,transparent_1px)] bg-[size:100px_100px]" />
+                    
+                    {/* Center Mandala Glow */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-accent/5 rounded-full animate-mystic-pulse" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-accent/10 rounded-full animate-mystic-pulse [animation-delay:2s]" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-accent/20 rounded-full animate-mystic-pulse [animation-delay:4s]" />
 
-                    {/* Animated Mist/Vail flow */}
-                    <motion.div
-                        animate={{
-                            backgroundPosition: ["0% 0%", "100% 100%"],
-                            opacity: [0.1, 0.15, 0.1]
-                        }}
-                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10"
-                    />
-
-                    {/* Dynamic Aura — atmospheric edge fog, not a center spotlight */}
+                    {/* Aura Edges */}
                     <motion.div
                         className="absolute inset-0"
                         key={auraColor}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 2 }}
+                        animate={{ opacity: [0.4, 0.6, 0.4] }}
+                        transition={{ duration: 10, repeat: Infinity }}
                     >
-                        {/* Top edge glow */}
-                        <div className="absolute top-0 inset-x-0 h-[40%] blur-[120px]" style={{ background: `linear-gradient(to bottom, ${auraColor}, transparent)` }} />
-                        {/* Bottom edge glow */}
-                        <div className="absolute bottom-0 inset-x-0 h-[35%] blur-[120px]" style={{ background: `linear-gradient(to top, ${auraColor}, transparent)` }} />
-                        {/* Left edge glow */}
-                        <div className="absolute left-0 inset-y-0 w-[40%] blur-[120px]" style={{ background: `linear-gradient(to right, ${auraColor}, transparent)` }} />
-                        {/* Right edge glow */}
-                        <div className="absolute right-0 inset-y-0 w-[40%] blur-[120px]" style={{ background: `linear-gradient(to left, ${auraColor}, transparent)` }} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-bg via-transparent to-bg opacity-80" />
+                        <div className="absolute top-0 inset-x-0 h-[40%] blur-[120px] opacity-30" style={{ background: `linear-gradient(to bottom, ${auraColor}, transparent)` }} />
+                        <div className="absolute bottom-0 inset-x-0 h-[40%] blur-[120px] opacity-20" style={{ background: `linear-gradient(to top, ${auraColor}, transparent)` }} />
                     </motion.div>
+
+                    {/* Stardust Layers */}
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-screen" />
                 </div>
 
-                {/* Table grid texture */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(184,164,232,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(184,164,232,0.015)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none z-0" />
+                {/* Magical Pointer Highlight */}
+                <motion.div
+                    className="absolute z-0 pointer-events-none w-[600px] h-[600px] rounded-full blur-[120px] opacity-40 mix-blend-screen"
+                    animate={{ left: mousePos.x - 300, top: mousePos.y - 300 }}
+                    style={{ background: `radial-gradient(circle, ${auraColor}33 0%, transparent 70%)` }}
+                />
 
-                {/* Fog & Ambient candle glow effects */}
                 <FogOverlay />
 
-                {/* Overall AI Interpretation Button (Top Center) */}
+                {/* ── Top Center: Sacred Action Menu ── */}
                 {isConsultant && clientProfile?.pkgId !== 'relation' && cards.length > 0 && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
-                        {cards.some(c => !c.isFlipped) && (
-                            <button
-                                onClick={handleRevealAll}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 rounded-full text-[10px] text-amber-200 font-bold tracking-[0.1em] uppercase transition-all backdrop-blur-md shadow-lg shadow-amber-500/10"
-                            >
-                                <Sparkles className="w-4 h-4 text-amber-300" />
-                                Hepsini Aç
-                            </button>
-                        )}
-                        {cards.filter(c => c.isFlipped).length >= 2 && (
-                            <button
-                                onClick={() => setShowAiModal(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 rounded-full text-[10px] text-purple-200 font-bold tracking-[0.1em] uppercase transition-all backdrop-blur-md shadow-lg shadow-purple-500/10"
-                            >
-                                <Wand2 className="w-4 h-4 text-purple-300" />
-                                Masayı Yorumla
-                            </button>
-                        )}
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4">
+                        <AnimatePresence>
+                            {cards.some(c => !c.isFlipped) && (
+                                <motion.button
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    onClick={handleRevealAll}
+                                    className="flex items-center gap-2 px-6 py-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-full text-[10px] text-zinc-300 font-bold tracking-[0.2em] uppercase transition-all backdrop-blur-xl shadow-lg group"
+                                >
+                                    <Sparkles className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+                                    Mührü Çöz
+                                </motion.button>
+                            )}
+                            {cards.filter(c => c.isFlipped).length >= 2 && (
+                                <motion.button
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    onClick={() => setShowAiModal(true)}
+                                    className="flex items-center gap-3 px-7 py-3.5 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-full text-[11px] text-accent font-black tracking-[0.25em] uppercase transition-all backdrop-blur-2xl shadow-[0_0_30px_rgba(184,164,232,0.15)] group"
+                                >
+                                    <Wand2 className="w-5 h-5 text-accent animate-pulse" />
+                                    Geleceği Oku
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
                     </div>
-                )}
-
-
-
-                {/* Cards */}
+                )}              {/* Cards */}
                 {/* THE DECK / TABLE - Client sees it blurred until ready, Consultant sees it always */}
                 <div
                     ref={tableRef}
@@ -439,14 +433,15 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             </div>
 
                             <div className="flex flex-col items-center">
-                                <button onClick={handleDealPackage} disabled={!clientProfile} className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-110 active:scale-95 disabled:opacity-30">
-                                    <Sparkles className="w-4 h-4 text-amber-200" />
+                                <button onClick={handleDealPackage} disabled={!clientProfile} className="draw-button flex items-center justify-center w-12 h-12 text-white rounded-2xl shadow-xl transition-all disabled:opacity-30 relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <Sparkles className="w-5 h-5 text-amber-200" />
                                 </button>
-                                <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">Dağıt</span>
+                                <span className="text-[7px] text-accent/80 uppercase tracking-[0.2em] mt-1.5 font-black">Mührü Aç</span>
                             </div>
 
                             <div className="flex flex-col items-center">
-                                <button onClick={handleDrawCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-accent hover:bg-accent-dim transition-all">
+                                <button onClick={handleDrawCard} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-text-muted hover:text-purple-400 hover:bg-purple-400/10 transition-all">
                                     <PlusSquare className="w-4 h-4" />
                                 </button>
                                 <span className="text-[7px] text-text-muted/60 uppercase tracking-tighter mt-1 font-bold">+ Kart</span>
