@@ -71,7 +71,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Premium UI State
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const logsRef = useRef(logs); useEffect(() => { logsRef.current = logs; }, [logs]);
-    const [cursors, setCursors] = useState<Record<string, CursorData>>({});
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const messagesRef = useRef(messages); useEffect(() => { messagesRef.current = messages; }, [messages]);
     const [chatInput, setChatInput] = useState("");
@@ -241,7 +240,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
                 if (!timer) {
                     timer = setTimeout(() => {
-                        setIsVideoBarVisible(v => !v);
+                        setIsVideoBarVisible(v => {
+                            const next = !v;
+                            if (next) {
+                                // Re-sync media when showing the bar
+                                if (myVideoRef.current) myVideoRef.current.play().catch(() => {});
+                                if (remoteVideoRef.current) remoteVideoRef.current.play().catch(() => {});
+                            }
+                            return next;
+                        });
                         timer = null;
                     }, 5000);
                 }
@@ -662,11 +669,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
                         setRemotePeerId("");
                         setRemoteReady(false);
-                        setCursors(prev => {
-                            const next = { ...prev };
-                            delete next[p.peerId];
-                            return next;
-                        });
                     }
                 });
             });
@@ -724,10 +726,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         socket.on("user-typing", (isTyping: boolean) => {
             setRemoteTyping(isTyping);
-        });
-
-        socket.on("cursor-move", (cursorData: { userId: string; x: number; y: number }) => {
-            setCursors(prev => ({ ...prev, [cursorData.userId]: { x: cursorData.x, y: cursorData.y } }));
         });
 
         // ========== TAROT STATE SYNC ==========
@@ -949,17 +947,53 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         });
 
-        // Rekonnekting video stream automatically if it drops on mobile
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && remoteVideoRef.current) {
-                remoteVideoRef.current.play().catch(console.error);
+        // Global visibility handler to resume video after phone calls
+        const handleGlobalVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                if (myVideoRef.current) myVideoRef.current.play().catch(() => {});
+                if (remoteVideoRef.current) remoteVideoRef.current.play().catch(() => {});
+                
+                // If stream tracks are ended, they might need restart
+                const videoTrack = streamRef.current?.getVideoTracks()[0];
+                if (videoTrack && videoTrack.readyState === 'ended' && localReady) {
+                    console.log("Video track ended, attempting restart...");
+                    refreshLocalMedia();
+                }
             }
         };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('visibilitychange', handleGlobalVisibility);
         call.on('close', () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', handleGlobalVisibility);
         });
     }
+
+    const refreshLocalMedia = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: true
+            });
+            streamRef.current = stream;
+            if (myVideoRef.current) myVideoRef.current.srcObject = stream;
+            
+            // Re-apply mute/video states
+            stream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+            stream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
+            
+            // Replace tracks in current peer calls
+            if (peerRef.current) {
+                const senders = (peerRef.current as any)._connections[remotePeerId]?.[0]?.peerConnection?.getSenders();
+                if (senders) {
+                    const videoSender = senders.find((s: any) => s.track?.kind === 'video');
+                    const audioSender = senders.find((s: any) => s.track?.kind === 'audio');
+                    if (videoSender && stream.getVideoTracks()[0]) videoSender.replaceTrack(stream.getVideoTracks()[0]);
+                    if (audioSender && stream.getAudioTracks()[0]) audioSender.replaceTrack(stream.getAudioTracks()[0]);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to refresh media:", e);
+        }
+    };
 
     const copyRoomId = () => {
         navigator.clipboard.writeText(roomId);
@@ -1352,21 +1386,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         socketRef.current?.emit("flip-card", roomId, id, isReversed, isFlipped);
     }, [roomId, appendLog, selectedCardId, playCardFlipSound]);
 
-    const handleCursorMove = (e: React.PointerEvent) => {
-        if (e.pointerType === 'touch') return;
-        const now = Date.now();
-        // Massively increased throttle to 250ms (4 times per second)
-        // This dramatically reduces message count and egress
-        if (now - lastCursorEmit.current > 250) {
-            lastCursorEmit.current = now;
-            socketRef.current?.emit("cursor-move", roomId, { userId: socketRef.current.id, x: e.clientX, y: e.clientY });
-        }
-    }
-
     return {
         // State
         role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
-        cards, maxZIndex, logs, cursors, messages, chatInput, isChatOpen,
+        cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
@@ -1397,6 +1420,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, handleEndSession
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession
     };
 }

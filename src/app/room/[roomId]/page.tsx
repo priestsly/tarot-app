@@ -32,7 +32,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     const {
         // State
         role, isConsultant, clientProfile, copied, isSidebarOpen,
-        cards, maxZIndex, logs, cursors, messages, chatInput, isChatOpen,
+        cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
         isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
@@ -51,7 +51,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleCursorMove, handleEndSession,
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession,
         isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
@@ -73,7 +73,6 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
 
     const handleLocalCursor = (e: React.PointerEvent) => {
         setMousePos({ x: e.clientX, y: e.clientY });
-        handleCursorMove(e);
     };
 
     return (
@@ -152,18 +151,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     </div>
                 )}
 
-                {/* Live Cursors */}
-                <div className="hidden md:block">
-                    {Object.entries(cursors).map(([userId, pos]) => (
-                        <div
-                            key={userId}
-                            className="absolute z-50 pointer-events-none transition-all duration-75 ease-linear"
-                            style={{ left: pos.x, top: pos.y }}
-                        >
-                            <MousePointer2 className="w-5 h-5 text-accent fill-accent/60 drop-shadow-[0_0_6px_rgba(167,139,250,0.5)] -rotate-12" />
-                        </div>
-                    ))}
-                </div>
+
 
                 {/* Cards */}
                 {/* THE DECK / TABLE - Client sees it blurred until ready, Consultant sees it always */}
