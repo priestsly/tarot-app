@@ -204,6 +204,7 @@ function TarotConsultantsContent() {
             if (currentUser) {
                 fetchProfile(currentUser.id);
                 fetchActiveSessions(currentUser.id);
+                checkIsConsultant(currentUser.id);
             } else {
                 setProfile(null);
                 setClientSessions([]);
@@ -374,15 +375,39 @@ function TarotConsultantsContent() {
                                 Reddet
                             </button>
                             <button
-                                onClick={async () => {
-                                    const { data, error } = await supabase.from('sessions').update({ status: 'active' }).eq('id', session.id).select().single();
-                                    if (error || !data) {
-                                        alert("Kabul edilirken hata oluştu: " + (error?.message || "Oturum bulunamadı veya yetkiniz yok."));
-                                        return;
+                                onClick={async (e) => {
+                                    const btn = e.currentTarget;
+                                    btn.disabled = true;
+                                    btn.innerHTML = '<span class="animate-spin mr-2">⏳</span>...';
+
+                                    try {
+                                        const { data, error } = await supabase
+                                            .from('sessions')
+                                            .update({ status: 'active' })
+                                            .eq('id', session.id)
+                                            .select()
+                                            .single();
+
+                                        if (error || !data) {
+                                            alert("Kabul edilirken hata oluştu: " + (error?.message || "Oturum güncellenemedi. Yetkiniz olmayabilir veya seans iptal edilmiş olabilir."));
+                                            btn.disabled = false;
+                                            btn.textContent = "Kabul Et";
+                                            return;
+                                        }
+
+                                        // UI'ı hemen güncelle
+                                        if (user) await fetchActiveSessions(user.id);
+
+                                        // Odaya yönlendir
+                                        router.push(`/room/${session.room_id}?role=consultant`);
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Bir ağ hatası oluştu. Lütfen tekrar deneyin.");
+                                        btn.disabled = false;
+                                        btn.textContent = "Kabul Et";
                                     }
-                                    router.push(`/room/${session.room_id}?role=consultant`);
                                 }}
-                                className="px-6 py-2.5 bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:bg-purple-400 active:scale-95 transition-all"
+                                className="px-6 py-2.5 bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:bg-purple-400 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center"
                             >
                                 Kabul Et
                             </button>

@@ -1193,10 +1193,18 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 let xPos = 50;
                 let yPos = 45;
 
-                if (pkgId === 'matrix' || (pkgId === 'standard' && count === 9)) {
-                    // Perfect 3x3 Centered Grid
-                    xPos = 25 + (i % 3) * 25;   // Columns: 25, 50, 75
-                    yPos = 15 + Math.floor(i / 3) * 30; // Rows:  15, 45, 75
+                if (pkgId === 'matrix' || (pkgId === 'standard' && count >= 3)) {
+                    // Grid-based layout for standard and matrix
+                    const cols = count <= 3 ? count : 3;
+                    const rows = Math.ceil(count / cols);
+                    const colIdx = i % cols;
+                    const rowIdx = Math.floor(i / cols);
+
+                    // Center the grid
+                    const cellWidth = 80 / cols;
+                    const cellHeight = 70 / rows;
+                    xPos = (100 - (cols - 1) * cellWidth) / 2 + colIdx * cellWidth;
+                    yPos = (90 - (rows - 1) * cellHeight) / 2 + rowIdx * cellHeight;
                 } else if (pkgId === 'standard') {
                     xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
                 } else if (pkgId === 'synastry') {
