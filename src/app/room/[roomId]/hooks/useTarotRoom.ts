@@ -1160,7 +1160,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const handleDrawCard = () => {
         // Collect currently used standard card indices
-        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'standard').map(c => c.cardIndex));
+        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'tarot').map(c => c.cardIndex));
         
         if (usedIndices.size >= 78) {
             alert("Destede kart kalmadı!");
@@ -1223,7 +1223,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         const pkgId = clientProfile?.pkgId || 'standard';
         appendLog(`Dealt the ${count}-card package for ${clientProfile?.name || 'the Client'}`);
 
-        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'standard').map(c => c.cardIndex));
+        const usedIndices = new Set(cards.filter(c => !c.deckType || c.deckType === 'tarot').map(c => c.cardIndex));
         const spread: CardState[] = [];
 
         // Handle special "relation" mode for Single Eril/Disil card
