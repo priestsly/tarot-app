@@ -44,18 +44,19 @@ export const ChatPanel = ({
     if (!isChatOpen) return null;
 
     return (
-        <div className="absolute bottom-[4.5rem] sm:bottom-[5rem] left-1/2 -translate-x-1/2 sm:left-4 sm:translate-x-0 z-40 w-[95vw] sm:w-[22rem] h-[60vh] sm:h-[450px] bg-[#1a1825]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] flex flex-col overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/5">
-                <span className="text-xs text-text font-semibold tracking-wider uppercase flex items-center gap-1.5">
-                    <MessageCircle className="w-3.5 h-3.5 text-accent" />
+        <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 sm:left-6 sm:translate-x-0 z-40 w-[95vw] sm:w-[24rem] h-[65vh] sm:h-[500px] bg-[#1a1825]/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] flex flex-col overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/5">
+                <span className="text-xs text-text font-bold tracking-[0.2em] uppercase flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-accent" />
                     Sohbet
                 </span>
-                <button onClick={() => setIsChatOpen(false)} className="text-text-muted hover:text-text transition-colors">
-                    <X className="w-4 h-4" />
+                <button onClick={() => setIsChatOpen(false)} className="text-text-muted hover:text-text transition-all hover:rotate-90">
+                    <X className="w-5 h-5" />
                 </button>
             </div>
-            {/* Strict flex-1 min-h-0 prevents the wrapper from expanding beyond its boundaries */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+            {/* flex flex-col justify-end pushes few messages to the bottom */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col">
+                <div className="mt-auto space-y-4">
                 {messages.length === 0 && (
                     <p className="text-[10px] text-text-muted/40 text-center py-6 tracking-widest uppercase">Henüz mesaj yok...</p>
                 )}
@@ -79,6 +80,7 @@ export const ChatPanel = ({
                     );
                 })}
                 <div ref={messagesEndRef} />
+                </div>
             </div>
             {remoteTyping && (
                 <div className="px-5 pb-2">

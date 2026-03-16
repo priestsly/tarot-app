@@ -1396,6 +1396,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         pingTimeoutRef.current = setTimeout(() => setPingedCardId(null), 3000);
     }, [roomId]);
 
+    // Auto-scroll chat to bottom
+    useEffect(() => {
+        if (isChatOpen && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages, isChatOpen]);
+
     const handleFlipEnd = useCallback((id: string, isReversed: boolean, isFlipped: boolean) => {
         if (isFlipped) {
             appendLog("Revealed a card's destiny");
