@@ -798,7 +798,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
         // 2. Setup User Media (Camera/Mic)
         navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+            video: { 
+                facingMode: "user", 
+                width: { ideal: 480, max: 640 }, 
+                height: { ideal: 360, max: 480 },
+                frameRate: { ideal: 15, max: 20 }
+            },
             audio: true
         })
             .then(stream => {
@@ -970,7 +975,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const refreshLocalMedia = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                video: { 
+                    facingMode: "user", 
+                    width: { ideal: 480, max: 640 }, 
+                    height: { ideal: 360, max: 480 },
+                    frameRate: { ideal: 15, max: 20 }
+                },
                 audio: true
             });
             streamRef.current = stream;
