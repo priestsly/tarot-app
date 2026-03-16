@@ -1399,7 +1399,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Auto-scroll chat to bottom
     useEffect(() => {
         if (isChatOpen && messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
     }, [messages, isChatOpen]);
 
