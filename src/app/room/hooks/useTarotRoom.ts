@@ -1476,7 +1476,25 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
         isAHeld, setIsAHeld,
-        requestRemoteVideo: () => socketRef.current?.emit("start-remote-video"),
-        stopRemoteVideo: () => socketRef.current?.emit("stop-remote-video")
+        requestRemoteVideo: () => {
+            if (socketRef.current?.connected) {
+                console.log("[Video] Emitting start-remote-video");
+                socketRef.current.emit("start-remote-video");
+                setToastMsg({ text: "Görüntü talebi gönderildi", sender: "Sistem" });
+                if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            } else {
+                console.warn("[Video] Socket not connected, cannot request video");
+                setToastMsg({ text: "Bağlantı yok, görüntü isteği gönderilemedi", sender: "Sistem" });
+                if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            }
+        },
+        stopRemoteVideo: () => {
+            if (socketRef.current?.connected) {
+                console.log("[Video] Emitting stop-remote-video");
+                socketRef.current.emit("stop-remote-video");
+            }
+        }
     };
 }
