@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Copy, Clock, Volume2, VolumeX, Camera, Menu, X, Share2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Copy, Clock, Volume2, VolumeX, Camera, Menu, X, Share2, Trash2, RefreshCw } from 'lucide-react';
 import { cn } from '../page';
 
 interface TopBarProps {
@@ -20,6 +20,7 @@ interface TopBarProps {
     setShowExitModal: (v: boolean) => void;
     setShowShareModal?: (v: boolean) => void;
     handleClearTable?: () => void;
+    refreshLocalMedia?: () => void;
 }
 
 export const TopBar = ({
@@ -39,9 +40,17 @@ export const TopBar = ({
     setIsSidebarOpen,
     setShowExitModal,
     setShowShareModal,
-    handleClearTable
+    handleClearTable,
+    refreshLocalMedia
 }: TopBarProps) => {
     const [confirmClear, setConfirmClear] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const onRefreshClick = () => {
+        setIsRefreshing(true);
+        refreshLocalMedia?.();
+        setTimeout(() => setIsRefreshing(false), 2000);
+    };
 
     const onClearClick = () => {
         if (confirmClear) {
@@ -111,6 +120,14 @@ export const TopBar = ({
                         <Camera className="w-4 h-4" />
                     </button>
                 </div>
+                {/* Mobile visible refresh button */}
+                <button 
+                    onClick={onRefreshClick} 
+                    className={cn("glass rounded-xl p-2 sm:p-2.5 text-text-muted transition-all", isRefreshing ? "text-accent animate-spin" : "hover:text-amber-400")}
+                    title="Medyayı Yenile"
+                >
+                    <RefreshCw className="w-4 h-4" />
+                </button>
                 {/* Always visible: panel toggle */}
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="glass rounded-xl p-2 sm:p-2.5 text-text-muted hover:text-accent transition-colors">
                     {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}

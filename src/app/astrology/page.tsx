@@ -8,6 +8,7 @@ import {
     getZodiacSign, getMoonPhase, getDailyMessage, getCurrentPlanets,
     getElementAnalysis, getRisingSign, ZODIAC_SIGNS, type ZodiacSign, type AIHoroscope
 } from "@/lib/astrology";
+import { getApiUrl } from "@/lib/api";
 
 export default function AstrologyPage() {
     const router = useRouter();
@@ -46,7 +47,7 @@ export default function AstrologyPage() {
         setAiError("");
 
         try {
-            const res = await fetch("/api/horoscope", {
+            const res = await fetch(getApiUrl("/api/horoscope"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

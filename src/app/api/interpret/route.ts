@@ -67,12 +67,36 @@ export async function POST(req: Request) {
         if (!res.ok) throw new Error(`AI Api hatası: ${res.statusText}`);
         const data = await res.text();
 
-        return NextResponse.json({ interpretation: data });
+        return NextResponse.json(
+            { interpretation: data },
+            {
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                }
+            }
+        );
     } catch (error) {
         console.error("AI yorumlama hatası:", error);
         return NextResponse.json(
             { interpretation: "Pusların arkası şu an görünmüyor... Kartlarımız biraz yoruldu, lütfen biraz sonra tekrar deneyin." },
-            { status: 500 }
+            {
+                status: 500,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                }
+            }
         );
     }
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+    });
 }

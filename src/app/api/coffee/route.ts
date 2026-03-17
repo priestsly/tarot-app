@@ -57,7 +57,15 @@ Lütfen sadece saf JSON formatında yanıt ver. Asla Markdown veya backtick kull
                 const match = cleanText.match(/\{[\s\S]*\}/);
                 if (match) {
                     const parsed = JSON.parse(match[0]);
-                    if (parsed.reading) return NextResponse.json(parsed);
+                    if (parsed.reading) {
+                        return NextResponse.json(parsed, {
+                            headers: {
+                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                            }
+                        });
+                    }
                 }
             } catch (e: any) {
                 lastError = e;
@@ -72,6 +80,19 @@ Lütfen sadece saf JSON formatında yanıt ver. Asla Markdown veya backtick kull
         console.error("Coffee API Error:", error);
         return NextResponse.json({
             error: "Yapay zeka fincanınızı yorumlarken bir hata oluştu. Lütfen tekrar deneyin."
-        }, { status: 500 });
+        }, { 
+            status: 500,
+            headers: { 'Access-Control-Allow-Origin': '*' }
+        });
     }
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+    });
 }

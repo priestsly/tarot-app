@@ -1,0 +1,20 @@
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.5s
+  Running TypeScript ...
+Failed to compile.
+
+.next/dev/types/validator.ts:215:39
+Type error: Cannot find module '../../../src/app/room/[roomId]/page.js' or its corresponding type declarations.
+
+[0m [90m 213 |[39m {
+ [90m 214 |[39m   type __IsExpected[33m<[39m[33mSpecific[39m [36mextends[39m [33mAppPageConfig[39m[33m<[39m[32m"/room/[roomId]"[39m[33m>>[39m [33m=[39m [33mSpecific[39m
+[31m[1m>[22m[39m[90m 215 |[39m   [36mconst[39m handler [33m=[39m {} [36mas[39m [36mtypeof[39m [36mimport[39m([32m"../../../src/app/room/[roomId]/page.js"[39m)
+ [90m     |[39m                                       [31m[1m^[22m[39m
+ [90m 216 |[39m   type __Check [33m=[39m __IsExpected[33m<[39m[36mtypeof[39m handler[33m>[39m
+ [90m 217 |[39m   [90m// @ts-ignore[39m
+ [90m 218 |[39m   type __Unused [33m=[39m __Check[0m
+Next.js build worker exited with code: 1 and signal: null

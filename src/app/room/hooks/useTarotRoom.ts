@@ -5,6 +5,7 @@ import Peer from "peerjs";
 import { ActivityLog, CursorData, ChatMessage } from "../types";
 import { CardState } from "@/components/TarotCard";
 import { getCardMeaning } from "@/lib/cardData";
+import { getApiUrl } from "@/lib/api";
 
 // Remove global socket to avoid cross-component pollution
 
@@ -64,9 +65,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 const supabase = createClient();
                 await supabase.from('sessions').update({ room_state: cards }).eq('id', sessionId);
             } catch (e) { console.error("Failed to save cards:", e); }
-        }, 2000);
+        }, 15000); // 15s for quota saving
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
+
+    // Initial Media State: Start OFF to save battery/quota
+    const [isMuted, setIsMuted] = useState(true);
+    const [isVideoOff, setIsVideoOff] = useState(true);
+    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
+    const [isAHeld, setIsAHeld] = useState(false);
+    const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
 
     // Premium UI State
     const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -199,11 +207,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
-
-    const [isMuted, setIsMuted] = useState(true); // Starts muted by default
-    const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [remoteFullscreen, setRemoteFullscreen] = useState(false);
+
 
     // Exit Modal
     const [showExitModal, setShowExitModal] = useState(false);
@@ -233,31 +238,24 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Hold A for 5 seconds to show/hide Camera
 
     useEffect(() => {
-        let timer: any = null;
         const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
             if (e.key.toLowerCase() === 'a') {
-                const target = e.target as HTMLElement;
-                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-                if (!timer) {
-                    timer = setTimeout(() => {
-                        setIsVideoBarVisible(v => {
-                            const next = !v;
-                            if (next) {
-                                // Re-sync media when showing the bar
-                                if (myVideoRef.current) myVideoRef.current.play().catch(() => {});
-                                if (remoteVideoRef.current) remoteVideoRef.current.play().catch(() => {});
-                            }
-                            return next;
-                        });
-                        timer = null;
-                    }, 5000);
+                if (!aKeyTimer.current) {
+                    aKeyTimer.current = setTimeout(() => {
+                        setIsAHeld(v => !v);
+                        setIsVideoBarVisible(true);
+                    }, 1500); 
                 }
             }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
-            if (e.key.toLowerCase() === 'a' && timer) {
-                clearTimeout(timer);
-                timer = null;
+            if (e.key.toLowerCase() === 'a') {
+                if (aKeyTimer.current) {
+                    clearTimeout(aKeyTimer.current);
+                    aKeyTimer.current = null;
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -265,7 +263,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
-            if (timer) clearTimeout(timer);
+            if (aKeyTimer.current) clearTimeout(aKeyTimer.current);
         };
     }, []);
 
@@ -642,6 +640,21 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 }
             });
 
+            socket.on('start-remote-video', () => {
+                appendLog("Görüntü aktarımı talep edildi");
+                setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
+                setIsVideoOff(false);
+                refreshLocalMedia(true); 
+            });
+
+            socket.on('stop-remote-video', () => {
+                appendLog("Görüntü aktarımı durduruldu");
+                setIsVideoOff(true);
+                if (streamRef.current) {
+                    streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
+                }
+            });
+
 
             // Handle user join via Presence to instantly broadcast ready state to late joiners
             socket.channel?.on('presence', { event: 'join' }, () => {
@@ -812,8 +825,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     myVideoRef.current.srcObject = stream;
                 }
 
-                // Mute microphone by default on room join
-                stream.getAudioTracks().forEach(track => { track.enabled = false; });
+                // Disable tracks initially to save battery/quota
+                stream.getAudioTracks().forEach(track => { track.enabled = !isMuted; });
+                stream.getVideoTracks().forEach(track => { track.enabled = !isVideoOff; });
 
                 initPeerAndJoin(stream);
             })
@@ -972,7 +986,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         });
     }
 
-    const refreshLocalMedia = async () => {
+    const refreshLocalMedia = async (forceVideo?: boolean) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
@@ -987,8 +1001,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             if (myVideoRef.current) myVideoRef.current.srcObject = stream;
             
             // Re-apply mute/video states
+            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
             stream.getAudioTracks().forEach(t => t.enabled = !isMuted);
-            stream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
+            stream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
             
             // Replace tracks in current peer calls
             if (peerRef.current) {
@@ -1041,7 +1056,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 isReversed: c.isReversed
             }));
 
-            const res = await fetch("/api/interpret", {
+            const res = await fetch(getApiUrl("/api/interpret"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1459,6 +1474,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
+        isAHeld, setIsAHeld,
+        requestRemoteVideo: () => socketRef.current?.emit("start-remote-video"),
+        stopRemoteVideo: () => socketRef.current?.emit("stop-remote-video")
     };
 }

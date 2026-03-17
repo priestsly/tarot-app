@@ -79,5 +79,24 @@ Bu kartları danışanın sorusuyla ilişkilendirerek detaylı bir yorum yap. He
     ];
 
     const interpretation = `${intros[seed % intros.length]}\n\n${middles[seed % middles.length]}\n\n${middles[(seed + 1) % middles.length]}\n\n${advices[seed % advices.length]}`;
-    return NextResponse.json({ cards: drawnCards, interpretation });
+    return NextResponse.json(
+        { cards: drawnCards, interpretation },
+        { 
+            headers: { 
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            } 
+        }
+    );
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+    });
 }

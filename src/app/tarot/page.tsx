@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -240,7 +240,7 @@ function TarotConsultantsContent() {
                         const pkg = PACKAGES.find(p => p.id === selectedPackage);
                         params.set("pkgId", selectedPackage); params.set("cards", String(pkg ? pkg.cards : 3));
                     }
-                    router.push(`/room/${payload.new.room_id}?${params.toString()}`);
+                    router.push(`/room?id=${payload.new.room_id}&${params.toString()}`);
                 } else if (payload.new.status === 'cancelled') {
                     setIsWaitingForConsultant(false); setPendingSessionId(null); setStep("welcome"); setRejectedModal(true);
                 }
@@ -261,9 +261,9 @@ function TarotConsultantsContent() {
                                 const pkg = PACKAGES.find(p => p.id === selectedPackage);
                                 params.set("pkgId", selectedPackage); params.set("cards", String(pkg ? pkg.cards : 3));
                             }
-                            router.push(`/room/${data.room_id}?${params.toString()}`);
+                            router.push(`/room?id=${data.room_id}&${params.toString()}`);
                         }
-                    }, 5000);
+                    }, 20000); // Reduced frequency to save egress
                 }
             });
 
@@ -397,7 +397,7 @@ function TarotConsultantsContent() {
                                         if (user) await fetchActiveSessions(user.id);
 
                                         // Odaya yönlendir
-                                        router.push(`/room/${session.room_id}?role=consultant`);
+                                        router.push(`/room?id=${session.room_id}&role=consultant`);
                                     } catch (err) {
                                         console.error(err);
                                         alert("Bir ağ hatası oluştu. Lütfen tekrar deneyin.");
@@ -428,7 +428,7 @@ function TarotConsultantsContent() {
                         <button
                             onClick={() => {
                                 const s = clientSessions.find(s => s.status === 'active');
-                                router.push(`/room/${s.room_id}?role=${isConsultant ? 'consultant' : 'client'}`);
+                                router.push(`/room?id=${s.room_id}&role=${isConsultant ? 'consultant' : 'client'}`);
                             }}
                             className="ml-auto px-4 py-2 bg-green-500 text-black text-xs font-bold rounded-xl whitespace-nowrap"
                         >

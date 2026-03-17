@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Send, Loader2, RotateCcw } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 interface TarotCard { name: string; image: string; }
 interface Message { role: "user" | "ai"; text: string; cards?: TarotCard[] }
@@ -44,7 +45,7 @@ export default function AiTarotPage() {
         setLoading(true);
 
         try {
-            const res = await fetch("/api/ai-tarot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+            const res = await fetch(getApiUrl("/api/ai-tarot"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
             const data = await res.json();
             setMessages(m => [...m, { role: "ai", text: data.interpretation, cards: data.cards }]);
             localStorage.setItem("ai_tarot_last_used", today);

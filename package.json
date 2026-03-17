@@ -9,7 +9,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "static": "next build",
+    "mobile:sync": "npx cap sync",
+    "mobile:build": "npm run static && npx cap sync"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",

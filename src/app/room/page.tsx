@@ -1,7 +1,7 @@
 "use client";
 
-import { use, Suspense } from "react";
-import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Instagram } from "lucide-react";
+import { Suspense } from "react";
+import { PlusSquare, Mic, MicOff, X, Sparkles, MousePointer2, MessageCircle, Trash2, Clock, Info, Share2, Maximize, Wand2, Loader2, Feather, Flame, Instagram, Camera } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
@@ -25,9 +25,9 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
+function RoomContent() {
     const searchParams = useSearchParams();
-    const roomId = use(params).roomId;
+    const roomId = searchParams.get('id') || 'lobby';
 
     const {
         // State
@@ -51,7 +51,8 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession,
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
+        isAHeld, requestRemoteVideo, stopRemoteVideo,
         isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
     } = useTarotRoom(roomId, searchParams);
 
@@ -147,7 +148,46 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                             )}
                         </AnimatePresence>
                     </div>
-                )}              {/* Cards */}
+                )}
+
+                {/* ── Hidden Video Request Overlay (Hold A) ── */}
+                <AnimatePresence>
+                    {isAHeld && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
+                        >
+                            <div className="glass p-8 rounded-[40px] border border-accent/30 shadow-[0_0_100px_rgba(167,139,250,0.2)] flex flex-col items-center gap-6 pointer-events-auto backdrop-blur-3xl bg-black/40">
+                                <div className="p-4 bg-accent/20 rounded-full">
+                                    <Camera className="w-10 h-10 text-accent animate-pulse" />
+                                </div>
+                                <h2 className="text-xl font-black tracking-[0.3em] uppercase text-white">Mistik Vizyon</h2>
+                                <p className="text-xs text-zinc-400 text-center max-w-[200px] leading-relaxed">
+                                    Karşı tarafın enerjisini vizyona aktarmak ister misiniz?
+                                </p>
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={requestRemoteVideo}
+                                        className="px-8 py-3 bg-accent text-zinc-950 font-bold rounded-2xl hover:scale-105 transition-all text-xs tracking-widest uppercase shadow-lg shadow-accent/25"
+                                    >
+                                        Görüntü Al
+                                    </button>
+                                    <button
+                                        onClick={stopRemoteVideo}
+                                        className="px-8 py-3 bg-white/5 text-white/50 border border-white/10 font-bold rounded-2xl hover:bg-white/10 transition-all text-xs tracking-widest uppercase"
+                                    >
+                                        Durdur
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Cards */}
+
                 {/* THE DECK / TABLE - Client sees it blurred until ready, Consultant sees it always */}
                 <div
                     ref={tableRef}
@@ -266,6 +306,7 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
                     setShowExitModal={setShowExitModal}
                     setShowShareModal={setShowShareModal}
                     handleClearTable={handleClearTable}
+                    refreshLocalMedia={refreshLocalMedia}
                 />
 
                 {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
@@ -531,10 +572,10 @@ function RoomContent({ params }: { params: Promise<{ roomId: string }> }) {
     );
 }
 
-export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
+export default function RoomPage() {
     return (
         <Suspense fallback={<div className="h-screen w-full bg-midnight flex items-center justify-center"><div className="w-12 h-12 rounded-full border-t-2 border-purple-500 animate-spin"></div></div>}>
-            <RoomContent params={params} />
+            <RoomContent />
         </Suspense>
     );
 }

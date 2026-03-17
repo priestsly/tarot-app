@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -349,7 +349,7 @@ export default function ProfilePage() {
                                                             Oda Hazır
                                                         </span>
                                                         <button
-                                                            onClick={() => router.push(`/room/${session.room_id}?role=client`)}
+                                                            onClick={() => router.push(`/room?id=${session.room_id}&role=client`)}
                                                             className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.2)] flex items-center gap-2"
                                                         >
                                                             <Sparkles className="w-3 h-3" />

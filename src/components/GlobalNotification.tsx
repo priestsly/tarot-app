@@ -225,7 +225,7 @@ export default function GlobalNotification() {
 
         if (!error) {
             setIncomingRequest(null);
-            router.push(`/room/${session.room_id}`);
+            router.push(`/room?id=${session.room_id}`);
         } else {
             console.error(error);
         }
