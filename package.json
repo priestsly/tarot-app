@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "static": "next build",
+    "static": "node scripts/mobile-build.js",
     "mobile:sync": "npx cap sync",
     "mobile:build": "npm run static && npx cap sync"
   },
