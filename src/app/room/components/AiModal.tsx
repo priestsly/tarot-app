@@ -17,12 +17,14 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
     useEffect(() => {
-        // Pre-load voices for browsers that need it
-        window.speechSynthesis.getVoices();
+        // Pre-load voices for browsers that support it
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            try { window.speechSynthesis.getVoices(); } catch (e) { /* ignore */ }
+        }
 
         return () => {
-            if (speaking) {
-                window.speechSynthesis.cancel();
+            if (speaking && typeof window !== 'undefined' && window.speechSynthesis) {
+                try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
             }
         };
     }, [speaking]);
@@ -30,38 +32,44 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
     if (!isOpen) return null;
 
     const handleSpeak = () => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
         if (speaking) {
-            window.speechSynthesis.cancel();
+            try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
             setSpeaking(false);
             return;
         }
 
         if (!aiResponse) return;
 
-        const utterance = new SpeechSynthesisUtterance(aiResponse);
-        utterance.lang = "tr-TR";
+        try {
+            const utterance = new SpeechSynthesisUtterance(aiResponse);
+            utterance.lang = "tr-TR";
 
-        // Mistik ve akıcı bir tempo için ayarlar
-        utterance.rate = 0.85; // Biras yavaşlatarak daha bilge bir hava
-        utterance.pitch = 0.95; // Hafif kalınlaştırarak daha mistik bir hava
+            // Mistik ve akıcı bir tempo için ayarlar
+            utterance.rate = 0.85;
+            utterance.pitch = 0.95;
 
-        // En iyi Türkçe sesi bulma (Google Türkçe genelde en akıcısıdır)
-        const voices = window.speechSynthesis.getVoices();
-        const trVoices = voices.filter(v => v.lang.includes("tr"));
+            // En iyi Türkçe sesi bulma
+            const voices = window.speechSynthesis.getVoices();
+            const trVoices = voices.filter(v => v.lang.includes("tr"));
 
-        // Tercih sırası: Google > Microsoft > Diğer
-        const bestVoice = trVoices.find(v => v.name.includes("Google")) ||
-            trVoices.find(v => v.name.includes("Microsoft")) ||
-            trVoices[0];
+            const bestVoice = trVoices.find(v => v.name.includes("Google")) ||
+                trVoices.find(v => v.name.includes("Microsoft")) ||
+                trVoices[0];
 
-        if (bestVoice) utterance.voice = bestVoice;
+            if (bestVoice) utterance.voice = bestVoice;
 
-        utterance.onend = () => setSpeaking(false);
-        utterance.onerror = () => setSpeaking(false);
+            utterance.onend = () => setSpeaking(false);
+            utterance.onerror = () => setSpeaking(false);
 
-        utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
-        setSpeaking(true);
+            utteranceRef.current = utterance;
+            window.speechSynthesis.speak(utterance);
+            setSpeaking(true);
+        } catch (e) {
+            console.warn("SpeechSynthesis not available:", e);
+            setSpeaking(false);
+        }
     };
 
     return (
@@ -86,7 +94,7 @@ export const AiModal = ({ isOpen, onClose, aiResponse, aiLoading, onInterpret }:
                             <p className="text-[10px] text-white/30 mt-0.5">Tüm masadaki kartların birleşimi</p>
                         </div>
                     </div>
-                    <button onClick={() => { if (speaking) window.speechSynthesis.cancel(); onClose(); }} className="text-white/30 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg">
+                    <button onClick={() => { if (typeof window !== 'undefined' && window.speechSynthesis && speaking) { try { window.speechSynthesis.cancel(); } catch(e) {} } onClose(); }} className="text-white/30 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
