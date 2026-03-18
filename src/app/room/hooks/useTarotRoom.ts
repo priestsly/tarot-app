@@ -664,26 +664,18 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
                 setIsVideoOff(false);
                 
-                let hasRealVideo = false;
                 if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => {
-                        t.enabled = true;
-                        if (t.label && !t.label.includes('canvas')) {
-                            hasRealVideo = true;
-                        }
-                    });
+                    streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
                 }
                 
-                // If we don't have a real video track (camera was denied or not selected originally), then we try to refresh
-                if (!hasRealVideo) {
-                    refreshLocalMedia(true).catch(err => {
-                        console.error("Auto-start video failed:", err);
-                        if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
-                            setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
-                            setIsVideoBarVisible(true);
-                        }
-                    }); 
-                }
+                // Unconditionally refresh media so it executes the track-replace and re-call peer logic
+                refreshLocalMedia(true).catch(err => {
+                    console.error("Auto-start video failed:", err);
+                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
+                        setIsVideoBarVisible(true);
+                    }
+                }); 
             });
 
             socket.on('stop-remote-video', () => {
@@ -1062,6 +1054,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                             }
                         });
                     });
+                }
+                
+                // FORCE: Re-initiate connection to ensure the remote peer receives the updated stream object
+                if (remotePeerId) {
+                    try {
+                        console.log("Re-calling remote peer to ensure video stream updates", remotePeerId);
+                        peerRef.current.call(remotePeerId, stream);
+                    } catch (e) {
+                        console.error("Failed to re-call peer", e);
+                    }
                 }
             }
         } catch (e) {
