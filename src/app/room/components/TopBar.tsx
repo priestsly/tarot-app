@@ -133,15 +133,6 @@ export const TopBar = ({
                     <RefreshCw className="w-4 h-4" />
                 </button>
                 {/* Visual Vision (Camera Request) — Mobile and Desktop */}
-                {isConsultant && requestRemoteVideo && (
-                    <button 
-                        onClick={requestRemoteVideo}
-                        className="glass rounded-xl p-2 sm:p-2.5 bg-accent/10 border-accent/20 text-accent hover:bg-accent/20 transition-all shadow-[0_0_15px_rgba(167,139,250,0.1)] group"
-                        title="Görüntü Al (Kamera)"
-                    >
-                        <Camera className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </button>
-                )}
                 {/* Always visible: panel toggle */}
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="glass rounded-xl p-2 sm:p-2.5 text-text-muted hover:text-accent transition-colors">
                     {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}

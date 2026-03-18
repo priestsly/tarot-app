@@ -282,13 +282,34 @@ function RoomContent() {
                     isVideoBarVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
                 )}>
                     {/* Remote */}
-                    <div className="w-24 sm:w-32 aspect-[3/4] sm:aspect-[9/16] rounded-lg sm:rounded-xl overflow-hidden glass relative cursor-pointer group" onClick={() => setRemoteFullscreen(true)}>
-                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-24 sm:w-32 aspect-[3/4] sm:aspect-[9/16] rounded-lg sm:rounded-xl overflow-hidden glass relative group">
+                        <div className="absolute inset-0 cursor-pointer z-0" onClick={() => setRemoteFullscreen(true)} />
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover pointer-events-none" />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                             <span className="text-[7px] sm:text-[9px] text-text-muted/40 font-mono tracking-widest animate-pulse">Bekleniyor...</span>
                         </div>
-                        <div className="absolute bottom-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-accent font-semibold tracking-wider uppercase">Karşı</div>
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="absolute top-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-accent font-semibold tracking-wider uppercase pointer-events-none z-10">Karşı</div>
+                        
+                        {/* Consultant Controls */}
+                        {isConsultant && (
+                            <div className="absolute bottom-1 right-1 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
+                                    className="p-1 sm:p-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 rounded-md backdrop-blur-md transition-all border border-emerald-500/30 shadow-lg"
+                                    title="Görüntüyü Gör"
+                                >
+                                    <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
+                                    className="p-1 sm:p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded-md backdrop-blur-md transition-all border border-red-500/30 shadow-lg"
+                                    title="Durdur"
+                                >
+                                    <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none z-10">
                             <Maximize className="w-5 h-5 text-white/70" />
                         </div>
                     </div>
