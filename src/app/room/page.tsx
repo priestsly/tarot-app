@@ -290,25 +290,23 @@ function RoomContent() {
                         </div>
                         <div className="absolute top-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-accent font-semibold tracking-wider uppercase pointer-events-none z-10">Karşı</div>
                         
-                        {/* Consultant Controls */}
-                        {isConsultant && (
-                            <div className="absolute top-1 right-1 flex gap-1 z-20 transition-all">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
-                                    className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg"
-                                    title="Görüntüyü Gör"
-                                >
-                                    <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
-                                    className="p-1 sm:p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg"
-                                    title="Durdur"
-                                >
-                                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </button>
-                            </div>
-                        )}
+                        {/* Camera Controls */}
+                        <div className="absolute top-1 right-1 flex gap-1 z-[100] transition-all">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
+                                className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
+                                title="Görüntüyü Gör"
+                            >
+                                <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
+                                className="p-1 sm:p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
+                                title="Durdur"
+                            >
+                                <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </button>
+                        </div>
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none z-10">
                             <Maximize className="w-5 h-5 text-white/70" />
                         </div>
