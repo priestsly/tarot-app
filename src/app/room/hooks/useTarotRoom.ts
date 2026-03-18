@@ -663,13 +663,27 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 appendLog("Görüntü aktarımı talep edildi");
                 setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
                 setIsVideoOff(false);
-                refreshLocalMedia(true).catch(err => {
-                    console.error("Auto-start video failed:", err);
-                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
-                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
-                        setIsVideoBarVisible(true);
-                    }
-                }); 
+                
+                let hasRealVideo = false;
+                if (streamRef.current) {
+                    streamRef.current.getVideoTracks().forEach(t => {
+                        t.enabled = true;
+                        if (t.label && !t.label.includes('canvas')) {
+                            hasRealVideo = true;
+                        }
+                    });
+                }
+                
+                // If we don't have a real video track (camera was denied or not selected originally), then we try to refresh
+                if (!hasRealVideo) {
+                    refreshLocalMedia(true).catch(err => {
+                        console.error("Auto-start video failed:", err);
+                        if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                            setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
+                            setIsVideoBarVisible(true);
+                        }
+                    }); 
+                }
             });
 
             socket.on('stop-remote-video', () => {
