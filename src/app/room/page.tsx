@@ -150,41 +150,6 @@ function RoomContent() {
                     </div>
                 )}
 
-                {/* ── Hidden Video Request Overlay (Hold A) ── */}
-                <AnimatePresence>
-                    {isAHeld && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
-                        >
-                            <div className="glass p-8 rounded-[40px] border border-accent/30 shadow-[0_0_100px_rgba(167,139,250,0.2)] flex flex-col items-center gap-6 pointer-events-auto backdrop-blur-3xl bg-black/40">
-                                <div className="p-4 bg-accent/20 rounded-full">
-                                    <Camera className="w-10 h-10 text-accent animate-pulse" />
-                                </div>
-                                <h2 className="text-xl font-black tracking-[0.3em] uppercase text-white">Mistik Vizyon</h2>
-                                <p className="text-xs text-zinc-400 text-center max-w-[200px] leading-relaxed">
-                                    Karşı tarafın enerjisini vizyona aktarmak ister misiniz?
-                                </p>
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={requestRemoteVideo}
-                                        className="px-8 py-3 bg-accent text-zinc-950 font-bold rounded-2xl hover:scale-105 transition-all text-xs tracking-widest uppercase shadow-lg shadow-accent/25"
-                                    >
-                                        Görüntü Al
-                                    </button>
-                                    <button
-                                        onClick={stopRemoteVideo}
-                                        className="px-8 py-3 bg-white/5 text-white/50 border border-white/10 font-bold rounded-2xl hover:bg-white/10 transition-all text-xs tracking-widest uppercase"
-                                    >
-                                        Durdur
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 {/* Cards */}
 
@@ -307,6 +272,8 @@ function RoomContent() {
                     setShowShareModal={setShowShareModal}
                     handleClearTable={handleClearTable}
                     refreshLocalMedia={refreshLocalMedia}
+                    requestRemoteVideo={requestRemoteVideo}
+                    stopRemoteVideo={stopRemoteVideo}
                 />
 
                 {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}

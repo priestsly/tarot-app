@@ -247,32 +247,19 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Hold A for 5 seconds to show/hide Camera
 
     useEffect(() => {
+        // We still keep the 'A' key as a shortcut, but remove the 1.5s timer
+        // and make it a toggle. This allows consultant to quickly access the camera control.
         const handleKeyDown = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
             if (e.key.toLowerCase() === 'a') {
-                if (!aKeyTimer.current) {
-                    aKeyTimer.current = setTimeout(() => {
-                        setIsAHeld(v => !v);
-                        setIsVideoBarVisible(true);
-                    }, 1500); 
-                }
-            }
-        };
-        const handleKeyUp = (e: KeyboardEvent) => {
-            if (e.key.toLowerCase() === 'a') {
-                if (aKeyTimer.current) {
-                    clearTimeout(aKeyTimer.current);
-                    aKeyTimer.current = null;
-                }
+                setIsAHeld(v => !v);
+                setIsVideoBarVisible(true);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-            if (aKeyTimer.current) clearTimeout(aKeyTimer.current);
         };
     }, []);
 
