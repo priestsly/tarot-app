@@ -1032,12 +1032,22 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             
             // Replace tracks in current peer calls
             if (peerRef.current) {
-                const senders = (peerRef.current as any)._connections[remotePeerId]?.[0]?.peerConnection?.getSenders();
-                if (senders) {
-                    const videoSender = senders.find((s: any) => s.track?.kind === 'video');
-                    const audioSender = senders.find((s: any) => s.track?.kind === 'audio');
-                    if (videoSender && stream.getVideoTracks()[0]) videoSender.replaceTrack(stream.getVideoTracks()[0]);
-                    if (audioSender && stream.getAudioTracks()[0]) audioSender.replaceTrack(stream.getAudioTracks()[0]);
+                const peerObj = peerRef.current as any;
+                const connections = peerObj.connections || peerObj._connections;
+                if (connections) {
+                    Object.values(connections).forEach((connArray: any) => {
+                        connArray.forEach((conn: any) => {
+                            if (conn.peerConnection) {
+                                const senders = conn.peerConnection.getSenders();
+                                if (senders) {
+                                    const videoSender = senders.find((s: any) => s.track && s.track.kind === 'video');
+                                    const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+                                    if (videoSender && stream.getVideoTracks()[0]) videoSender.replaceTrack(stream.getVideoTracks()[0]);
+                                    if (audioSender && stream.getAudioTracks()[0]) audioSender.replaceTrack(stream.getAudioTracks()[0]);
+                                }
+                            }
+                        });
+                    });
                 }
             }
         } catch (e) {
