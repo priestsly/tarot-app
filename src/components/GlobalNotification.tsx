@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Sparkles, X, Check, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 export default function GlobalNotification() {
     const [incomingRequest, setIncomingRequest] = useState<any>(null);
@@ -132,17 +133,31 @@ export default function GlobalNotification() {
             }
         });
 
-        // Notification permission
+        // Notification permission - wrap in extreme safety
         try {
-            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission().catch(() => { });
+            if (typeof window !== "undefined") {
+                // Native Capacitor Notifications
+                // @ts-ignore
+                if (typeof (window as any).Capacitor !== 'undefined') {
+                    LocalNotifications.requestPermissions().then(result => {
+                      if (result.display === 'granted') {
+                        console.log("Local notifications permission granted");
+                      }
+                    });
+                } 
+                // Web Browser Notifications
+                else if ("Notification" in window) {
+                    if (Notification.permission === "default") {
+                        Notification.requestPermission().catch(() => { });
+                    }
+                }
             }
         } catch (e) {
-            console.warn("Notification request constraint:", e);
+            console.warn("Notification API not available:", e);
         }
 
         return () => {
-            authSub.unsubscribe();
+            if (authSub && authSub.unsubscribe) authSub.unsubscribe();
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (activeChannel) supabase.removeChannel(activeChannel);
             if (presenceChannel) supabase.removeChannel(presenceChannel);
@@ -150,13 +165,34 @@ export default function GlobalNotification() {
     }, [supabase]);
 
     const showBrowserNotification = (session: any) => {
-        if (
+        const title = "Yeni Görüşme Talebi";
+        const body = `${session.client_info?.name || "Bir müşteri"} sizinle görüşmek istiyor.`;
+
+        // Native Capacitor Notifications
+        // @ts-ignore
+        if (typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined') {
+          LocalNotifications.schedule({
+            notifications: [
+              {
+                title,
+                body,
+                id: Math.floor(Math.random() * 10000),
+                schedule: { at: new Date(Date.now() + 100) },
+                attachments: [],
+                actionTypeId: '',
+                extra: null,
+              }
+            ]
+          }).catch(err => console.error("Native Notification Error:", err));
+        } 
+        // Web Browser Notifications
+        else if (
             typeof window !== "undefined" &&
             "Notification" in window &&
             Notification.permission === "granted"
         ) {
-            new Notification("Yeni Görüşme Talebi", {
-                body: `${session.client_info?.name || "Bir müşteri"} sizinle görüşmek istiyor.`,
+            new Notification(title, {
+                body,
                 icon: "/favicon.ico",
             });
         }
@@ -164,13 +200,20 @@ export default function GlobalNotification() {
 
     const playNotificationSound = () => {
         try {
+            if (typeof window === 'undefined') return;
+
             if (typeof navigator !== 'undefined' && "vibrate" in navigator) {
                 navigator.vibrate([200, 100, 200, 100, 400]);
             }
 
-            const ctx = new (window.AudioContext ||
-                (window as any).webkitAudioContext)();
+            // High priority safety check for AudioContext
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) {
+                console.warn("AudioContext not supported in this browser");
+                return;
+            }
 
+            const ctx = new AudioContextClass();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
 

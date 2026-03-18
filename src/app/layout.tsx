@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Quicksand, Cinzel } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import GlobalNotification from "@/components/GlobalNotification";
+import RootErrorBoundary from "../components/RootErrorBoundary";
 
 const body = Quicksand({
   variable: "--font-inter",
@@ -51,19 +53,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={`${body.variable} ${heading.variable} antialiased bg-[#0C0B14] text-neutral-50`}>
-        <GlobalNotification />
-        {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
-          }}
-        />
+        <RootErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen bg-[#0C0B14]" />}>
+            <GlobalNotification />
+            {children}
+          </Suspense>
+        </RootErrorBoundary>
       </body>
     </html>
   );

@@ -51,7 +51,16 @@ Bu kartları danışanın sorusuyla ilişkilendirerek detaylı bir yorum yap. He
             for (const model of ["gemini-2.0-flash-lite", "gemini-2.0-flash"]) {
                 try {
                     const res = await ai.models.generateContent({ model, contents: prompt });
-                    if (res.text) return NextResponse.json({ cards: drawnCards, interpretation: res.text });
+                    if (res.text) return NextResponse.json(
+                        { cards: drawnCards, interpretation: res.text },
+                        { 
+                            headers: { 
+                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                            } 
+                        }
+                    );
                 } catch (e: unknown) {
                     if (e && typeof e === 'object' && 'status' in e && (e as { status: number }).status === 429) continue;
                     break;

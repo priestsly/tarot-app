@@ -82,7 +82,11 @@ Lütfen sadece saf JSON formatında yanıt ver. Asla Markdown veya backtick kull
             error: "Yapay zeka fincanınızı yorumlarken bir hata oluştu. Lütfen tekrar deneyin."
         }, { 
             status: 500,
-            headers: { 'Access-Control-Allow-Origin': '*' }
+            headers: { 
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            }
         });
     }
 }

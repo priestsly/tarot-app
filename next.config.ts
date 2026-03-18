@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  // Make debugging easier on mobile
+  productionBrowserSourceMaps: process.env.DEBUG_BUILD === 'true',
 };
 
 export default nextConfig;

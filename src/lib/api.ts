@@ -10,10 +10,11 @@ export const getApiUrl = (path: string) => {
         return normalizedPath;
     }
     
-    // Detect Capacitor environment (file:// protocol or capacitor:// scheme)
+    // Detect Capacitor environment
     const isCapacitor = (
         window.location.protocol === 'capacitor:' ||
         window.location.protocol === 'file:' ||
+        window.location.hostname === 'localhost' || // common in Capacitor
         // @ts-ignore - Capacitor injects this global
         typeof (window as any).Capacitor !== 'undefined'
     );

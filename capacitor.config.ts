@@ -5,19 +5,15 @@ const config: CapacitorConfig = {
   appName: 'Mystic Tarot',
   webDir: 'out',
   server: {
-    // Allow mixed content for WebRTC
+    // Use https scheme and localhost for better security and feature support
+    androidScheme: 'https',
+    hostname: 'localhost',
     allowNavigation: ['*'],
-    cleartext: true,
   },
   android: {
-    // Allow WebView to use camera/mic
-    webContentsDebuggingEnabled: true,
+    // Allow mixed content (http resources on https page)
     allowMixedContent: true,
   },
-  plugins: {
-    // No special plugin config needed - permissions are in AndroidManifest.xml
-    // and getUserMedia is handled by the WebView
-  }
 };
 
 export default config;

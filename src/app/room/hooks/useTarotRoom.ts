@@ -109,7 +109,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Notification beep
     const playNotifSound = useCallback(() => {
         try {
-            const ctx = new window.AudioContext();
+            if (typeof window === 'undefined') return;
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+            const ctx = new AudioContextClass();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
@@ -128,7 +131,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // SFX: Card flip sound — mystical chime
     const playCardFlipSound = useCallback(() => {
         try {
-            const ctx = new window.AudioContext();
+            if (typeof window === 'undefined') return;
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+            const ctx = new AudioContextClass();
             // Chime 1
             const osc1 = ctx.createOscillator();
             const g1 = ctx.createGain();
@@ -160,7 +166,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // SFX: Aura change — deep whoosh
     const playAuraChangeSound = useCallback(() => {
         try {
-            const ctx = new window.AudioContext();
+            if (typeof window === 'undefined') return;
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+            const ctx = new AudioContextClass();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             const filter = ctx.createBiquadFilter();
@@ -399,9 +408,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 logging: false,
             });
             const dataUrl = canvas.toDataURL("image/png", 1.0);
+            
+            // On mobile/Capacitor, standard download link might fail
+            // For now, we attempt but also log for debugging
+            console.log("Screenshot generated, size:", dataUrl.length);
+
             const link = document.createElement("a");
             link.download = `tarot-${roomId}-${Date.now()}.png`;
             link.href = dataUrl;
+            link.dataset.downloadurl = ["image/png", link.download, link.href].join(":");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -434,7 +449,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             audioCtxRef.current = null;
             setIsAmbientOn(false);
         } else {
-            const ctx = new window.AudioContext();
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) return;
+            const ctx = new AudioContextClass();
             audioCtxRef.current = ctx;
 
             // Create a warm ambient drone
@@ -644,7 +661,13 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 appendLog("Görüntü aktarımı talep edildi");
                 setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
                 setIsVideoOff(false);
-                refreshLocalMedia(true); 
+                refreshLocalMedia(true).catch(err => {
+                    console.error("Auto-start video failed:", err);
+                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
+                        setIsVideoBarVisible(true);
+                    }
+                }); 
             });
 
             socket.on('stop-remote-video', () => {

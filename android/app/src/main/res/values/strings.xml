@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">My App</string>
-    <string name="title_activity_main">My App</string>
-    <string name="package_name">com.getcapacitor.myapp</string>
-    <string name="custom_url_scheme">com.getcapacitor.myapp</string>
+    <string name="app_name">Mystic Tarot</string>
+    <string name="title_activity_main">Mystic Tarot</string>
+    <string name="package_name">com.priestsly.tarot</string>
+    <string name="custom_url_scheme">com.priestsly.tarot</string>
 </resources>
