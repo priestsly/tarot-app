@@ -69,9 +69,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Start video ON but hide it on UI level to bypass mobile WebRTC bugs
+    // Initial Media State: Start OFF to save battery/quota
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(true);
     const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [isAHeld, setIsAHeld] = useState(false);
@@ -662,21 +662,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
             socket.on('start-remote-video', () => {
                 appendLog("Görüntü aktarımı talep edildi");
-                setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
                 setIsVideoOff(false);
                 
                 if (streamRef.current) {
                     streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
                 }
                 
-                // Unconditionally refresh media so it executes the track-replace and re-call peer logic
-                refreshLocalMedia(true).catch(err => {
-                    console.error("Auto-start video failed:", err);
-                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
-                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
-                        setIsVideoBarVisible(true);
-                    }
-                }); 
+                // Alert the consultant that video is now flowing, so they can bypass WebRTC freezing
+                if (socketRef.current?.connected) {
+                    socketRef.current.emit("video-track-refreshed", roomId);
+                }
             });
 
             socket.on('stop-remote-video', () => {
@@ -684,6 +679,20 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 setIsVideoOff(true);
                 if (streamRef.current) {
                     streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
+                }
+            });
+
+            socket.on('video-track-refreshed', () => {
+                // Detach and re-attach stream to unfreeze video element in mobile browsers
+                if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+                    const stream = remoteVideoRef.current.srcObject;
+                    remoteVideoRef.current.srcObject = null;
+                    setTimeout(() => {
+                        if (remoteVideoRef.current) {
+                            remoteVideoRef.current.srcObject = stream;
+                            remoteVideoRef.current.play().catch(console.error);
+                        }
+                    }, 100);
                 }
             });
 
@@ -1530,15 +1539,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         isAHeld, setIsAHeld,
         requestRemoteVideo: () => {
             setIsRemoteVideoVisible(true);
-            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("start-remote-video");
+            }
         },
         stopRemoteVideo: () => {
             setIsRemoteVideoVisible(false);
-            setToastMsg({ text: "Görüntü aktarımı durduruldu", sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("stop-remote-video");
+            }
         }
     };
 }
