@@ -292,20 +292,20 @@ function RoomContent() {
                         
                         {/* Consultant Controls */}
                         {isConsultant && (
-                            <div className="absolute bottom-1 right-1 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1 right-1 flex gap-1 z-20 transition-all">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
-                                    className="p-1 sm:p-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 rounded-md backdrop-blur-md transition-all border border-emerald-500/30 shadow-lg"
+                                    className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg"
                                     title="Görüntüyü Gör"
                                 >
-                                    <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                    <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
-                                    className="p-1 sm:p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded-md backdrop-blur-md transition-all border border-red-500/30 shadow-lg"
+                                    className="p-1 sm:p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg"
                                     title="Durdur"
                                 >
-                                    <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                             </div>
                         )}
