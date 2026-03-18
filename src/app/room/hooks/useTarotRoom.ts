@@ -69,9 +69,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Start OFF to save battery/quota
+    // Initial Media State: Start video ON but hide it on UI level to bypass mobile WebRTC bugs
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(true);
+    const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [isAHeld, setIsAHeld] = useState(false);
     const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
@@ -1496,7 +1497,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, remoteFullscreen, showExitModal, isRecording,
+        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,
 
@@ -1528,24 +1529,16 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
         isAHeld, setIsAHeld,
         requestRemoteVideo: () => {
-            if (socketRef.current?.connected) {
-                console.log("[Video] Emitting start-remote-video");
-                socketRef.current.emit("start-remote-video");
-                setToastMsg({ text: "Görüntü talebi gönderildi", sender: "Sistem" });
-                if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
-            } else {
-                console.warn("[Video] Socket not connected, cannot request video");
-                setToastMsg({ text: "Bağlantı yok, görüntü isteği gönderilemedi", sender: "Sistem" });
-                if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
-            }
+            setIsRemoteVideoVisible(true);
+            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         },
         stopRemoteVideo: () => {
-            if (socketRef.current?.connected) {
-                console.log("[Video] Emitting stop-remote-video");
-                socketRef.current.emit("stop-remote-video");
-            }
+            setIsRemoteVideoVisible(false);
+            setToastMsg({ text: "Görüntü aktarımı durduruldu", sender: "Sistem" });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         }
     };
 }
