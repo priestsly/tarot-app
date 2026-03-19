@@ -821,9 +821,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         navigator.mediaDevices.getUserMedia({
             video: { 
                 facingMode: "user", 
-                width: { ideal: 240, max: 320 }, 
-                height: { ideal: 180, max: 240 },
-                frameRate: { ideal: 5, max: 10 }
+                width: { ideal: 120, max: 160 }, 
+                height: { ideal: 90, max: 120 },
+                frameRate: { ideal: 4, max: 5 }
             },
             audio: true
         })
@@ -999,9 +999,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
                     facingMode: "user", 
-                    width: { ideal: 240, max: 320 }, 
-                    height: { ideal: 180, max: 240 },
-                    frameRate: { ideal: 5, max: 10 }
+                    width: { ideal: 120, max: 160 }, 
+                    height: { ideal: 90, max: 120 },
+                    frameRate: { ideal: 4, max: 5 }
                 },
                 audio: true
             });
