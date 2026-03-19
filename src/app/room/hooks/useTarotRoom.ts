@@ -69,9 +69,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Start OFF to save battery/quota
+    // Initial Media State: Start video ON but hide it on UI level to bypass mobile WebRTC bugs
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(true);
+    const [isVideoOff, setIsVideoOff] = useState(false);
     const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [isAHeld, setIsAHeld] = useState(false);
@@ -662,35 +662,28 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
             socket.on('start-remote-video', () => {
                 appendLog("Görüntü aktarımı talep edildi");
+                setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
                 setIsVideoOff(false);
-                setIsRemoteVideoVisible(true);
                 
-                // FORCE: Fresh getUserMedia and fresh PeerJS call is the ONLY stable way on mobile
+                if (streamRef.current) {
+                    streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
+                }
+                
+                // Unconditionally refresh media so it executes the track-replace and re-call peer logic
                 refreshLocalMedia(true).catch(err => {
                     console.error("Auto-start video failed:", err);
-                    setToastMsg({ text: "Kamera başlatılamadı, izinleri kontrol et.", sender: "Sistem" });
-                });
+                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
+                        setIsVideoBarVisible(true);
+                    }
+                }); 
             });
 
             socket.on('stop-remote-video', () => {
-                appendLog("Görüntü durduruldu");
+                appendLog("Görüntü aktarımı durduruldu");
                 setIsVideoOff(true);
-                setIsRemoteVideoVisible(false);
                 if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => {
-                        t.stop(); // Completely stop track to save battery
-                    });
-                }
-                // Notify the other side that we stopped
-                if (socketRef.current?.connected) {
-                    socketRef.current.emit("remote-video-stopped", roomId);
-                }
-            });
-
-            socket.on('remote-video-stopped', () => {
-                setIsRemoteVideoVisible(false);
-                if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = null;
+                    streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
                 }
             });
 
@@ -1020,7 +1013,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         };
         document.addEventListener('visibilitychange', handleGlobalVisibility);
-        
         call.on('close', () => {
             document.removeEventListener('visibilitychange', handleGlobalVisibility);
         });
@@ -1028,42 +1020,52 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const refreshLocalMedia = async (forceVideo?: boolean) => {
         try {
-            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
-            
-            // Get a fresh stream every time to wake up hardware and ensure SDP success
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: videoEnabled ? { 
+                video: { 
                     facingMode: "user", 
-                    width: { ideal: 480 }, 
-                    height: { ideal: 360 },
-                    frameRate: { ideal: 15 }
-                } : false,
+                    width: { ideal: 480, max: 640 }, 
+                    height: { ideal: 360, max: 480 },
+                    frameRate: { ideal: 15, max: 20 }
+                },
                 audio: true
             });
-            
-            // Cleanup old stream
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(t => t.stop());
-            }
-
             streamRef.current = stream;
-            if (myVideoRef.current) {
-                myVideoRef.current.srcObject = stream;
-            }
+            if (myVideoRef.current) myVideoRef.current.srcObject = stream;
             
             // Re-apply mute/video states
+            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
             stream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+            stream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
             
-            // Replace tracks in current peer calls OR start new call
-            if (peerRef.current && remotePeerId) {
-                console.log("Pushing fresh stream to remote peer (re-calling):", remotePeerId);
-                const call = peerRef.current.call(remotePeerId, stream);
-                call.on('stream', (remoteStream) => {
-                    if (remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = remoteStream;
-                        remoteVideoRef.current.play().catch(() => {});
+            // Replace tracks in current peer calls
+            if (peerRef.current) {
+                const peerObj = peerRef.current as any;
+                const connections = peerObj.connections || peerObj._connections;
+                if (connections) {
+                    Object.values(connections).forEach((connArray: any) => {
+                        connArray.forEach((conn: any) => {
+                            if (conn.peerConnection) {
+                                const senders = conn.peerConnection.getSenders();
+                                if (senders) {
+                                    const videoSender = senders.find((s: any) => s.track && s.track.kind === 'video');
+                                    const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+                                    if (videoSender && stream.getVideoTracks()[0]) videoSender.replaceTrack(stream.getVideoTracks()[0]);
+                                    if (audioSender && stream.getAudioTracks()[0]) audioSender.replaceTrack(stream.getAudioTracks()[0]);
+                                }
+                            }
+                        });
+                    });
+                }
+                
+                // FORCE: Re-initiate connection to ensure the remote peer receives the updated stream object
+                if (remotePeerId) {
+                    try {
+                        console.log("Re-calling remote peer to ensure video stream updates", remotePeerId);
+                        peerRef.current.call(remotePeerId, stream);
+                    } catch (e) {
+                        console.error("Failed to re-call peer", e);
                     }
-                });
+                }
             }
         } catch (e) {
             console.error("Failed to refresh media:", e);
@@ -1528,15 +1530,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         isAHeld, setIsAHeld,
         requestRemoteVideo: () => {
             setIsRemoteVideoVisible(true);
-            if (socketRef.current?.connected) {
-                socketRef.current.emit("start-remote-video");
-            }
+            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         },
         stopRemoteVideo: () => {
             setIsRemoteVideoVisible(false);
-            if (socketRef.current?.connected) {
-                socketRef.current.emit("stop-remote-video");
-            }
+            setToastMsg({ text: "Görüntü aktarımı durduruldu", sender: "Sistem" });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         }
     };
 }
