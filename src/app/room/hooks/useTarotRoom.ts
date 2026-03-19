@@ -663,43 +663,34 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             socket.on('start-remote-video', () => {
                 appendLog("Görüntü aktarımı talep edildi");
                 setIsVideoOff(false);
+                setIsRemoteVideoVisible(true);
                 
-                if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
-                }
-                
-                // Wait briefly for camera hardware/encoder to wake up, then tell consultant to initiate a fresh call
-                if (socketRef.current?.connected) {
-                    setTimeout(() => {
-                        socketRef.current.emit("client-camera-ready", roomId);
-                    }, 300);
-                }
+                // FORCE: Fresh getUserMedia and fresh PeerJS call is the ONLY stable way on mobile
+                refreshLocalMedia(true).catch(err => {
+                    console.error("Auto-start video failed:", err);
+                    setToastMsg({ text: "Kamera başlatılamadı, izinleri kontrol et.", sender: "Sistem" });
+                });
             });
 
             socket.on('stop-remote-video', () => {
-                appendLog("Görüntü gizlendi/durduruldu");
+                appendLog("Görüntü durduruldu");
                 setIsVideoOff(true);
+                setIsRemoteVideoVisible(false);
                 if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
+                    streamRef.current.getVideoTracks().forEach(t => {
+                        t.stop(); // Completely stop track to save battery
+                    });
+                }
+                // Notify the other side that we stopped
+                if (socketRef.current?.connected) {
+                    socketRef.current.emit("remote-video-stopped", roomId);
                 }
             });
 
-            socket.on('client-camera-ready', () => {
-                // Force a completely NEW WebRTC call from Consultant -> Client
-                // This bypasses ALL mobile WebRTC frozen stream bugs automatically.
-                if (peerRef.current && remotePeerId && streamRef.current) {
-                    console.log("Client camera is fully active, establishing fresh stream connection...");
-                    const call = peerRef.current.call(remotePeerId, streamRef.current);
-                    
-                    call.on('stream', remoteStream => {
-                        console.log("Received fresh remote stream (from re-call)", remoteStream.id);
-                        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
-                            remoteVideoRef.current.srcObject = remoteStream;
-                            remoteVideoRef.current.onloadedmetadata = () => {
-                                remoteVideoRef.current?.play().catch(console.error);
-                            };
-                        }
-                    });
+            socket.on('remote-video-stopped', () => {
+                setIsRemoteVideoVisible(false);
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = null;
                 }
             });
 
@@ -1029,6 +1020,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         };
         document.addEventListener('visibilitychange', handleGlobalVisibility);
+        
         call.on('close', () => {
             document.removeEventListener('visibilitychange', handleGlobalVisibility);
         });
@@ -1036,52 +1028,42 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
 
     const refreshLocalMedia = async (forceVideo?: boolean) => {
         try {
+            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
+            
+            // Get a fresh stream every time to wake up hardware and ensure SDP success
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
+                video: videoEnabled ? { 
                     facingMode: "user", 
-                    width: { ideal: 480, max: 640 }, 
-                    height: { ideal: 360, max: 480 },
-                    frameRate: { ideal: 15, max: 20 }
-                },
+                    width: { ideal: 480 }, 
+                    height: { ideal: 360 },
+                    frameRate: { ideal: 15 }
+                } : false,
                 audio: true
             });
+            
+            // Cleanup old stream
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(t => t.stop());
+            }
+
             streamRef.current = stream;
-            if (myVideoRef.current) myVideoRef.current.srcObject = stream;
+            if (myVideoRef.current) {
+                myVideoRef.current.srcObject = stream;
+            }
             
             // Re-apply mute/video states
-            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
             stream.getAudioTracks().forEach(t => t.enabled = !isMuted);
-            stream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
             
-            // Replace tracks in current peer calls
-            if (peerRef.current) {
-                const peerObj = peerRef.current as any;
-                const connections = peerObj.connections || peerObj._connections;
-                if (connections) {
-                    Object.values(connections).forEach((connArray: any) => {
-                        connArray.forEach((conn: any) => {
-                            if (conn.peerConnection) {
-                                const senders = conn.peerConnection.getSenders();
-                                if (senders) {
-                                    const videoSender = senders.find((s: any) => s.track && s.track.kind === 'video');
-                                    const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
-                                    if (videoSender && stream.getVideoTracks()[0]) videoSender.replaceTrack(stream.getVideoTracks()[0]);
-                                    if (audioSender && stream.getAudioTracks()[0]) audioSender.replaceTrack(stream.getAudioTracks()[0]);
-                                }
-                            }
-                        });
-                    });
-                }
-                
-                // FORCE: Re-initiate connection to ensure the remote peer receives the updated stream object
-                if (remotePeerId) {
-                    try {
-                        console.log("Re-calling remote peer to ensure video stream updates", remotePeerId);
-                        peerRef.current.call(remotePeerId, stream);
-                    } catch (e) {
-                        console.error("Failed to re-call peer", e);
+            // Replace tracks in current peer calls OR start new call
+            if (peerRef.current && remotePeerId) {
+                console.log("Pushing fresh stream to remote peer (re-calling):", remotePeerId);
+                const call = peerRef.current.call(remotePeerId, stream);
+                call.on('stream', (remoteStream) => {
+                    if (remoteVideoRef.current) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.play().catch(() => {});
                     }
-                }
+                });
             }
         } catch (e) {
             console.error("Failed to refresh media:", e);
