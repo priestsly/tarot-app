@@ -69,10 +69,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Start video ON but hide it on UI level to bypass mobile WebRTC bugs
+    // Initial Media State: Video is OFF by default to save battery. We use Snapshots instead.
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(true);
+    const [remoteSnapshotUrl, setRemoteSnapshotUrl] = useState<string | null>(null);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [isAHeld, setIsAHeld] = useState(false);
     const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
@@ -660,31 +660,62 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 }
             });
 
-            socket.on('start-remote-video', () => {
-                appendLog("Görüntü aktarımı talep edildi");
-                setToastMsg({ text: "Görüntü aktarımı başlatılıyor...", sender: "Sistem" });
-                setIsVideoOff(false);
-                
-                if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
-                }
-                
-                // Unconditionally refresh media so it executes the track-replace and re-call peer logic
-                refreshLocalMedia(true).catch(err => {
-                    console.error("Auto-start video failed:", err);
-                    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
-                        setToastMsg({ text: "Kamerayı başlatmak için kutucuğa dokun!", sender: "Sistem" });
-                        setIsVideoBarVisible(true);
+            socket.on('request-snapshot', async () => {
+                console.log("Remote snapshot requested, capturing...");
+                try {
+                    // Temporarily grab camera for 1 second to take a frame
+                    const snapStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: "user", width: 480, height: 360 }, 
+                        audio: false 
+                    });
+                    
+                    const video = document.createElement('video');
+                    video.srcObject = snapStream;
+                    video.setAttribute('playsinline', 'true');
+                    
+                    await new Promise((resolve) => {
+                        video.onloadedmetadata = () => {
+                            video.play().then(resolve);
+                        };
+                    });
+
+                    // Wait for focus/light
+                    await new Promise(r => setTimeout(r, 1000));
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.save();
+                        // If it's a front camera, we might want to mirror it to match self-view, 
+                        // but for consultant seeing client, unmirrored is usually better.
+                        ctx.drawImage(video, 0, 0);
+                        ctx.restore();
                     }
-                }); 
+
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    socket.emit('snapshot-captured', roomId, dataUrl);
+
+                    // Immediately shut down camera to save battery
+                    snapStream.getTracks().forEach(t => t.stop());
+                } catch (err) {
+                    console.error("Failed to capture snapshot:", err);
+                }
             });
 
-            socket.on('stop-remote-video', () => {
-                appendLog("Görüntü aktarımı durduruldu");
-                setIsVideoOff(true);
-                if (streamRef.current) {
-                    streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
-                }
+            socket.on('snapshot-captured', (dataUrl: string) => {
+                console.log("Snapshot received from remote");
+                setRemoteSnapshotUrl(dataUrl);
+                setIsVideoBarVisible(true);
+                setToastMsg({ text: "Görüntü güncellendi 📸", sender: "Sistem" });
+                if (toastTimeout.current) clearTimeout(toastTimeout.current);
+                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            });
+
+            socket.on('start-remote-video', () => {
+                // Keep for compatibility, but now we prefer snapshots
+                socket.emit('request-snapshot', roomId);
             });
 
 
@@ -842,13 +873,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         }
 
         // 2. Setup User Media (Camera/Mic)
+        // 2. Setup User Media (Audio ONLY by default to save battery)
         navigator.mediaDevices.getUserMedia({
-            video: { 
-                facingMode: "user", 
-                width: { ideal: 320, max: 480 }, 
-                height: { ideal: 240, max: 360 },
-                frameRate: { ideal: 5, max: 8 }
-            },
+            video: false,
             audio: true
         })
             .then(stream => {
@@ -1021,12 +1048,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const refreshLocalMedia = async (forceVideo?: boolean) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: "user", 
-                    width: { ideal: 320, max: 480 }, 
-                    height: { ideal: 240, max: 360 },
-                    frameRate: { ideal: 10, max: 15 }
-                },
+                video: false,
                 audio: true
             });
             streamRef.current = stream;
@@ -1497,7 +1519,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
+        isVideoBarVisible, remoteSnapshotUrl, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,
 
@@ -1526,19 +1548,20 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
+        copyShareLink, captureScreenshot: () => {
+            // Take remote photo automatically when taking a screenshot
+            if (isConsultant) socketRef.current?.emit("request-snapshot", roomId);
+            captureScreenshot();
+        }, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
         isAHeld, setIsAHeld,
         requestRemoteVideo: () => {
-            setIsRemoteVideoVisible(true);
-            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
+            socketRef.current?.emit("request-snapshot", roomId);
+            setToastMsg({ text: "Fotoğraf talep edildi...", sender: "Sistem" });
             if (toastTimeout.current) clearTimeout(toastTimeout.current);
             toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         },
         stopRemoteVideo: () => {
-            setIsRemoteVideoVisible(false);
-            setToastMsg({ text: "Görüntü aktarımı durduruldu", sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
+            setRemoteSnapshotUrl(null);
         }
     };
 }

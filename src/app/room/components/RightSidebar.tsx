@@ -25,7 +25,7 @@ export const RightSidebar = ({
         <div className={cn(
             "absolute top-16 right-4 z-30 w-72 max-h-[calc(100vh-130px)] bg-[#1a1825] border border-border rounded-2xl flex flex-col overflow-hidden transition-all duration-500 ease-out pointer-events-auto",
             isSidebarOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8 pointer-events-none"
-        )} style={{ top: isVideoBarVisible ? 'calc(16px + 16rem)' : '64px' }}>
+        )} style={{ top: isVideoBarVisible ? '13rem' : '4rem' }}>
             <div className="p-5 space-y-4 flex-1 overflow-y-auto">
                 {/* Client Profile */}
                 {isConsultant && clientProfile && (
