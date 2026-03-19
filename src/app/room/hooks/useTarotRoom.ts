@@ -69,10 +69,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Video is OFF by default to save battery. We use Snapshots instead.
+    // Initial Media State: Video is ON but hidden (Local UI Toggle) to bypass WebRTC mobile interaction requirements
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(true);
-    const [remoteSnapshotUrl, setRemoteSnapshotUrl] = useState<string | null>(null);
+    const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
     const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
     const [isAHeld, setIsAHeld] = useState(false);
     const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
@@ -660,72 +660,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                 }
             });
 
-            socket.on('request-snapshot', async () => {
-                appendLog("📸 Görüntü isteği alındı, yakalanıyor...");
-                try {
-                    const snapStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: "user", width: { ideal: 400 }, height: { ideal: 300 } }, 
-                        audio: false 
-                    });
-                    
-                    const video = document.createElement('video');
-                    video.style.position = 'fixed';
-                    video.style.top = '-1000px';
-                    video.style.left = '-1000px';
-                    video.style.opacity = '0';
-                    video.srcObject = snapStream;
-                    video.setAttribute('playsinline', 'true');
-                    document.body.appendChild(video);
-                    
-                    await new Promise((resolve) => {
-                        video.onloadedmetadata = () => {
-                            video.play().then(resolve).catch(resolve);
-                        };
-                    });
-
-                    // Wait for focus/light
-                    await new Promise(r => setTimeout(r, 1200));
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth || 400;
-                    canvas.height = video.videoHeight || 300;
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    }
-
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-                    console.log("Snapshot captured, size:", dataUrl.length);
-                    socket.emit('snapshot-captured', roomId, dataUrl);
-
-                    // Clean up
-                    snapStream.getTracks().forEach(t => t.stop());
-                    document.body.removeChild(video);
-                    appendLog("📸 Görüntü başarıyla yakalandı ve gönderildi");
-                } catch (err: any) {
-                    console.error("Failed to capture snapshot:", err);
-                    appendLog(`❌ Görüntü alınamadı: ${err.message || 'Hata'}`);
-                }
-            });
-
-            socket.on('snapshot-captured', (dataUrl: string) => {
-                console.log("Snapshot received from remote, length:", dataUrl?.length);
-                if (dataUrl) {
-                    setRemoteSnapshotUrl(dataUrl);
-                    setIsVideoBarVisible(true);
-                    setToastMsg({ text: "Görüntü güncellendi 📸", sender: "Sistem" });
-                    appendLog("📸 Yeni görüntü alındı");
-                } else {
-                    appendLog("⚠️ Boş görüntü verisi alındı");
-                }
-                if (toastTimeout.current) clearTimeout(toastTimeout.current);
-                toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
-            });
-
-            socket.on('start-remote-video', () => {
-                // Keep for compatibility, but now we prefer snapshots
-                socket.emit('request-snapshot', roomId);
-            });
+            // Legacy socket stubs removed for clarity. Video is universally streamed now.
 
 
             // Handle user join via Presence to instantly broadcast ready state to late joiners
@@ -882,9 +817,14 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         }
 
         // 2. Setup User Media (Camera/Mic)
-        // 2. Setup User Media (Audio ONLY by default to save battery)
+        // 2. Setup User Media (Video ON but with extreme low power constraints to avoid battery drain)
         navigator.mediaDevices.getUserMedia({
-            video: false,
+            video: { 
+                facingMode: "user", 
+                width: { ideal: 240, max: 320 }, 
+                height: { ideal: 180, max: 240 },
+                frameRate: { ideal: 5, max: 10 }
+            },
             audio: true
         })
             .then(stream => {
@@ -1057,7 +997,12 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     const refreshLocalMedia = async (forceVideo?: boolean) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: false,
+                video: { 
+                    facingMode: "user", 
+                    width: { ideal: 240, max: 320 }, 
+                    height: { ideal: 180, max: 240 },
+                    frameRate: { ideal: 5, max: 10 }
+                },
                 audio: true
             });
             streamRef.current = stream;
@@ -1528,7 +1473,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, remoteSnapshotUrl, remoteFullscreen, showExitModal, isRecording,
+        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,
 
@@ -1557,20 +1502,19 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
-        copyShareLink, captureScreenshot: () => {
-            // Take remote photo automatically when taking a screenshot
-            if (isConsultant) socketRef.current?.emit("request-snapshot", roomId);
-            captureScreenshot();
-        }, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
+        copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
         isAHeld, setIsAHeld,
         requestRemoteVideo: () => {
-            socketRef.current?.emit("request-snapshot", roomId);
-            setToastMsg({ text: "Fotoğraf talep edildi...", sender: "Sistem" });
+            setIsRemoteVideoVisible(true);
+            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
             if (toastTimeout.current) clearTimeout(toastTimeout.current);
             toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         },
         stopRemoteVideo: () => {
-            setRemoteSnapshotUrl(null);
+            setIsRemoteVideoVisible(false);
+            setToastMsg({ text: "Görüntü gizlendi", sender: "Sistem" });
+            if (toastTimeout.current) clearTimeout(toastTimeout.current);
+            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
         }
     };
 }

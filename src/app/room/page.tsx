@@ -34,7 +34,7 @@ function RoomContent() {
         role, isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, remoteSnapshotUrl, remoteFullscreen, showExitModal, isRecording,
+        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor, showShareModal, fullShareUrl,
         showAurasPanel, currentAura,
@@ -281,23 +281,19 @@ function RoomContent() {
                     "absolute top-14 sm:top-16 right-2 sm:right-4 z-30 flex flex-col gap-1.5 sm:gap-2 transition-all duration-300",
                     isVideoBarVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
                 )}>
-                    {/* Remote Snapshot Box */}
+                    {/* Remote */}
                     <div className="w-24 sm:w-32 aspect-[3/4] sm:aspect-[9/16] rounded-lg sm:rounded-xl overflow-hidden glass relative group bg-black/80">
-                        <div className="absolute inset-0 cursor-pointer z-0" onClick={() => remoteSnapshotUrl && setRemoteFullscreen(true)} />
+                        <div className="absolute inset-0 cursor-pointer z-0" onClick={() => isRemoteVideoVisible && setRemoteFullscreen(true)} />
                         
-                        {remoteSnapshotUrl ? (
-                            <img src={remoteSnapshotUrl} className="w-full h-full object-cover transition-all duration-300" />
-                        ) : (
-                            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover opacity-0 pointer-events-none" />
-                        )}
+                        <video ref={remoteVideoRef} autoPlay playsInline className={cn("w-full h-full object-cover pointer-events-none transition-all duration-300", isRemoteVideoVisible ? "opacity-100" : "opacity-0 scale-105")} />
                         
-                        {!remoteSnapshotUrl && (
+                        {!isRemoteVideoVisible && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                                 <div className="text-center space-y-1">
                                     <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center">
                                         <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-accent/50" />
                                     </div>
-                                    <span className="text-[7px] sm:text-[9px] text-text-muted/60 font-mono tracking-widest block uppercase px-1">Görüntü Yok</span>
+                                    <span className="text-[7px] sm:text-[9px] text-text-muted/60 font-mono tracking-widest block uppercase px-1">Gizli Görüntü</span>
                                 </div>
                             </div>
                         )}
@@ -306,25 +302,26 @@ function RoomContent() {
                         
                         {/* Camera Controls */}
                         <div className="absolute top-1 right-1 flex gap-1 z-[100] transition-all">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
-                                className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
-                                title="Anlık Fotoğraf Al"
-                            >
-                                <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                            {remoteSnapshotUrl && (
+                            {!isRemoteVideoVisible ? (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
+                                    className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
+                                    title="Görüntüyü Gör"
+                                >
+                                    <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </button>
+                            ) : (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
                                     className="p-1 sm:p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
-                                    title="Temizle"
+                                    title="Durdur"
                                 >
                                     <X className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                             )}
                         </div>
                         
-                        {remoteSnapshotUrl && (
+                        {isRemoteVideoVisible && (
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none z-10">
                                 <Maximize className="w-5 h-5 text-white/70" />
                             </div>
@@ -437,11 +434,7 @@ function RoomContent() {
                 {/* ═══ FULLSCREEN REMOTE VIDEO OVERLAY ═══ */}
                 {remoteFullscreen && (
                     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-                        {remoteSnapshotUrl ? (
-                            <img src={remoteSnapshotUrl} className="flex-1 w-full h-full object-contain" />
-                        ) : (
-                            <video autoPlay playsInline className="flex-1 w-full h-full object-cover" ref={(el) => { if (el && remoteVideoRef.current?.srcObject) { el.srcObject = remoteVideoRef.current.srcObject; } }} />
-                        )}
+                        <video autoPlay playsInline className="flex-1 w-full h-full object-cover" ref={(el) => { if (el && remoteVideoRef.current?.srcObject) { el.srcObject = remoteVideoRef.current.srcObject; } }} />
                             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 p-2 glass rounded-2xl">
                                 <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all", isMuted ? "bg-danger/30 text-danger" : "bg-white/10 text-white hover:bg-white/20")}>
                                     {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
