@@ -668,31 +668,38 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     streamRef.current.getVideoTracks().forEach(t => t.enabled = true);
                 }
                 
-                // Alert the consultant that video is now flowing, so they can bypass WebRTC freezing
+                // Wait briefly for camera hardware/encoder to wake up, then tell consultant to initiate a fresh call
                 if (socketRef.current?.connected) {
-                    socketRef.current.emit("video-track-refreshed", roomId);
+                    setTimeout(() => {
+                        socketRef.current.emit("client-camera-ready", roomId);
+                    }, 300);
                 }
             });
 
             socket.on('stop-remote-video', () => {
-                appendLog("Görüntü aktarımı durduruldu");
+                appendLog("Görüntü gizlendi/durduruldu");
                 setIsVideoOff(true);
                 if (streamRef.current) {
                     streamRef.current.getVideoTracks().forEach(t => t.enabled = false);
                 }
             });
 
-            socket.on('video-track-refreshed', () => {
-                // Detach and re-attach stream to unfreeze video element in mobile browsers
-                if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-                    const stream = remoteVideoRef.current.srcObject;
-                    remoteVideoRef.current.srcObject = null;
-                    setTimeout(() => {
-                        if (remoteVideoRef.current) {
-                            remoteVideoRef.current.srcObject = stream;
-                            remoteVideoRef.current.play().catch(console.error);
+            socket.on('client-camera-ready', () => {
+                // Force a completely NEW WebRTC call from Consultant -> Client
+                // This bypasses ALL mobile WebRTC frozen stream bugs automatically.
+                if (peerRef.current && remotePeerId && streamRef.current) {
+                    console.log("Client camera is fully active, establishing fresh stream connection...");
+                    const call = peerRef.current.call(remotePeerId, streamRef.current);
+                    
+                    call.on('stream', remoteStream => {
+                        console.log("Received fresh remote stream (from re-call)", remoteStream.id);
+                        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+                            remoteVideoRef.current.srcObject = remoteStream;
+                            remoteVideoRef.current.onloadedmetadata = () => {
+                                remoteVideoRef.current?.play().catch(console.error);
+                            };
                         }
-                    }, 100);
+                    });
                 }
             });
 
