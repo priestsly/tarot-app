@@ -661,54 +661,63 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             });
 
             socket.on('request-snapshot', async () => {
-                console.log("Remote snapshot requested, capturing...");
+                appendLog("📸 Görüntü isteği alındı, yakalanıyor...");
                 try {
-                    // Temporarily grab camera for 1 second to take a frame
                     const snapStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: "user", width: 480, height: 360 }, 
+                        video: { facingMode: "user", width: { ideal: 400 }, height: { ideal: 300 } }, 
                         audio: false 
                     });
                     
                     const video = document.createElement('video');
+                    video.style.position = 'fixed';
+                    video.style.top = '-1000px';
+                    video.style.left = '-1000px';
+                    video.style.opacity = '0';
                     video.srcObject = snapStream;
                     video.setAttribute('playsinline', 'true');
+                    document.body.appendChild(video);
                     
                     await new Promise((resolve) => {
                         video.onloadedmetadata = () => {
-                            video.play().then(resolve);
+                            video.play().then(resolve).catch(resolve);
                         };
                     });
 
                     // Wait for focus/light
-                    await new Promise(r => setTimeout(r, 1000));
+                    await new Promise(r => setTimeout(r, 1200));
 
                     const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth || 400;
+                    canvas.height = video.videoHeight || 300;
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
-                        ctx.save();
-                        // If it's a front camera, we might want to mirror it to match self-view, 
-                        // but for consultant seeing client, unmirrored is usually better.
-                        ctx.drawImage(video, 0, 0);
-                        ctx.restore();
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     }
 
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                    console.log("Snapshot captured, size:", dataUrl.length);
                     socket.emit('snapshot-captured', roomId, dataUrl);
 
-                    // Immediately shut down camera to save battery
+                    // Clean up
                     snapStream.getTracks().forEach(t => t.stop());
-                } catch (err) {
+                    document.body.removeChild(video);
+                    appendLog("📸 Görüntü başarıyla yakalandı ve gönderildi");
+                } catch (err: any) {
                     console.error("Failed to capture snapshot:", err);
+                    appendLog(`❌ Görüntü alınamadı: ${err.message || 'Hata'}`);
                 }
             });
 
             socket.on('snapshot-captured', (dataUrl: string) => {
-                console.log("Snapshot received from remote");
-                setRemoteSnapshotUrl(dataUrl);
-                setIsVideoBarVisible(true);
-                setToastMsg({ text: "Görüntü güncellendi 📸", sender: "Sistem" });
+                console.log("Snapshot received from remote, length:", dataUrl?.length);
+                if (dataUrl) {
+                    setRemoteSnapshotUrl(dataUrl);
+                    setIsVideoBarVisible(true);
+                    setToastMsg({ text: "Görüntü güncellendi 📸", sender: "Sistem" });
+                    appendLog("📸 Yeni görüntü alındı");
+                } else {
+                    appendLog("⚠️ Boş görüntü verisi alındı");
+                }
                 if (toastTimeout.current) clearTimeout(toastTimeout.current);
                 toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
             });
