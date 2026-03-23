@@ -72,8 +72,6 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
     // Initial Media State: Audio only to save battery and focus on cards
     const [isMuted, setIsMuted] = useState(true);
     const [isVideoOff, setIsVideoOff] = useState(true); // Always true now
-    const [isAHeld, setIsAHeld] = useState(false);
-    const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
 
     // Premium UI State
     const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -243,39 +241,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    // Hold A for 2 seconds to show Camera
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-            if (e.repeat) return;
-            
-            if (e.key.toLowerCase() === 'a') {
-                setIsAHeld(true);
-                aKeyTimer.current = setTimeout(() => {
-                    setIsVideoBarVisible(true);
-                }, 2000);
-            }
-        };
 
-        const handleKeyUp = (e: KeyboardEvent) => {
-            if (e.key.toLowerCase() === 'a') {
-                setIsAHeld(false);
-                if (aKeyTimer.current) {
-                    clearTimeout(aKeyTimer.current);
-                    aKeyTimer.current = null;
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-            if (aKeyTimer.current) clearTimeout(aKeyTimer.current);
-        };
-    }, []);
 
     const tableRef = useRef<HTMLDivElement>(null);
 
@@ -1497,6 +1463,5 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
-        isAHeld, setIsAHeld,
     };
 }
