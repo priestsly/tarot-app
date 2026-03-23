@@ -961,8 +961,8 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             streamRef.current = stream;
             if (myVideoRef.current) myVideoRef.current.srcObject = stream;
             
-            // Re-apply mute/video states
-            const videoEnabled = forceVideo !== undefined ? forceVideo : !isVideoOff;
+            // Re-apply mute/video states - video is always off in our new battery-safe room
+            const videoEnabled = !isVideoOff;
             stream.getAudioTracks().forEach(t => t.enabled = !isMuted);
             stream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
             
