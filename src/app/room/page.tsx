@@ -20,6 +20,7 @@ import { AurasPanel } from './components/AurasPanel';
 import { StoryGenerator } from '@/components/StoryGenerator';
 import { AiModal } from './components/AiModal';
 import { useTarotRoom } from './hooks/useTarotRoom';
+import { MysticAuraParticles } from './components/MysticAuraParticles';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -30,30 +31,24 @@ function RoomContent() {
     const roomId = searchParams.get('id') || 'lobby';
 
     const {
-        // State
         role, isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
+        showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor, showShareModal, fullShareUrl,
         showAurasPanel, currentAura,
-
-        // Setters
-        setIsSidebarOpen, setChatInput, setIsChatOpen, setRemoteFullscreen,
+        isConnecting, localReady, remoteReady, pingedCardId,
+        setIsSidebarOpen, setLocalReady,
+        setChatInput, setIsChatOpen,
         setShowExitModal, setShowShareModal, setShowEmojiPicker, setSelectedCardId, setAiResponse,
         setShowAurasPanel, handleAuraChange,
-
-        // Refs
-        messagesEndRef, myVideoRef, remoteVideoRef, tableRef,
-
-        // Handlers
+        messagesEndRef, myVideoRef, tableRef,
         copyRoomId, toggleMute, toggleVideo, handleAiInterpret, handleClearTable,
         handleTyping, startRecording, stopRecording, handleSendMessage, onEmojiClick,
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
-        isAHeld, requestRemoteVideo, stopRemoteVideo,
-        isConnecting, localReady, remoteReady, setLocalReady, pingedCardId
+        isAHeld, setIsAHeld,
     } = useTarotRoom(roomId, searchParams);
 
     const [showStoryGen, setShowStoryGen] = useState(false);
@@ -118,6 +113,7 @@ function RoomContent() {
                 />
 
                 <FogOverlay />
+                <MysticAuraParticles auraColor={auraColor} />
 
                 {/* ── Top Center: Sacred Action Menu ── */}
                 {isConsultant && clientProfile?.pkgId !== 'relation' && cards.length > 0 && (
@@ -272,71 +268,16 @@ function RoomContent() {
                     setShowShareModal={setShowShareModal}
                     handleClearTable={handleClearTable}
                     refreshLocalMedia={refreshLocalMedia}
-                    requestRemoteVideo={requestRemoteVideo}
-                    stopRemoteVideo={stopRemoteVideo}
                 />
 
-                {/* ═══ PiP VIDEO (floating, top-right) — always in DOM to keep stream ═══ */}
-                <div className={cn(
-                    "absolute top-14 sm:top-16 right-2 sm:right-4 z-30 flex flex-col gap-1.5 sm:gap-2 transition-all duration-300",
-                    isVideoBarVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
-                )}>
-                    {/* Remote */}
-                    <div className="w-24 sm:w-32 aspect-[3/4] sm:aspect-[9/16] rounded-lg sm:rounded-xl overflow-hidden glass relative group bg-black/80">
-                        <div className="absolute inset-0 cursor-pointer z-0" onClick={() => isRemoteVideoVisible && setRemoteFullscreen(true)} />
-                        
-                        <video ref={remoteVideoRef} autoPlay playsInline className={cn("w-full h-full object-cover pointer-events-none transition-all duration-300", isRemoteVideoVisible ? "opacity-100" : "opacity-0 scale-105")} />
-                        
-                        {!isRemoteVideoVisible && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                <div className="text-center space-y-1">
-                                    <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center">
-                                        <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-accent/50" />
-                                    </div>
-                                    <span className="text-[7px] sm:text-[9px] text-text-muted/60 font-mono tracking-widest block uppercase px-1">Gizli Görüntü</span>
-                                </div>
-                            </div>
-                        )}
-                        
-                        <div className="absolute top-0.5 left-1 px-1 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[7px] sm:text-[8px] text-accent font-semibold tracking-wider uppercase pointer-events-none z-10">Karşı</div>
-                        
-                        {/* Camera Controls */}
-                        <div className="absolute top-1 right-1 flex gap-1 z-[100] transition-all">
-                            {!isRemoteVideoVisible ? (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); requestRemoteVideo(); }}
-                                    className="p-1 sm:p-2 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
-                                    title="Görüntüyü Gör"
-                                >
-                                    <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); stopRemoteVideo(); }}
-                                    className="p-1 sm:p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-md transition-all shadow-lg pointer-events-auto"
-                                    title="Durdur"
-                                >
-                                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </button>
-                            )}
-                        </div>
-                        
-                        {isRemoteVideoVisible && (
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none z-10">
-                                <Maximize className="w-5 h-5 text-white/70" />
-                            </div>
-                        )}
-                    </div>
-                    {/* Local — hidden from self, still streams to remote */}
-                    <div className="hidden">
-                        <video ref={myVideoRef} autoPlay playsInline muted />
-                    </div>
+                {/* ═══ PiP VIDEO (floating, top-right) — removed for camera-off policy ═══ */}
+                <div className="hidden">
+                    <video ref={myVideoRef} autoPlay playsInline muted />
                 </div>
 
                 {/* ═══ RIGHT DRAWER COMPONENT ═══ */}
                 <RightSidebar
                     isSidebarOpen={isSidebarOpen}
-                    isVideoBarVisible={isVideoBarVisible}
                     isConsultant={isConsultant}
                     clientProfile={clientProfile}
                     cards={cards}
@@ -431,26 +372,7 @@ function RoomContent() {
                     })()
                 }
 
-                {/* ═══ FULLSCREEN REMOTE VIDEO OVERLAY ═══ */}
-                {remoteFullscreen && (
-                    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-                        <video autoPlay playsInline className="flex-1 w-full h-full object-cover" ref={(el) => { if (el && remoteVideoRef.current?.srcObject) { el.srcObject = remoteVideoRef.current.srcObject; } }} />
-                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 p-2 glass rounded-2xl">
-                                <button onClick={toggleMute} className={cn("p-3 rounded-xl transition-all", isMuted ? "bg-danger/30 text-danger" : "bg-white/10 text-white hover:bg-white/20")}>
-                                    {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                                </button>
-                                <button onClick={() => setRemoteFullscreen(false)} className="p-3 rounded-xl bg-danger/30 text-danger hover:bg-danger/50 transition-all">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <div className="absolute top-4 left-4 glass rounded-xl px-4 py-2 flex items-center gap-3">
-                                <Clock className="w-3.5 h-3.5 text-text-muted/50" />
-                                <span className="text-xs text-text-muted font-mono">{elapsed}</span>
-                                {clientProfile && <span className="text-xs text-text font-semibold">{clientProfile.name}</span>}
-                            </div>
-                        </div>
-                    )
-                }
+                {/* ═══ FULLSCREEN OVERLAYS (EXCEPT VIDEO) ═══ */}
 
                 {/* ═══ BOTTOM TOOLBAR ═══ */}
                 <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 sm:gap-2 p-2 glass rounded-2xl sm:rounded-3xl border border-white/10">

@@ -69,11 +69,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         return () => { if (saveCardsTimeout.current) clearTimeout(saveCardsTimeout.current); };
     }, [cards, sessionId]);
 
-    // Initial Media State: Video is ON but hidden (Local UI Toggle) to bypass WebRTC mobile interaction requirements
+    // Initial Media State: Audio only to save battery and focus on cards
     const [isMuted, setIsMuted] = useState(true);
-    const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isRemoteVideoVisible, setIsRemoteVideoVisible] = useState(false);
-    const [isVideoBarVisible, setIsVideoBarVisible] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(true); // Always true now
     const [isAHeld, setIsAHeld] = useState(false);
     const aKeyTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -816,15 +814,9 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             socketRef.current.emit("user-ready", socketRef.current.id || Math.random().toString(36).substring(7));
         }
 
-        // 2. Setup User Media (Camera/Mic)
-        // 2. Setup User Media (Video ON but with extreme low power constraints to avoid battery drain)
+        // 2. Setup User Media (Audio ONLY)
         navigator.mediaDevices.getUserMedia({
-            video: { 
-                facingMode: "user", 
-                width: { ideal: 120, max: 160 }, 
-                height: { ideal: 90, max: 120 },
-                frameRate: { ideal: 4, max: 5 }
-            },
+            video: false,
             audio: true
         })
             .then(stream => {
@@ -994,15 +986,10 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         });
     }
 
-    const refreshLocalMedia = async (forceVideo?: boolean) => {
+    const refreshLocalMedia = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: "user", 
-                    width: { ideal: 120, max: 160 }, 
-                    height: { ideal: 90, max: 120 },
-                    frameRate: { ideal: 4, max: 5 }
-                },
+                video: false,
                 audio: true
             });
             streamRef.current = stream;
@@ -1309,11 +1296,11 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
                     const colIdx = i % cols;
                     const rowIdx = Math.floor(i / cols);
 
-                    // Center the grid
+                    // Center the grid with a touch of organic randomness
                     const cellWidth = 80 / cols;
                     const cellHeight = 70 / rows;
-                    xPos = (100 - (cols - 1) * cellWidth) / 2 + colIdx * cellWidth;
-                    yPos = (90 - (rows - 1) * cellHeight) / 2 + rowIdx * cellHeight;
+                    xPos = (100 - (cols - 1) * cellWidth) / 2 + colIdx * cellWidth + (Math.random() * 4 - 2);
+                    yPos = (90 - (rows - 1) * cellHeight) / 2 + rowIdx * cellHeight + (Math.random() * 4 - 2);
                 } else if (pkgId === 'standard') {
                     xPos = count === 1 ? 50 : 15 + (70 * i) / (count - 1);
                 } else if (pkgId === 'synastry') {
@@ -1345,8 +1332,15 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
             }
         }
         setMaxZIndex(prev => prev + (pkgId === 'relation' ? 1 : count));
-        setCards(prev => [...prev, ...spread]);
-        spread.forEach(c => socketRef.current?.emit("add-card", roomId, c));
+        
+        // Sequential Deal Animation
+        spread.forEach((card, index) => {
+            setTimeout(() => {
+                setCards(prev => [...prev, card]);
+                socketRef.current?.emit("add-card", roomId, card);
+                // Optional: Play a subtle card snap sound here if you have one
+            }, index * 250); // 250ms interval between cards
+        });
     }, [isConsultant, clientProfile, maxZIndex, roomId, appendLog]);
 
     // Role-based Profile Syncing
@@ -1473,7 +1467,7 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         role: isConsultant ? 'consultant' : 'client', isConsultant, clientProfile, copied, isSidebarOpen,
         cards, maxZIndex, logs, messages, chatInput, isChatOpen,
         toastMsg, aiLoading, aiResponse, remotePeerId, isMuted, isVideoOff,
-        isVideoBarVisible, isRemoteVideoVisible, remoteFullscreen, showExitModal, isRecording,
+        remoteFullscreen, showExitModal, isRecording,
         remoteTyping, showEmojiPicker, elapsed, selectedCardId, selectedCard,
         linkCopied, isAmbientOn, isFullscreen, auraColor,
 
@@ -1504,17 +1498,5 @@ export function useTarotRoom(roomId: string, searchParams: URLSearchParams) {
         handleDrawCard, handleDrawRumiCard, handleDealPackage, handlePointerDown, handleDragEnd, handleFlipEnd, handleRevealAll, handlePingCard,
         copyShareLink, captureScreenshot, toggleFullscreen, toggleAmbient, handleEndSession, refreshLocalMedia,
         isAHeld, setIsAHeld,
-        requestRemoteVideo: () => {
-            setIsRemoteVideoVisible(true);
-            setToastMsg({ text: "Görüntü aktarımı başlatıldı", sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
-        },
-        stopRemoteVideo: () => {
-            setIsRemoteVideoVisible(false);
-            setToastMsg({ text: "Görüntü gizlendi", sender: "Sistem" });
-            if (toastTimeout.current) clearTimeout(toastTimeout.current);
-            toastTimeout.current = setTimeout(() => setToastMsg(null), 3000);
-        }
     };
 }

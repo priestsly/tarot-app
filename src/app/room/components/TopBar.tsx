@@ -21,8 +21,6 @@ interface TopBarProps {
     setShowShareModal?: (v: boolean) => void;
     handleClearTable?: () => void;
     refreshLocalMedia?: () => void;
-    requestRemoteVideo?: () => void;
-    stopRemoteVideo?: () => void;
 }
 
 export const TopBar = ({
@@ -44,8 +42,6 @@ export const TopBar = ({
     setShowShareModal,
     handleClearTable,
     refreshLocalMedia,
-    requestRemoteVideo,
-    stopRemoteVideo
 }: TopBarProps) => {
     const [confirmClear, setConfirmClear] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
